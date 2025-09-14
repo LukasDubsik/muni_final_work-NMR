@@ -9,6 +9,9 @@ NC='\033[0m' # No Color
 CHECKMARK="${GREEN}\xE2\x9C\x94${NC}"
 CROSS="${RED}\xE2\x9C\x98${NC}"
 
+#Export for all scripts to run from here on
+export RED GREEN NC CHECKMARK CROSS
+
 #Some basic variables
 filename="inputs/sim.txt"
 line_number=0
@@ -40,6 +43,60 @@ file_iterate(){
             return 0
         fi
     done
+}
+
+#Check for given .in file
+check_in_file(){
+    pattern=$1
+    file_iterate $pattern
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} ${pattern} not specified in $filename! Required for NMR!${NC}"
+        exit 1
+    else
+        #Check that it ends in .in
+        check=$(echo $res | grep -E '\.in$')
+        if [[ -z $check ]]; then
+            echo -e "\t\t[$CROSS] ${RED} ${pattern} in $filename must end with .in!${NC}"
+            exit 1
+        else
+            if [[ ! -f inputs/simulation/${res} ]]; then
+                echo -e "\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
+                exit 1
+            else
+                echo -e "\t\t[$CHECKMARK] Input file ${res} found in inputs/simulation/."
+            fi
+        fi
+    fi
+}
+
+#Check for given .sh files
+check_sh_file(){
+    pattern=$1
+    file_iterate $pattern
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} ${pattern} not specified in $filename! Required as .mol2 given. If no additions to running the program just leave \"\".${NC}"
+        exit 1
+    else
+        #Check that it ends in .sh
+        check=$(echo $res | grep -E '^".*"$')
+        if [[ -z $check ]]; then
+            echo -e "\t\t[$CROSS] ${RED} ${pattern} in $filename must end with .sh!${NC}"
+            exit 1
+        else
+            res=$(echo $res | sed 's/"//g')
+            command=$(tail -n 1 scripts/${pattern}.sh)
+            #Replace the $1 by the name
+            command=$(echo $command | sed "s/\${1}/${name}/g")
+            echo -e "\t\t[$CHECKMARK] ${pattern} specified and will be run as\n\t\t\t" $command ${res}
+        fi
+    fi
+}
+
+#General script to run .sh simulation scripts
+run_sh_sim(){
+    
 }
 
 #Starting to write the log
@@ -90,3 +147,80 @@ else
 fi
 
 #Checking that all .in files are present
+echo -e "\t\t Checking if .in files present!"
+
+#Check for each .in file
+check_in_file "tleap"
+check_in_file "opt_water"
+check_in_file "opt_all"
+check_in_file "opt_temp"
+check_in_file "opt_pres"
+check_in_file "md"
+
+### Currently in process of possible additions
+
+#Check that all necessary .sh files are meantioned and present
+#If .mol2 specified, check that antechamber and parmchk2 are given
+if [[ $input_type == "mol2" ]]; then
+    echo -e "\t\t Checking if necessary .sh files present for input_type 'mol2'!"
+
+    check_sh_file "antechamber"
+    check_sh_file "parmchk2"
+fi
+
+###
+
+#Check that files and extensions to save are mentioned and extract that data
+file_iterate "extensions"
+ret=$?
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} extensions not specified in $filename! Required for moving files to data_results!${NC}"
+    exit 1
+else
+    extensions=$res
+    #Convert to array by separation with ;
+    IFS=';' read -r -a ext_array <<< "$extensions"
+    echo -e "\t\t[$CHECKMARK] Extensions to be saved are set to '$extensions'."
+fi
+
+file_iterate "files"
+ret=$?
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} files not specified in $filename! Required for moving files to data_results!${NC}"
+    exit 1
+else
+    files=$res
+    #Convert to array by separation with ;
+    IFS=';' read -r -a files_array <<< "$files"
+    echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
+fi
+
+
+#All checks done
+##Begin with simulations
+mkdir -p data_results/${name}/logs #The directory to move all results to
+
+#Starting with converting the structures .mol2 (if given) to the rst7/parm7 format
+if [[ $input_type == "mol2" ]]; then
+    echo -e "\t Starting with structure conversion from .mol2 to .rst7/.parm7 format."
+
+    #Firstly, run the antechamber program
+    echo -e "\t\t Running antechamber..."
+    bash scripts/antechamber.sh $name
+    if [[ $? -ne 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t[$CHECKMARK] Antechamber finished successfully."
+    fi
+
+    #Secondly, run the parmchk2 program
+    echo -e "\t\t Running parmchk2..."
+    bash scripts/parmchk2.sh $name
+    if [[ $? -ne 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} Parmchk2 failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t[$CHECKMARK] Parmchk2 finished successfully."
+    fi
+fi
