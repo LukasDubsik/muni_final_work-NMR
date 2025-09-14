@@ -16,6 +16,7 @@ export RED GREEN NC CHECKMARK CROSS
 filename="inputs/sim.txt"
 line_number=0
 res=""
+comm=""
 
 #Functions
 #Iterate through the "sim.txt"file
@@ -86,10 +87,10 @@ check_sh_file(){
             exit 1
         else
             res=$(echo $res | sed 's/"//g')
-            command=$(tail -n 1 scripts/${pattern}.sh)
+            com=$(tail -n 1 scripts/${pattern}.sh)
             #Replace the $1 by the name
-            command=$(echo $command | sed "s/\${1}/${name}/g")
-            echo -e "\t\t[$CHECKMARK] ${pattern} specified and will be run as\n\t\t\t" $command ${res}
+            com=$(echo $com | sed "s/\${1}/${name}/g")
+            echo -e "\t\t[$CHECKMARK] ${pattern} specified and will be run as\n\t\t\t" $com ${res}
         fi
     fi
 }
@@ -100,16 +101,20 @@ run_sh_sim(){
     script_name=$1
     path=process/$2
     hook=$3
-    mem=$4
-    ncpus=$5
+    comms=$4
+    mem=$5
+    ncpus=$6
     #Create the enviroment for running 
     mkdir -p $path
-    cp scripts/$script_name.sh $path/ || return 0
+    cp -r $hook $path/ || return 0
+    #Modify the .sh file - substitute the file name
+    sed "s/\${name}/${name}/g" scripts/$script_name.sh > $path/$script_name.sh || return 0
+    #Add the additional parametersi
+    echo $comms
+    echo $comms >> $path/$script_name.sh
     cd $path || return 0
-    cp -r $hook . || return 0
-    #Move necessary files to the directory
     #Submit the job by running through psubmit -> metacentrum
-    psubmit -l select=1:ncpus=${ncpus}:mem=${mem}gb default ${script_name}.sh || return 0
+    psubmit -ys default ${script_name}.sh ncpus=${ncpus},mem=${mem}gb || return 0
     #Remove all files except those having given extension or in files array
     for file in *; do
         #Check if file matches any of the extensions
@@ -124,6 +129,7 @@ run_sh_sim(){
         #Check if file matches any of the files
         match_file=false
         for fname in "${files_array[@]}"; do
+
             if [[ $file == $fname ]]; then
                 match_file=true
                 break
@@ -131,13 +137,16 @@ run_sh_sim(){
         done
 
         #If it doesn't match either, remove it
-        if [[ $match_ext == false && $match_file == false ]]; then
-            rm -rf "$file"
-        fi
+        #if [[ $match_ext == false && $match_file == false ]]; then
+            #rm -rf "$file"
+        #fi
     done
 
     return 1
 }
+
+#Clean everything created by previous runs or cluttering the process directory
+rm -rf process/*
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
@@ -205,7 +214,9 @@ if [[ $input_type == "mol2" ]]; then
     echo -e "\t\t Checking if necessary .sh files present for input_type 'mol2'!"
 
     check_sh_file "antechamber"
+    commands_antechamber=$res
     check_sh_file "parmchk2"
+    commands_parmchk2=$res
 fi
 
 ###
@@ -243,9 +254,9 @@ mkdir -p data_results/${name}/logs #The directory to move all results to
 #Starting with converting the structures .mol2 (if given) to the rst7/parm7 format
 if [[ $input_type == "mol2" ]]; then
     echo -e "\t Starting with structure conversion from .mol2 to .rst7/.parm7 format."
-
+    echo -e $commands_antechamber
     #Firstly, run the antechamber program
-    run_sh_sim "antechamber" "preparations/antechamber/" "../../../inputs/structures/${name}.mol2" 4 2
+    run_sh_sim "antechamber" "preparations/antechamber" "inputs/structures/${name}.mol2" "${commands_antechamber}" 4 2
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
         exit 1

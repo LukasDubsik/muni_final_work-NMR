@@ -1,0 +1,73 @@
+====================================================================================
+-------------------------------ring property (I)------------------------------------
+
+====================================================================================
+-------------------------------ring property (II)------------------------------------
+
+====================================================================================
+-------------------------------ring property (III)-----------------------------------
+atom[ 1] (H231) is not in any ring (nr[1]=1)
+atom[ 2] (H128) is not in any ring (nr[2]=1)
+atom[ 3] (C129) is not in any ring (nr[3]=1)
+atom[ 4] (H131) is not in any ring (nr[4]=1)
+atom[ 5] (C150) is not in any ring (nr[5]=1)
+atom[ 6] (H153) is not in any ring (nr[6]=1)
+atom[ 7] (C172) is not in any ring (nr[7]=1)
+atom[ 8] (O193) is not in any ring (nr[8]=1)
+atom[ 9] (O210) is not in any ring (nr[9]=1)
+atom[10] (N228) is not in any ring (nr[10]=1)
+atom[11] (H229) is not in any ring (nr[11]=1)
+atom[12] (H230) is not in any ring (nr[12]=1)
+atom[13] (S247) is not in any ring (nr[13]=1)
+atom[14] (H248) is not in any ring (nr[14]=1)
+
+====================================================================================
+-------------------------------aromatic property------------------------------------
+
+====================================================================================
+-------------------------------electronic property----------------------------------
+atom [ 1] (H231) is not an electron-withdrew atom
+atom [ 2] (H128) is not an electron-withdrew atom
+atom [ 3] (C129) is not an electron-withdrew atom
+atom [ 4] (H131) is not an electron-withdrew atom
+atom [ 5] (C150) is not an electron-withdrew atom
+atom [ 6] (H153) is not an electron-withdrew atom
+atom [ 7] (C172) is not an electron-withdrew atom
+atom [ 8] (O193) is an electron-withdrew atom
+atom [ 9] (O210) is an electron-withdrew atom
+atom [10] (N228) is an electron-withdrew atom
+atom [11] (H229) is not an electron-withdrew atom
+atom [12] (H230) is not an electron-withdrew atom
+atom [13] (S247) is an electron-withdrew atom
+atom [14] (H248) is not an electron-withdrew atom
+
+====================================================================================
+--------------------------------connectivity property-------------------------------
+atom[ 1] (H231)    10  N228
+atom[ 2] (H128)     3  C129
+atom[ 3] (C129)     5  C150
+atom[ 3] (C129)    13  S247
+atom[ 3] (C129)     4  H131
+atom[ 3] (C129)     2  H128
+atom[ 4] (H131)     3  C129
+atom[ 5] (C150)     3  C129
+atom[ 5] (C150)     7  C172
+atom[ 5] (C150)    10  N228
+atom[ 5] (C150)     6  H153
+atom[ 6] (H153)     5  C150
+atom[ 7] (C172)     5  C150
+atom[ 7] (C172)     8  O193
+atom[ 7] (C172)     9  O210
+atom[ 8] (O193)     7  C172
+atom[ 9] (O210)     7  C172
+atom[10] (N228)     5  C150
+atom[10] (N228)    11  H229
+atom[10] (N228)    12  H230
+atom[10] (N228)     1  H231
+atom[11] (H229)    10  N228
+atom[12] (H230)    10  N228
+atom[13] (S247)     3  C129
+atom[13] (S247)    14  H248
+atom[14] (H248)    13  S247
+----------------------------------------END-----------------------------------------
+
