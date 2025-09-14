@@ -96,7 +96,47 @@ check_sh_file(){
 
 #General script to run .sh simulation scripts
 run_sh_sim(){
-    
+    #Load the inputs to the function
+    script_name=$1
+    path=process/$2
+    hook=$3
+    mem=$4
+    ncpus=$5
+    #Create the enviroment for running 
+    mkdir -p $path
+    cp scripts/$script_name.sh $path/ || return 0
+    cd $path || return 0
+    cp -r $hook . || return 0
+    #Move necessary files to the directory
+    #Submit the job by running through psubmit -> metacentrum
+    psubmit -l select=1:ncpus=${ncpus}:mem=${mem}gb default ${script_name}.sh || return 0
+    #Remove all files except those having given extension or in files array
+    for file in *; do
+        #Check if file matches any of the extensions
+        match_ext=false
+        for ext in "${ext_array[@]}"; do
+            if [[ $file == *.$ext ]]; then
+                match_ext=true
+                break
+            fi
+        done
+
+        #Check if file matches any of the files
+        match_file=false
+        for fname in "${files_array[@]}"; do
+            if [[ $file == $fname ]]; then
+                match_file=true
+                break
+            fi
+        done
+
+        #If it doesn't match either, remove it
+        if [[ $match_ext == false && $match_file == false ]]; then
+            rm -rf "$file"
+        fi
+    done
+
+    return 1
 }
 
 #Starting to write the log
@@ -205,22 +245,11 @@ if [[ $input_type == "mol2" ]]; then
     echo -e "\t Starting with structure conversion from .mol2 to .rst7/.parm7 format."
 
     #Firstly, run the antechamber program
-    echo -e "\t\t Running antechamber..."
-    bash scripts/antechamber.sh $name
-    if [[ $? -ne 0 ]]; then
+    run_sh_sim "antechamber" "preparations/antechamber/" "../../../inputs/structures/${name}.mol2" 4 2
+    if [[ $? -eq 0 ]]; then
         echo -e "\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
         exit 1
     else
         echo -e "\t\t[$CHECKMARK] Antechamber finished successfully."
-    fi
-
-    #Secondly, run the parmchk2 program
-    echo -e "\t\t Running parmchk2..."
-    bash scripts/parmchk2.sh $name
-    if [[ $? -ne 0 ]]; then
-        echo -e "\t\t[$CROSS] ${RED} Parmchk2 failed! Exiting...${NC}"
-        exit 1
-    else
-        echo -e "\t\t[$CHECKMARK] Parmchk2 finished successfully."
     fi
 fi
