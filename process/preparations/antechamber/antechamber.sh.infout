@@ -1,0 +1,2099 @@
+
+>>> INFO: site init is ignored (LC_SSH_AMS_IGNORE_SITE_INIT)
+
+>>> INFO: site init is ignored (LC_SSH_AMS_IGNORE_SITE_INIT)
+
+>>> INFO: site init is ignored (LC_SSH_AMS_IGNORE_SITE_INIT)
+
+################################################################################
+#                          *** INFINITY JOB ***                                #
+#                                                                              #
+###                  Beginning of the script execution                      ####
+#                                                                              #
+# # Date: Sun Sep 14 16:57:51 CEST 2025                                      # #
+#                                                                              #
+################################################################################
+
+Initial job information (recovered from transmitted environment):
+--------------------------------------------------------------------------------
+Job ID               : 15222.wolf-pbs.ncbr.muni.cz
+Job name             : antechamber.sh
+Job name suffix      : 
+Job input machine    : wolf17.ncbr.muni.cz
+Job input dir        : /storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+Input data type      : default
+Job storage machine  : wolf.ncbr.muni.cz
+Job storage path     : /home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+Job key              : b56fe3fb-499e-57f0-9fac-519866f66de4
+------------------------------------------------------
+Hostname             : wolf31.ncbr.muni.cz
+AMS boot script      : /software/ncbr/softmods/9.0/etc/boot/bashrc.ncbr
+Site support         : support@lcc.ncbr.muni.cz
+Site name            : wolf
+ABS module version   : 4.897.824ba1d
+Job UMask            : 077
+Job host group       : wolf
+
+#-------------------------------------------------------------------------------
+# LM: Sanity checks ...
+#-------------------------------------------------------------------------------
+CUDA_VISIBLE_DEVICES is set but without contents, unsetting the variable ...
+Credentials cache: FILE:/tmp/krb5cc_pbsjob_15222.wolf-pbs.ncbr.muni.cz
+        Principal: lukasdubsik@META
+
+  Issued                Expires               Principal
+Sep 14 16:06:27 2025  Sep 15 04:06:27 2025  krbtgt/META@META
+Sep 14 16:57:51 2025  Sep 15 04:06:27 2025  afs/ics.muni.cz@META
+
+Tokens held by the Cache Manager:
+
+RxkadTokens for ics.muni.cz [Expires Sep 15 04:06]
+   --End of list--
+
+#-------------------------------------------------------------------------------
+# L0: Booting the AMS/ABS environments ...
+#-------------------------------------------------------------------------------
+
+# User identity ...
+uid=10774(lukasdubsik)
+gid=10000(ncbr)
+groups=10000(ncbr),10001(students),1103465971
+umask=0077
+
+# ams-host
+
+# Host group name: WOLF Cluster
+# Host group path: /software/ncbr/softmods/9.0/etc/host-groups/wolf.xml
+
+# Full host name      : wolf31.ncbr.muni.cz
+# Host cache key      : f89ddc2f-d4ee-4b40-96c9-4bd84b45e1e5
+# No cache loaded ...   (New cache will be valid for  1d 00:00:00)
+# ==============================================================================
+>>> default ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Configuration  : /software/ncbr/softmods/9.0/etc/default/host-subsystems/default.xml
+    Num of CPUs    : 1
+    Num of Threads : 1
+    Num of GPUs    : 0
+    Tokens         : x86_64
+>>> os ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Configuration  : /software/ncbr/softmods/9.0/etc/default/host-subsystems/os.xml
+    Distribution   : Ubuntu 24.04.3 LTS
+    Kernel         : Linux 6.8.0-79-generic
+    Virtualization : -none-
+    Architecture   : x86_64
+    Distro token   : m64-ub24
+>>> cpu ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Configuration  : /software/ncbr/softmods/9.0/etc/default/host-subsystems/cpu.xml
+    Host CPU cores : 2
+    HT enabled     : true
+    Host threads   : 2
+    Threads/Core   : 1
+    SMP CPU model  : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+    CPU vendor     : GenuineIntel
+    CPU flags      : fpu, vme, de, pse, tsc, msr, pae, mce, cx8, apic,
+                     sep, mtrr, pge, mca, cmov, pat, pse36, clflush, dts,
+                     acpi, mmx, fxsr, sse, sse2, ss, ht, tm, pbe,
+                     syscall, nx, pdpe1gb, rdtscp, lm, constant_tsc,
+                     arch_perfmon, pebs, bts, rep_good, nopl, xtopology,
+                     nonstop_tsc, cpuid, aperfmperf, pni, pclmulqdq, dtes64,
+                     monitor, ds_cpl, vmx, smx, est, tm2, ssse3, sdbg,
+                     fma, cx16, xtpr, pdcm, pcid, dca, sse4_1, sse4_2,
+                     x2apic, movbe, popcnt, tsc_deadline_timer, xsave, avx,
+                     f16c, rdrand, lahf_lm, abm, cpuid_fault, epb, pti,
+                     intel_ppin, ssbd, ibrs, ibpb, stibp, tpr_shadow,
+                     flexpriority, ept, vpid, ept_ad, fsgsbase, tsc_adjust,
+                     bmi1, avx2, smep, bmi2, erms, invpcid, cqm, xsaveopt,
+                     cqm_llc, cqm_occup_llc, dtherm, ida, arat, pln, pts,
+                     vnmi, md_clear, flush_l1d
+    CPU tokens     : intel, avx, avx2, sse4_1, sse4_2
+>>> gpu-nvidia ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Configuration  : /software/ncbr/softmods/9.0/etc/default/host-subsystems/gpu-nvidia.xml
+    CUDA device    : -none-
+    CUDA version   : 0.0
+    CUDA tokens    : -none-
+>>> gpu ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Configuration  : /software/ncbr/softmods/9.0/etc/default/host-subsystems/gpu.xml
+    Available GPUs : 0
+    Tokens         : -none-
+>>> desktop ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Configuration  : /software/ncbr/softmods/9.0/etc/default/host-subsystems/desktop.xml
+    Status         : host is not a desktop
+>>> network ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Configuration  : /software/ncbr/softmods/9.0/etc/default/host-subsystems/network.xml
+    Net devices    : lo, eno1, eno2, lo, eno1, lo, eno1
+    Net filters    : -none matching-
+    Net tokens     : -none-
+>>> compat ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Configuration  : /software/ncbr/softmods/9.0/etc/default/host-subsystems/compat.xml
+    Compat tokens  : i686, i386, noarch, m64-deb12, m64-ub22, m64-deb11,
+                     m64-ub20, m64-deb10, m64-ub18, m64-deb9, m64-centos7
+# ==============================================================================
+
+# ~~~ Host info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Full host name     : wolf31.ncbr.muni.cz
+  Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
+  Num of host CPUs   : 2    / Num of host threads : 2   
+  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
+                       m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
+                       m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
+
+# site --force init
+
+# ~~~ Site Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ [AMS 9.564.d6edb38] ~~
+  Site name  : wolf
+  Host group : WOLF Cluster                | User site flavour :         amsbase
+# ~~~ User identification~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  User name  : lukasdubsik
+  User group : ncbr [umask: 077/J files: rw------- dirs: rwx------]
+  ACL groups : compchem
+# ~~~ Host info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ [cached] ~~
+  Full host name     : wolf31.ncbr.muni.cz
+  Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
+  Num of host CPUs   : 2    / Num of host threads : 2   
+  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
+                       m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
+                       m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
+# ~~~ Site documentation and support ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Documentation  : https://infinity.ncbr.muni.cz
+  Support e-mail : support@lcc.ncbr.muni.cz (LCC Support)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# amsmodule --system add abs:4.897.824ba1d
+
+# Module specification: abs:4.897.824ba1d (add action)
+# ==============================================================================
+  INFO:    Module is active, reactivating .. 
+           Unload module : abs:4.897.824ba1d:m64-centos7:single
+  Requested CPUs     :   1  Requested GPUs     :   0
+  Num of host CPUs   :   2  Num of host GPUs   :   0
+  Requested nodes    :   1
+  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
+                       m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
+                       m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
+  Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
+  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Module maintainer  : LCC Support (support@lcc.ncbr.muni.cz) | Bundle: core
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Exported module    : abs:4.897.824ba1d
+  Module build       : abs:4.897.824ba1d:m64-centos7:single
+
+# amsmodule --system add abs-rsync
+
+# Module specification: abs-rsync (add action)
+# ==============================================================================
+  Requested CPUs     :   1  Requested GPUs     :   0
+  Num of host CPUs   :   2  Num of host GPUs   :   0
+  Requested nodes    :   1
+  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
+                       m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
+                       m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
+  Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
+  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Module maintainer  : LCC Support (support@lcc.ncbr.muni.cz) | Bundle: core
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Exported module    : abs-rsync:3.1.2
+  Module build       : abs-rsync:3.1.2:x86_64:single
+
+rsync  version 3.1.2  protocol version 31
+Copyright (C) 1996-2015 by Andrew Tridgell, Wayne Davison, and others.
+Web site: http://rsync.samba.org/
+Capabilities:
+    64-bit files, 64-bit inums, 64-bit timestamps, 64-bit long ints,
+    socketpairs, hardlinks, symlinks, IPv6, batchfiles, inplace,
+    append, no ACLs, xattrs, iconv, symtimes, prealloc
+
+rsync comes with ABSOLUTELY NO WARRANTY.  This is free software, and you
+are welcome to redistribute it under certain conditions.  See the GNU
+General Public Licence for details.
+
+# ------------------------------------------------------------------------------
+# L1: Restore job environment ...
+# ------------------------------------------------------------------------------
+# Temporary directory : /tmp
+# SSH Options         : -o StrictHostKeyChecking=no
+# Retry count         : 3
+# Retry time          : 600
+# Current directory   : /storage/wolf/home/lukasdubsik
+# Input directory     : wolf17.ncbr.muni.cz:/storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+# Storage directory   : wolf.ncbr.muni.cz:/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+
+# ------------------------------------------------------------------------------
+# L1.1: Check for SSH keys of the input and storage machines ...
+# ------------------------------------------------------------------------------
+
+# Input machine: wolf17.ncbr.muni.cz
+# >>> connecting to wolf17.ncbr.muni.cz ...
+wolf17.ncbr.muni.cz
+
+# Storage machine: wolf.ncbr.muni.cz
+# >>> connecting to wolf.ncbr.muni.cz ...
+wolf.ncbr.muni.cz
+
+# ------------------------------------------------------------------------------
+# L1.2: Restore data from info file ...
+# ------------------------------------------------------------------------------
+
+# Is the input directory local?
+  > the input dir is local and the job keys match!
+
+# Coping the job info file to the temporary directory ...
+# ------------------------------------------------------------------------------
+= inf-copy-from-inputdir:
+  > rsyncing the data from the local mount ... 
+    --chown=:ncbr /storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber/antechamber.sh.info -> /tmp/517512.lukasdubsik.info
+
+sending incremental file list
+antechamber.sh.info
+
+sent 4,339 bytes  received 35 bytes  8,748.00 bytes/sec
+total size is 4,215  speedup is 0.96
+# ------------------------------------------------------------------------------
+
+# Restoring the job environment variables ...
+# Exported modules   : -none-
+
+
+# ------------------------------------------------------------------------------
+# L2.0: Cross-host user group translation rules for rsync ...
+# ------------------------------------------------------------------------------
+# Legend: I - input machine; S - storage machine; L - local input directory;
+          W - working directory; FST - file system type
+
+I->W : --chown=:ncbr
+W->I : --chown=:ncbr
+S->W : --chown=:ncbr
+W->S : --chown=:ncbr
+L->W : --chown=:ncbr
+W->L : --chown=:ncbr
+L FST: nfs4
+
+# Input machine enabled for data : YES 
+# Input machine enabled for exec : YES
+# Surrogate machines for exec    : wolf.ncbr.muni.cz
+
+# ------------------------------------------------------------------------------
+# L2.1: Prepare the working directory ...
+# ------------------------------------------------------------------------------
+
+# Job ID             : 15222.wolf-pbs.ncbr.muni.cz
+# Main working node  : wolf31.ncbr.muni.cz
+# Work directory type: scratch-local
+# Data IN copy mode  : copy-master
+# Working directory  : $SCRATCHDIR/main
+# Working directory  : /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main
+
+# Creating working directories on the working nodes ...
+  >>> wolf31.ncbr.muni.cz:/scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main ---
+
+# Changing the current directory to the working directory ...
+
+# Tmp directory      : $SCRATCHDIR/tmp
+# Tmp directory      : /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/tmp
+
+# Creating TMP directories on the working nodes ...
+  >>> wolf31.ncbr.muni.cz:/scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/tmp ---
+
+# ------------------------------------------------------------------------------
+# L2.2: Pre-init working directory ...
+# ------------------------------------------------------------------------------
+
+# Preinit script     : -nothing to setup-
+
+# ------------------------------------------------------------------------------
+# L2.3: Filesystem states  ...
+# ------------------------------------------------------------------------------
+
+>>> wolf31.ncbr.muni.cz ---
+Filesystem               Size  Used Avail Use% Mounted on
+tmpfs                     13G  2.4M   13G   1% /run
+efivarfs                 512K  203K  305K  40% /sys/firmware/efi/efivars
+/dev/mapper/lvm-root      79G   20G   55G  26% /
+tmpfs                     63G     0   63G   0% /dev/shm
+tmpfs                    5.0M     0  5.0M   0% /run/lock
+tmpfs                    4.0M     0  4.0M   0% /sys/fs/cgroup
+tmpfs                     63G   28K   63G   1% /tmp
+/dev/mapper/lvm-scratch  789G   31M  749G   1% /scratch
+/dev/sda1                200M  5.1M  195M   3% /boot/efi
+AFS                      2.0T     0  2.0T   0% /afs
+wolf.ncbr.muni.cz:/home  3.6T  584G  2.9T  17% /home
+
+# ------------------------------------------------------------------------------
+# L2.4: Resources files ...
+# ------------------------------------------------------------------------------
+
+# PBS_NODEFILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# File: /var/spool/pbs/aux/15222.wolf-pbs.ncbr.muni.cz
+wolf31.ncbr.muni.cz
+wolf31.ncbr.muni.cz
+
+# INF_MPIFILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# File: /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main/antechamber.sh.mpinodes
+wolf31.ncbr.muni.cz slots=2
+
+# Write the job start and update the info file in the input directory ...
+# ------------------------------------------------------------------------------
+= inf-copy-to-inputdir:
+  > rsyncing the data to the local mount ... 
+    --chown=:ncbr /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main/antechamber.sh.info -> /storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber/antechamber.sh.info
+
+sending incremental file list
+antechamber.sh.info
+
+sent 4,901 bytes  received 35 bytes  9,872.00 bytes/sec
+total size is 4,777  speedup is 0.97
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# L2.5: Current node utilizations ...
+# ------------------------------------------------------------------------------
+
+>>> wolf31.ncbr.muni.cz ----------------------------------
+top - 16:57:53 up 23:35,  0 user,  load average: 0.01, 0.11, 0.06
+Tasks: 409 total,   1 running, 408 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 99.5 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st 
+MiB Mem : 128794.3 total, 126436.1 free,   1867.3 used,   1530.8 buff/cache     
+MiB Swap:  10240.0 total,  10240.0 free,      0.0 used. 126927.0 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 517624 lukasdu+  20   0    9124   5120   3072 R  16.7   0.0   0:00.02 top
+
+# ------------------------------------------------------------------------------
+# L2.6: Machine hardware info ...
+# ------------------------------------------------------------------------------
+
+# CPU info (All CPUs)
+# =============================================================================
+
+>>> wolf31.ncbr.muni.cz ---
+Architecture:                         x86_64
+CPU op-mode(s):                       32-bit, 64-bit
+Address sizes:                        46 bits physical, 48 bits virtual
+Byte Order:                           Little Endian
+CPU(s):                               32
+On-line CPU(s) list:                  0-31
+Vendor ID:                            GenuineIntel
+Model name:                           Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz
+CPU family:                           6
+Model:                                63
+Thread(s) per core:                   2
+Core(s) per socket:                   8
+Socket(s):                            2
+Stepping:                             2
+CPU(s) scaling MHz:                   42%
+CPU max MHz:                          3200.0000
+CPU min MHz:                          1200.0000
+BogoMIPS:                             4799.84
+Flags:                                fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer xsave avx f16c rdrand lahf_lm abm cpuid_fault epb pti intel_ppin ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm xsaveopt cqm_llc cqm_occup_llc dtherm ida arat pln pts vnmi md_clear flush_l1d
+Virtualization:                       VT-x
+L1d cache:                            512 KiB (16 instances)
+L1i cache:                            512 KiB (16 instances)
+L2 cache:                             4 MiB (16 instances)
+L3 cache:                             40 MiB (2 instances)
+NUMA node(s):                         2
+NUMA node0 CPU(s):                    0-7,16-23
+NUMA node1 CPU(s):                    8-15,24-31
+Vulnerability Gather data sampling:   Not affected
+Vulnerability Itlb multihit:          KVM: Mitigation: VMX disabled
+Vulnerability L1tf:                   Mitigation; PTE Inversion; VMX conditional cache flushes, SMT vulnerable
+Vulnerability Mds:                    Mitigation; Clear CPU buffers; SMT vulnerable
+Vulnerability Meltdown:               Mitigation; PTI
+Vulnerability Mmio stale data:        Mitigation; Clear CPU buffers; SMT vulnerable
+Vulnerability Reg file data sampling: Not affected
+Vulnerability Retbleed:               Not affected
+Vulnerability Spec rstack overflow:   Not affected
+Vulnerability Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:             Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:             Mitigation; Retpolines; IBPB conditional; IBRS_FW; STIBP conditional; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+Vulnerability Srbds:                  Not affected
+Vulnerability Tsx async abort:        Not affected
+
+# GPU info (ALL GPUs)
+# =============================================================================
+>>> INFO: the nvidia-smi command is not available ... skipping
+
+# infiniband (fast interconnect)
+# =============================================================================
+>>> INFO: the ibv_devinfo command is not available ... skipping
+
+# ------------------------------------------------------------------------------
+# L2.7: Machine software info ...
+# ------------------------------------------------------------------------------
+
+# ulimit (main process via pbs_mom)
+# =============================================================================
+
+>>> wolf31.ncbr.muni.cz ---
+real-time non-blocking time  (microseconds, -R) unlimited
+core file size              (blocks, -c) 0
+data seg size               (kbytes, -d) unlimited
+scheduling priority                 (-e) 0
+file size                   (blocks, -f) unlimited
+pending signals                     (-i) 514865
+max locked memory           (kbytes, -l) unlimited
+max memory size             (kbytes, -m) 4194304
+open files                          (-n) 1024
+pipe size                (512 bytes, -p) 8
+POSIX message queues         (bytes, -q) 819200
+real-time priority                  (-r) 0
+stack size                  (kbytes, -s) unlimited
+cpu time                   (seconds, -t) unlimited
+max user processes                  (-u) 514865
+virtual memory              (kbytes, -v) unlimited
+file locks                          (-x) unlimited
+
+# ulimit (computational nodes via pam_limits)
+# =============================================================================
+
+>>> wolf31.ncbr.muni.cz ---
+real-time non-blocking time  (microseconds, -R) unlimited
+core file size              (blocks, -c) 0
+data seg size               (kbytes, -d) unlimited
+scheduling priority                 (-e) 0
+file size                   (blocks, -f) unlimited
+pending signals                     (-i) 514865
+max locked memory           (kbytes, -l) unlimited
+max memory size             (kbytes, -m) 4194304
+open files                          (-n) 1024
+pipe size                (512 bytes, -p) 8
+POSIX message queues         (bytes, -q) 819200
+real-time priority                  (-r) 0
+stack size                  (kbytes, -s) unlimited
+cpu time                   (seconds, -t) unlimited
+max user processes                  (-u) 514865
+virtual memory              (kbytes, -v) unlimited
+file locks                          (-x) unlimited
+
+# IPCs
+# =============================================================================
+
+>>> wolf31.ncbr.muni.cz ---
+
+------ Message Queues --------
+key        msqid      owner      perms      used-bytes   messages    
+
+------ Shared Memory Segments --------
+key        shmid      owner      perms      bytes      nattch     status      
+0x00000000 0          zabbix     600        848        6          dest         
+0x00000000 1          zabbix     600        2409056    6          dest         
+
+------ Semaphore Arrays --------
+key        semid      owner      perms      nsems     
+
+
+# ------------------------------------------------------------------------------
+# L2.8a: Current NUMA settings on the master node ...
+# ------------------------------------------------------------------------------
+
+# Module specification: hwloc (add action)
+# ==============================================================================
+  Requested CPUs     :   2  Requested GPUs     :   0
+  Num of host CPUs   :   2  Num of host GPUs   :   0
+  Requested nodes    :   1
+  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
+                       m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
+                       m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
+  Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
+  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Module maintainer  : LCC Support (support@lcc.ncbr.muni.cz) | Bundle: devel
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Exported module    : hwloc:2.11.0
+  Module build       : hwloc:2.11.0:m64-ub22:single
+
+policy: default
+preferred node: current
+physcpubind: 0 1 
+cpubind: 0 
+nodebind: 0 
+membind: 0 1 
+preferred: 
+
+Machine (126GB total)
+  Package L#0
+    NUMANode L#0 (P#0 63GB)
+    L3 L#0 (20MB)
+      L2 L#0 (256KB) + L1d L#0 (32KB) + L1i L#0 (32KB) + Core L#0 + PU L#0 (P#0)
+      L2 L#1 (256KB) + L1d L#1 (32KB) + L1i L#1 (32KB) + Core L#1 + PU L#1 (P#1)
+    HostBridge
+      PCIBridge
+        PCIBridge
+          PCI 06:00.0 (VGA)
+      PCIBridge
+        PCI 07:00.0 (Ethernet)
+          Net "eno1"
+      PCIBridge
+        PCI 08:00.0 (Ethernet)
+          Net "eno2"
+      PCI 00:1f.2 (RAID)
+        Block(Disk) "sda"
+  Package L#1
+    NUMANode L#1 (P#1 63GB)
+
+# ------------------------------------------------------------------------------
+# L2.8b: Current NUMA settings on all nodes ...
+# ------------------------------------------------------------------------------
+# Scanning node : wolf31.ncbr.muni.cz
+# INF_HWTOPO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# File: /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main/antechamber.sh.hwtopo
+# == wolf31.ncbr.muni.cz
+>>>> CPU set: /pbs_jobs.service/jobid/15222.wolf-pbs.ncbr.muni.cz
+>>>> CPU Info ...
+Architecture:                         x86_64
+CPU op-mode(s):                       32-bit, 64-bit
+Address sizes:                        46 bits physical, 48 bits virtual
+Byte Order:                           Little Endian
+CPU(s):                               32
+On-line CPU(s) list:                  0-31
+Vendor ID:                            GenuineIntel
+Model name:                           Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz
+CPU family:                           6
+Model:                                63
+Thread(s) per core:                   2
+Core(s) per socket:                   8
+Socket(s):                            2
+Stepping:                             2
+CPU(s) scaling MHz:                   44%
+CPU max MHz:                          3200.0000
+CPU min MHz:                          1200.0000
+BogoMIPS:                             4799.84
+Flags:                                fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer xsave avx f16c rdrand lahf_lm abm cpuid_fault epb pti intel_ppin ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm xsaveopt cqm_llc cqm_occup_llc dtherm ida arat pln pts vnmi md_clear flush_l1d
+Virtualization:                       VT-x
+L1d cache:                            512 KiB (16 instances)
+L1i cache:                            512 KiB (16 instances)
+L2 cache:                             4 MiB (16 instances)
+L3 cache:                             40 MiB (2 instances)
+NUMA node(s):                         2
+NUMA node0 CPU(s):                    0-7,16-23
+NUMA node1 CPU(s):                    8-15,24-31
+Vulnerability Gather data sampling:   Not affected
+Vulnerability Itlb multihit:          KVM: Mitigation: VMX disabled
+Vulnerability L1tf:                   Mitigation; PTE Inversion; VMX conditional cache flushes, SMT vulnerable
+Vulnerability Mds:                    Mitigation; Clear CPU buffers; SMT vulnerable
+Vulnerability Meltdown:               Mitigation; PTI
+Vulnerability Mmio stale data:        Mitigation; Clear CPU buffers; SMT vulnerable
+Vulnerability Reg file data sampling: Not affected
+Vulnerability Retbleed:               Not affected
+Vulnerability Spec rstack overflow:   Not affected
+Vulnerability Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:             Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:             Mitigation; Retpolines; IBPB conditional; IBRS_FW; STIBP conditional; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+Vulnerability Srbds:                  Not affected
+Vulnerability Tsx async abort:        Not affected
+>>>> NUMA topology ...
+policy: default
+preferred node: current
+physcpubind: 0 1 
+cpubind: 0 
+nodebind: 0 
+membind: 0 1 
+preferred: 
+>>>> HWLOC topology ...
+Machine (126GB total)
+  Package L#0
+    NUMANode L#0 (P#0 63GB)
+    L3 L#0 (20MB)
+      L2 L#0 (256KB) + L1d L#0 (32KB) + L1i L#0 (32KB) + Core L#0 + PU L#0 (P#0)
+      L2 L#1 (256KB) + L1d L#1 (32KB) + L1i L#1 (32KB) + Core L#1 + PU L#1 (P#1)
+    HostBridge
+      PCIBridge
+        PCIBridge
+          PCI 06:00.0 (VGA)
+      PCIBridge
+        PCI 07:00.0 (Ethernet)
+          Net "eno1"
+      PCIBridge
+        PCI 08:00.0 (Ethernet)
+          Net "eno2"
+      PCI 00:1f.2 (RAID)
+        Block(Disk) "sda"
+  Package L#1
+    NUMANode L#1 (P#1 63GB)
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# L2.9: Determining type of executive environment ...
+#       Supported types: raw, cpuset, exclusive
+# ------------------------------------------------------------------------------
+
+# Summary of execution nodes with assigned slots ...
+# pnodes -j 15222.wolf-pbs.ncbr.muni.cz --jobs
+
+# Node Group   : compnode
+# --------------------------------------------------------------------------------------------------
+# Common properties: R018 gr_compnode hyperthreading scratch_shm
+# --------------------------------------------------------------------------------------------------
+#  Node name                S   CPUs  CPU Memory  GPUs  GPUMem Local Share  SSD  Extra properties   
+# ------------------------- - ---/--- -----/----- --/-- ------ ----- ----- ----- -------------------
+W wolf31                    O  14/ 16  121G/ 125G  0/ 0     0K  748G    0K    0K 
+++> 15222.wolf-pbs.ncbr.muni.cz(ncpus=2,slots=0/1)
+# --------------------------------------------------------------------------------------------------
+# Total number of nodes:     1
+# Total number of CPUs :    16    Total number of GPUs :     0
+# Free CPUs            :    14    Free GPUs            :     0
+
+# All properties
+# ---------------------------------------------------------------------------------------------
+# R018 gr_compnode hyperthreading reserved scratch_shm
+# ---------------------------------------------------------------------------------------------
+# Total number of nodes:     1
+# Total number of CPUs :    16    Total number of GPUs :     0
+# Free CPUs            :    14    Free GPUs            :     0
+
+
+# Maximum of available resources  ...
+# pnodes -j 15222.wolf-pbs.ncbr.muni.cz --stat
+nnodes    1
+ntotcpus  16
+ntotgpus  0
+nfreecpus 14
+nfreegpus 0
+
+INF_NNODES             = 1
+INF_MAX_NCPUS          = 16
+INF_NCPUS              = 2
+INF_MAX_NGPUS          = 0
+INF_NGPUS              = 0
+INF_MPI_SLOTS_PER_NODE = 
+INF_MPI_NCPUS          = 2
+INF_CPUSET             = /pbs_jobs.service/jobid/15222.wolf-pbs.ncbr.muni.cz
+INF_EXEC_TYPE          = cpuset
+INF_OPENMPI1_SPEC      = -report-bindings -bind-to-core
+INF_OPENMPI2_SPEC      = -display-allocation -display-map -rank-by core -map-by core -bind-to core
+INF_OPENMPI3_SPEC      = -display-allocation -display-map -rank-by core -map-by core -bind-to core
+INF_OPENMPI4_SPEC      = -display-allocation -display-map -rank-by core -map-by core -bind-to core
+INF_OPENMPI5_SPEC      = -display allocation,map -rank-by span -map-by core -bind-to core
+
+# ------------------------------------------------------------------------------
+# L2.10: Check HW resources oversubscription ...
+# ------------------------------------------------------------------------------
+# Requested CPUs:   2 <= All available CPUs:  16
+# Requested GPUs:   0 <= All available GPUs:   0
+
+# ------------------------------------------------------------------------------
+# L2.11: Job environment summary ...
+# ------------------------------------------------------------------------------
+# Variable                     Value                                            
+# ---------------------------- -------------------------------------------------
+INF_ABS_VERSION                4.897.824ba1d
+INF_ALIAS                     
+INF_AMS_SITE                   wolf
+INF_APPMEM                    
+INF_ARG_DESTINATION            default
+INF_ARG_JOB                    antechamber.sh
+INF_ARG_RESOURCES              ncpus=2,mem=4gb
+INF_AW_RSYNCOPTS               --chown=:ncbr
+INF_BACKUP_UMASK               077
+INF_BACKUP_USTORAGEGROUP       ncbr
+INF_BATCH_SERVER_GROUPNS       ncbr
+INF_BOOT_SCRIPT                /software/ncbr/softmods/9.0/etc/boot/bashrc.ncbr
+INF_CPUSET                     /pbs_jobs.service/jobid/15222.wolf-pbs.ncbr.muni.cz
+INF_CPU_MEMORY                 4gb
+INF_DATAIN                     copy-master
+INF_DATAOUT                    copy-master
+INF_DEFAULT_RESOURCES          mempercpu=1gb,worksizepercpu=1gb,workdir=scratch-local,props=gr_compnode,gpucap=cuda61
+INF_EXCLUDED_FILES            
+INF_EXEC_TYPE                  cpuset
+INF_EXPORTED_MODULES          
+INF_EXTERNAL_FLAGS            
+INF_EXTERNAL_NAME_SUFFIX      
+INF_EXTERNAL_START_AFTER      
+INF_EXTERNAL_VARIABLES        
+INF_FIXPERMS                  
+INF_GPU_MEMORY                 n.a.
+INF_HWTOPO                     /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main/antechamber.sh.hwtopo
+INF_INPUT_DATA                 default
+INF_INPUT_DIR                  /storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+INF_INPUT_MACHINE              wolf17.ncbr.muni.cz
+INF_INPUT_MACHINE_ENABLED_FOR_DATA YES
+INF_INPUT_MACHINE_ENABLED_FOR_EXEC YES
+INF_INPUT_MACHINE_GROUPNS      ncbr
+INF_INPUT_PATH_FSTYPE          nfs4:sys
+INF_IW_RSYNCOPTS               --chown=:ncbr
+INF_JOB_HOST_GROUP             wolf
+INF_JOB_ID                     15222.wolf-pbs.ncbr.muni.cz
+INF_JOB_KEY                    b56fe3fb-499e-57f0-9fac-519866f66de4
+INF_JOB_NAME                   antechamber.sh
+INF_JOB_NAME_SUFFIX           
+INF_JOB_OWNER                  lukasdubsik
+INF_JOB_PROJECT               
+INF_JOB_PROJECT_RESOURCES     
+INF_JOB_TITLE                  antechamber.sh
+INF_JOB_TYPE                   generic
+INF_LOCAL_INPUT_DATA           YES
+INF_LR                        
+INF_LW_RSYNCOPTS               --chown=:ncbr
+INF_L_FSTYPE                   nfs4
+INF_MAIN_NODE                  wolf31.ncbr.muni.cz
+INF_MAX_NCPUS                  16
+INF_MAX_NGPUS                  0
+INF_MAX_WALLTIME               86400
+INF_MPIFILE                    /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main/antechamber.sh.mpinodes
+INF_MPI_NCPUS                  2
+INF_MPI_SLOTS_PER_NODE        
+INF_NCPUS                      2
+INF_NGPUS                      0
+INF_NNODES                     1
+INF_NODEFILE                   /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main/antechamber.sh.nodes
+INF_OPENMPI1_SPEC              '-report-bindings -bind-to-core'
+INF_OPENMPI2_SPEC              '-display-allocation -display-map -rank-by core -map-by core -bind-to core'
+INF_OPENMPI3_SPEC              '-display-allocation -display-map -rank-by core -map-by core -bind-to core'
+INF_OPENMPI4_SPEC              '-display-allocation -display-map -rank-by core -map-by core -bind-to core'
+INF_OPENMPI5_SPEC              '-display allocation,map -rank-by span -map-by core -bind-to core'
+INF_QUEUE                      default
+INF_RESOURCES                  umask=077,storagegroup=ncbr,worksizepercpu=1gb,workdir=scratch-local,props=gr_compnode,batchgroup=ncbr,ncpus=2,mem=4gb,nnodes=1,datain=copy-master,dataout=copy-master,worksize=2gb,walltime=24:00:00,select=1:ncpus=2:mpiprocs=2:mem=4gb:scratch_local=2gb:gr_compnode=true
+INF_RETRY_COUNT                3
+INF_RETRY_TIME                 600
+INF_SERVER                     wolf-pbs.ncbr.muni.cz
+INF_SERVER_SHORT               W
+INF_SSH_OPTIONS                '-o StrictHostKeyChecking=no'
+INF_STORAGE_DIR                /home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+INF_STORAGE_MACHINE            wolf.ncbr.muni.cz
+INF_STORAGE_MACHINE_GROUPNS    ncbr
+INF_STORAGE_MACHINE_REALM      NCBR
+INF_STORAGE_MACHINE_REALM_FOR_INPUT_MACHINE
+INF_SURROGATE_MACHINES         wolf.ncbr.muni.cz
+INF_SW_RSYNCOPTS               --chown=:ncbr
+INF_TMP_DIR                    /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/tmp
+INF_UBATCHGROUP                ncbr
+INF_UMASK                      077
+INF_USTORAGEGROUP              ncbr
+INF_WALLTIME                   24:00:00
+INF_WHOLE_NAME                 antechamber.sh
+INF_WI_RSYNCOPTS               --chown=:ncbr
+INF_WL_RSYNCOPTS               --chown=:ncbr
+INF_WORK_DIR                   /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main
+INF_WORK_DIR_TYPE              scratch-local
+INF_WORK_PREINIT              
+INF_WORK_SIZE                  2gb
+INF_WS_RSYNCOPTS               --chown=:ncbr
+INF_W_GROUP                    ncbr
+AMS_ACTIVE_MODULES             'mc:4.8.33:m64-ub22:single|infinity-env:1.0:noarch:single|meta-storages:1.0:noarch:single|sysmodule:5.1.0:noarch:single|module-ams:1.0:noarch:single|ssh-ams:4.0:noarch:single|opengl-mux:2.2:x86_64:single|openpbs:23.06.06-4:m64-ub20:single|abs:4.897.824ba1d:m64-centos7:single|abs-rsync:3.1.2:x86_64:single|hwloc:2.11.0:m64-ub22:single'
+AMS_BASHVERSION                5.2
+AMS_BUNDLE_NAME                aisoft,bioinf,cdk,common,core,devel,docking,gpu,lcc,ncbr,protpred,python,qmsoft,rova,sbmm,strdet,strpred,visual
+AMS_BUNDLE_PATH                /software/ncbr/softrepo:/software/ncbr
+AMS_EXIT_CODE                  0
+AMS_EXPORTED_MODULES           'abs:4.897.824ba1d|abs-rsync:3.1.2|hwloc:2.11.0'
+AMS_GROUPNS                    ncbr
+AMS_HOST_CACHE                 /tmp/ams_cache.lukasdubsik.15222.wolf-pbs.ncbr.muni.cz
+AMS_HOST_GROUP                 wolf
+AMS_NCPUS                      2
+AMS_NGPUS                      0
+AMS_NHOSTCPUS                  2
+AMS_NHOSTGPUS                  0
+AMS_NNODES                     1
+AMS_NODEFILE                   /var/spool/pbs/aux/15222.wolf-pbs.ncbr.muni.cz
+AMS_REGISTRY_CONFIG            /tmp/ams_registry.lukasdubsik.15222.wolf-pbs.ncbr.muni.cz
+AMS_ROOT_V9                    /software/ncbr/softmods/9.0
+AMS_SITE                       wolf
+AMS_SITE_INFO_PRINTED          Y
+AMS_SITE_INIT_EXECUTED         Y
+AMS_SITE_SUPPORT               support@lcc.ncbr.muni.cz
+AMS_WORDBREAKS                 $' \t\n"\'@><=;|&(:'
+PBS_ENVIRONMENT                PBS_BATCH
+PBS_JOBCOOKIE                  6C711D907C0313854EEEB0757386FB2A
+PBS_JOBDIR                     /storage/wolf/home/lukasdubsik
+PBS_JOBID                      15222.wolf-pbs.ncbr.muni.cz
+PBS_JOBNAME                    antechamber.sh
+PBS_MOMPORT                    15003
+PBS_NCPUS                      2
+PBS_NGPUS                      0
+PBS_NODEFILE                   /var/spool/pbs/aux/15222.wolf-pbs.ncbr.muni.cz
+PBS_NODENUM                    0
+PBS_NUM_NODES                  1
+PBS_NUM_PPN                    2
+PBS_O_HOST                     wolf17.ncbr.muni.cz
+PBS_O_LOGNAME                  lukasdubsik
+PBS_O_QUEUE                    default
+PBS_QUEUE                      q_1d
+PBS_RESC_MEM                   4294967296
+PBS_RESC_SCRATCH_LOCAL         2147483648
+PBS_RESC_SCRATCH_VOLUME        2147483648
+PBS_RESC_TOTAL_MEM             4294967296
+PBS_RESC_TOTAL_PROCS           2
+PBS_RESC_TOTAL_SCRATCH_VOLUME  2147483648
+PBS_RESC_TOTAL_WALLTIME        86400
+PBS_TASKNUM                    1
+TORQUE_RESC_MEM                4294967296
+TORQUE_RESC_PROC               2
+TORQUE_RESC_SCRATCH_LOCAL      2147483648
+TORQUE_RESC_SCRATCH_VOLUME     2147483648
+TORQUE_RESC_TOTAL_MEM          4294967296
+TORQUE_RESC_TOTAL_PROCS        2
+TORQUE_RESC_TOTAL_SCRATCH_VOLUME 2147483648
+TORQUE_RESC_TOTAL_WALLTIME     86400
+CUDA_VISIBLE_DEVICES          
+
+# ------------------------------------------------------------------------------
+# L3: Coping the input data to the working directory ...
+# ------------------------------------------------------------------------------
+
+# Input directory    : wolf17.ncbr.muni.cz:/storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+# Storage directory  : wolf.ncbr.muni.cz:/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+# Working directory  : /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main
+# Data IN copy mode  : copy-master
+# Excluded files     : -none-
+
+# Data are copied to the main working node only ...
+# ------------------------------------------------------------------------------
+= inf-rsync-from-inputdir:
+  > Final exclusion list:
+    antechamber.sh.infout
+    antechamber.sh.infex
+    antechamber.sh.info
+    antechamber.sh.nodes
+    antechamber.sh.mpinodes
+    antechamber.sh.gpus
+    antechamber.sh.kill
+    antechamber.sh.hwtopo
+    antechamber.sh.stdout
+    *#[0-9][0-9][0-9].*
+    *+[0-9][0-9][0-9].*
+    *-[0-9][0-9][0-9].*
+    pjob[0-9][0-9][0-9]
+    .collinfo
+
+  > rsyncing from the local mount ... 
+    --chown=:ncbr /storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber/ -> /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main/
+
+sending incremental file list
+antechamber.sh
+antechamber.sh.amsreg
+antechamber.sh.infkey
+cys.mol2
+
+sent 3,266 bytes  received 92 bytes  6,716.00 bytes/sec
+total size is 2,934  speedup is 0.87
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# L4: Starting the job ...
+# ------------------------------------------------------------------------------
+
+====================== Begining of the script execution ========================
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ Started at    : Sun Sep 14 16:57:54 CEST 2025
+ Script name   : antechamber.sh
+ Script output : antechamber.sh.stdout
+ Finished at   : Sun Sep 14 16:57:55 CEST 2025
+ Exit code     : 127
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+========================= End of the script execution ==========================
+
+# ------------------------------------------------------------------------------
+# L5.1: Data in the working directory ...
+# ------------------------------------------------------------------------------
+
+>>> wolf31.ncbr.muni.cz ---
+total 72
+drwx------ 2 lukasdubsik ncbr 4096 Sep 14 16:57 .
+drwx------ 4 lukasdubsik ncbr 4096 Sep 14 16:57 ..
+-rw------- 1 lukasdubsik ncbr 1579 Sep 14 16:57 ANTECHAMBER_AC.AC
+-rw------- 1 lukasdubsik ncbr 1579 Sep 14 16:57 ANTECHAMBER_AC.AC0
+-rw------- 1 lukasdubsik ncbr 1579 Sep 14 16:57 ANTECHAMBER_BOND_TYPE.AC
+-rw------- 1 lukasdubsik ncbr 1579 Sep 14 16:57 ANTECHAMBER_BOND_TYPE.AC0
+-rw------- 1 lukasdubsik ncbr 3160 Sep 14 16:57 ATOMTYPE.INF
+-rwx------ 1 lukasdubsik ncbr  132 Sep 14 16:57 antechamber.sh
+-rw------- 1 lukasdubsik ncbr  768 Sep 14 16:57 antechamber.sh.amsreg
+-rw------- 1 lukasdubsik ncbr 3931 Sep 14 16:57 antechamber.sh.hwtopo
+-rw------- 1 lukasdubsik ncbr   37 Sep 14 16:57 antechamber.sh.infkey
+-rw------- 1 lukasdubsik ncbr 4777 Sep 14 16:57 antechamber.sh.info
+-rw------- 1 lukasdubsik ncbr   28 Sep 14 16:57 antechamber.sh.mpinodes
+-rw------- 1 lukasdubsik ncbr   40 Sep 14 16:57 antechamber.sh.nodes
+-rw------- 1 lukasdubsik ncbr 1181 Sep 14 16:57 antechamber.sh.stdout
+-rw------- 1 lukasdubsik ncbr 1997 Sep 14 16:57 cys.mol2
+-rw------- 1 lukasdubsik ncbr 1666 Sep 14 16:57 cys_charges.mol2
+Total size: 68K	.
+
+# ------------------------------------------------------------------------------
+# L5.2: Filesystem states  ...
+# ------------------------------------------------------------------------------
+
+>>> wolf31.ncbr.muni.cz ---
+Filesystem               Size  Used Avail Use% Mounted on
+tmpfs                     13G  2.4M   13G   1% /run
+efivarfs                 512K  203K  305K  40% /sys/firmware/efi/efivars
+/dev/mapper/lvm-root      79G   20G   55G  26% /
+tmpfs                     63G     0   63G   0% /dev/shm
+tmpfs                    5.0M     0  5.0M   0% /run/lock
+tmpfs                    4.0M     0  4.0M   0% /sys/fs/cgroup
+tmpfs                     63G   28K   63G   1% /tmp
+/dev/mapper/lvm-scratch  789G   31M  749G   1% /scratch
+/dev/sda1                200M  5.1M  195M   3% /boot/efi
+AFS                      2.0T     0  2.0T   0% /afs
+wolf.ncbr.muni.cz:/home  3.6T  584G  2.9T  17% /home
+
+# ------------------------------------------------------------------------------
+# L5.2: Coping the working directory to the input directory ...
+# ------------------------------------------------------------------------------
+
+# Input directory    : wolf17.ncbr.muni.cz:/storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+# Storage directory  : wolf.ncbr.muni.cz:/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber
+# Working directory  : /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main
+# Data OUT copy mode : copy-master
+
+# Data are copied from the main working node only ...
+# ------------------------------------------------------------------------------
+= inf-rsync-to-inputdir:
+  > Final exclusion list:
+    antechamber.sh.info
+
+  > rsyncing to the local mount ... 
+    --chown=:ncbr /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main/ -> /storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber//
+
+sending incremental file list
+./
+ANTECHAMBER_AC.AC
+ANTECHAMBER_AC.AC0
+ANTECHAMBER_BOND_TYPE.AC
+ANTECHAMBER_BOND_TYPE.AC0
+ATOMTYPE.INF
+antechamber.sh.hwtopo
+antechamber.sh.mpinodes
+antechamber.sh.nodes
+antechamber.sh.stdout
+cys_charges.mol2
+
+sent 17,240 bytes  received 209 bytes  34,898.00 bytes/sec
+total size is 19,256  speedup is 1.10
+# ------------------------------------------------------------------------------
+
+# Write the job end and update the info file in the input directory ...
+# ------------------------------------------------------------------------------
+= inf-copy-to-inputdir:
+  > rsyncing the data to the local mount ... 
+    --chown=:ncbr /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main/antechamber.sh.info -> /storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber/antechamber.sh.info
+
+sending incremental file list
+antechamber.sh.info
+
+sent 5,069 bytes  received 35 bytes  10,208.00 bytes/sec
+total size is 4,946  speedup is 0.97
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# L6.1: Full job info from the batch system ...
+# ------------------------------------------------------------------------------
+
+
+# Batch server  : wolf-pbs.ncbr.muni.cz (W)
+# ------------------------------------------------------------------------------
+15222.wolf-pbs.ncbr.muni.cz
+    Job_Name = antechamber.sh
+    Job_Owner = lukasdubsik@META
+    resources_used.cpupercent = 0
+    resources_used.cput = 00:00:00
+    resources_used.mem = 0b
+    resources_used.ncpus = 2
+    resources_used.vmem = 0kb
+    resources_used.walltime = 00:00:00
+    job_state = R
+    queue = q_1d
+    server = wolf-pbs.ncbr.muni.cz
+    ctime = 1757861870
+    Error_Path = wolf.ncbr.muni.cz:/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber/antechamber.sh.infout
+    exec_host = wolf31/0*2
+    exec_host2 = wolf31.ncbr.muni.cz:15002/0*2
+    exec_vnode = (wolf31:ncpus=2:mem=4194304kb:scratch_local=2097152kb)
+    group_list = ncbr
+    Join_Path = oe
+    Mail_Points = n
+    mtime = 1757861873
+    Output_Path = wolf.ncbr.muni.cz:/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber/antechamber.sh.infout
+    qtime = 1757861870
+    Rerunable = False
+    Resource_List.mem = 4gb
+    Resource_List.mpiprocs = 2
+    Resource_List.ncpus = 2
+    Resource_List.nodect = 1
+    Resource_List.place = free
+    Resource_List.scratch_local = 2gb
+    Resource_List.select = 1:ncpus=2:mpiprocs=2:mem=4gb:scratch_local=2gb:gr_compnode=true
+    Resource_List.walltime = 24:00:00
+    stime = 1757861870
+    session_id = 517483
+    jobdir = /storage/wolf/home/lukasdubsik
+    substate = 42
+    Variable_List = INF_JOB_NAME=antechamber.sh,INF_JOB_NAME_SUFFIX=,INF_INPUT_MACHINE=wolf17.ncbr.muni.cz,INF_INPUT_DIR=/storage/wolf/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber,INF_STORAGE_MACHINE=wolf.ncbr.muni.cz,INF_STORAGE_DIR=/home/lukasdubsik/muni/final_work/NMR/process/preparations/antechamber,INF_JOB_KEY=b56fe3fb-499e-57f0-9fac-519866f66de4,INF_INPUT_DATA=default,INF_BOOT_SCRIPT=/software/ncbr/softmods/9.0/etc/boot/bashrc.ncbr,INF_AMS_SITE=wolf,INF_UMASK=077,INF_ABS_VERSION=4.897.824ba1d,INF_JOB_HOST_GROUP=wolf,LC_SSH_AMS_IGNORE_SITE_INIT=Y,AMS_SITE_SUPPORT=support@lcc.ncbr.muni.cz,PBS_O_LOGNAME=lukasdubsik,PBS_O_QUEUE=default,PBS_O_HOST=wolf17.ncbr.muni.cz,SCRATCHDIR=/scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz,SCRATCH=/scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz,SINGULARITY_TMPDIR=/scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz,SINGULARITY_CACHEDIR=/scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz,SCRATCH_VOLUME=2147483648,PBS_RESC_SCRATCH_VOLUME=2147483648,TORQUE_RESC_SCRATCH_VOLUME=2147483648,SCRATCH_TYPE=local,PBS_RESC_SCRATCH_LOCAL=2147483648,TORQUE_RESC_SCRATCH_LOCAL=2147483648,PBS_RESC_TOTAL_SCRATCH_VOLUME=2147483648,TORQUE_RESC_TOTAL_SCRATCH_VOLUME=2147483648,PBS_RESC_MEM=4294967296,TORQUE_RESC_MEM=4294967296,PBS_NUM_PPN=2,PBS_NCPUS=2,TORQUE_RESC_PROC=2,PBS_NGPUS=0,PBS_RESC_TOTAL_MEM=4294967296,TORQUE_RESC_TOTAL_MEM=4294967296,PBS_RESC_TOTAL_PROCS=2,TORQUE_RESC_TOTAL_PROCS=2,PBS_NUM_NODES=1,PBS_RESC_TOTAL_WALLTIME=86400,TORQUE_RESC_TOTAL_WALLTIME=86400
+    comment = Job run at Sun Sep 14 at 16:57 on (wolf31:ncpus=2:mem=4194304kb:scratch_local=2097152kb)
+    etime = 1757861870
+    umask = 77
+    run_count = 1
+    project = _pbs_project_default
+    Submit_Host = wolf17.ncbr.muni.cz
+    credential_id = lukasdubsik@META
+    credential_validity = 1757901987
+
+
+# ------------------------------------------------------------------------------
+# L6.2: Cleaning ijobs nodes if any ...
+# ------------------------------------------------------------------------------
+
+# Working directory  : /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main
+# Data OUT copy mode : copy-master
+# Number of ijobs    : 0
+
+# ------------------------------------------------------------------------------
+# L6.3: Cleaning nodes ...
+# ------------------------------------------------------------------------------
+
+# Working directory  : /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz/main
+# Data OUT copy mode : copy-master
+# Clean directory    : $SCRATCHDIR
+# Clean directory    : /scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz
+
+# Removing the working directories on the working nodes ...
+
+>>> wolf31.ncbr.muni.cz:/scratch/lukasdubsik/job_15222.wolf-pbs.ncbr.muni.cz ---
+
+# IPCs
+# =============================================================================
+
+>>> wolf31.ncbr.muni.cz ---
+
+------ Message Queues --------
+key        msqid      owner      perms      used-bytes   messages    
+
+------ Shared Memory Segments --------
+key        shmid      owner      perms      bytes      nattch     status      
+0x00000000 0          zabbix     600        848        6          dest         
+0x00000000 1          zabbix     600        2409056    6          dest         
+
+------ Semaphore Arrays --------
+key        semid      owner      perms      nsems     
+
+
+# Cleaning IPC stuff on nodes:
+
+>>> wolf31.ncbr.muni.cz ---
+
+# ------------------------------------------------------------------------------
+# L6.4: Current node utilizations ...
+# ------------------------------------------------------------------------------
+
+>>> wolf31.ncbr.muni.cz ---
+top - 16:57:55 up 23:35,  0 user,  load average: 0.09, 0.12, 0.06
+Tasks: 409 total,   1 running, 408 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.3 us,  0.5 sy,  0.0 ni, 99.2 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st 
+MiB Mem : 128794.3 total, 126436.0 free,   1865.9 used,   1532.5 buff/cache     
+MiB Swap:  10240.0 total,  10240.0 free,      0.0 used. 126928.5 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 517943 lukasdu+  20   0    9128   5120   3072 R  16.7   0.0   0:00.03 top
+ 391313 root      20   0       0      0      0 I   8.3   0.0   0:00.66 kworker+
+
+# ------------------------------------------------------------------------------
+# L6.5: Current node kernel states ...
+# ------------------------------------------------------------------------------
+
+>>> wolf31.ncbr.muni.cz ---
+Linux wolf31 6.8.0-79-generic #79-Ubuntu SMP PREEMPT_DYNAMIC Tue Aug 12 14:42:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:15.1: [8086:2fb5] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:15.2: [8086:2fb6] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:15.3: [8086:2fb7] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:16.0: [8086:2f68] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:16.6: [8086:2f6e] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:16.7: [8086:2f6f] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.0: [8086:2fd0] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.4: [8086:2fb8] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.5: [8086:2fb9] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.6: [8086:2fba] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.7: [8086:2fbb] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.0: [8086:2f98] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.1: [8086:2f99] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.2: [8086:2f9a] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.3: [8086:2fc0] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.4: [8086:2f9c] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1f.0: [8086:2f88] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1f.2: [8086:2f8a] type 00 class 0x088000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] acpi LNXCPU:10: Entry not well-defined, consider updating BIOS
+[Sat Sep 13 17:22:17 2025] ACPI: PCI Root Bridge [PCI0] (domain 0000 [bus 00-7e])
+[Sat Sep 13 17:22:17 2025] acpi PNP0A08:00: _OSC: OS supports [ExtendedConfig ASPM ClockPM Segments MSI EDR HPX-Type3]
+[Sat Sep 13 17:22:17 2025] acpi PNP0A08:00: _OSC: platform does not support [SHPCHotplug AER LTR DPC]
+[Sat Sep 13 17:22:17 2025] acpi PNP0A08:00: _OSC: OS now controls [PCIeHotplug PME PCIeCapability]
+[Sat Sep 13 17:22:17 2025] acpi PNP0A08:00: FADT indicates ASPM is unsupported, using BIOS configuration
+[Sat Sep 13 17:22:17 2025] PCI host bridge to bus 0000:00
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: root bus resource [io  0x0000-0x03af window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: root bus resource [io  0x03e0-0x0cf7 window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: root bus resource [io  0x03b0-0x03df window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: root bus resource [io  0x1000-0x7fff window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: root bus resource [mem 0x000a0000-0x000bffff window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: root bus resource [mem 0xfedb0000-0xfedb000f window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: root bus resource [mem 0xfedc0000-0xfedc000f window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: root bus resource [mem 0x90000000-0xc7ffbfff window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: root bus resource [bus 00-7e]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:00.0: [8086:2f00] type 00 class 0x060000 PCIe Root Port
+[Sat Sep 13 17:22:17 2025] pci 0000:00:01.0: [8086:2f02] type 01 class 0x060400 PCIe Root Port
+[Sat Sep 13 17:22:17 2025] pci 0000:00:01.0: PCI bridge to [bus 01]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:01.0: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.0: [8086:2f04] type 01 class 0x060400 PCIe Root Port
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.0: PCI bridge to [bus 02]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.0: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.2: [8086:2f06] type 01 class 0x060400 PCIe Root Port
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.2: PCI bridge to [bus 03]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.2: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:03.0: [8086:2f08] type 01 class 0x060400 PCIe Root Port
+[Sat Sep 13 17:22:17 2025] pci 0000:00:03.0: PCI bridge to [bus 04]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:03.0: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.0: [8086:2f20] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.0: BAR 0 [mem 0xc732c000-0xc732ffff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.1: [8086:2f21] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.1: BAR 0 [mem 0xc7328000-0xc732bfff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.2: [8086:2f22] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.2: BAR 0 [mem 0xc7324000-0xc7327fff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.3: [8086:2f23] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.3: BAR 0 [mem 0xc7320000-0xc7323fff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.4: [8086:2f24] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.4: BAR 0 [mem 0xc731c000-0xc731ffff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.5: [8086:2f25] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.5: BAR 0 [mem 0xc7318000-0xc731bfff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.6: [8086:2f26] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.6: BAR 0 [mem 0xc7314000-0xc7317fff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.7: [8086:2f27] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.7: BAR 0 [mem 0xc7310000-0xc7313fff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.0: [8086:2f28] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.1: [8086:2f29] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.2: [8086:2f2a] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.4: [8086:2f2c] type 00 class 0x080020 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.4: BAR 0 [mem 0xc7338000-0xc7338fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:11.0: [8086:8d7c] type 00 class 0xff0000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:14.0: [8086:8d31] type 00 class 0x0c0330 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:14.0: BAR 0 [mem 0xc7300000-0xc730ffff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:14.0: PME# supported from D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:16.0: [8086:8d3a] type 00 class 0x078000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:16.0: BAR 0 [mem 0xc7337000-0xc733700f 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:16.0: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:16.1: [8086:8d3b] type 00 class 0x078000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:16.1: BAR 0 [mem 0xc7336000-0xc733600f 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:16.1: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1a.0: [8086:8d2d] type 00 class 0x0c0320 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1a.0: BAR 0 [mem 0xc7334000-0xc73343ff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1a.0: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0: [8086:8d10] type 01 class 0x060400 PCIe Root Port
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0: PCI bridge to [bus 05-06]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0:   bridge window [io  0x6000-0x6fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0:   bridge window [mem 0xc6000000-0xc70fffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0: Enabling MPC IRBNCE
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0: Intel PCH root port ACS workaround enabled
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2: [8086:8d14] type 01 class 0x060400 PCIe Root Port
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2: PCI bridge to [bus 07]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2:   bridge window [io  0x5000-0x5fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2:   bridge window [mem 0xc7200000-0xc72fffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2: Enabling MPC IRBNCE
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2: Intel PCH root port ACS workaround enabled
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3: [8086:8d16] type 01 class 0x060400 PCIe Root Port
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3: PCI bridge to [bus 08]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3:   bridge window [io  0x4000-0x4fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3:   bridge window [mem 0xc7100000-0xc71fffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3: Enabling MPC IRBNCE
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3: Intel PCH root port ACS workaround enabled
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1d.0: [8086:8d26] type 00 class 0x0c0320 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1d.0: BAR 0 [mem 0xc7333000-0xc73333ff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1d.0: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.0: [8086:8d44] type 00 class 0x060100 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.2: [8086:2826] type 00 class 0x010400 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.2: BAR 0 [io  0x7050-0x7057]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.2: BAR 1 [io  0x7040-0x7043]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.2: BAR 2 [io  0x7030-0x7037]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.2: BAR 3 [io  0x7020-0x7023]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.2: BAR 4 [io  0x7000-0x701f]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.2: BAR 5 [mem 0xc7332000-0xc73327ff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.2: PME# supported from D3hot
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.3: [8086:8d22] type 00 class 0x0c0500 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.3: BAR 0 [mem 0xc7331000-0xc73310ff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.3: BAR 4 [io  0x0580-0x059f]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.6: [8086:8d24] type 00 class 0x118000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.6: BAR 0 [mem 0xc7330000-0xc7330fff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:01.0: PCI bridge to [bus 01]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.0: PCI bridge to [bus 02]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.2: PCI bridge to [bus 03]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:03.0: PCI bridge to [bus 04]
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0: [1a03:1150] type 01 class 0x060400 PCIe to PCI/PCI-X bridge
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0: PCI bridge to [bus 06]
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0:   bridge window [io  0x6000-0x6fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0:   bridge window [mem 0xc6000000-0xc70fffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0: enabling Extended Tags
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0: supports D1 D2
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0: PME# supported from D0 D1 D2 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0: PCI bridge to [bus 05-06]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:06: extended config space not accessible
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: [1a03:2000] type 00 class 0x030000 conventional PCI endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: BAR 0 [mem 0xc6000000-0xc6ffffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: BAR 1 [mem 0xc7000000-0xc701ffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: BAR 2 [io  0x6000-0x607f]
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: Video device with shadowed ROM at [mem 0x000c0000-0x000dffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: supports D1 D2
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: PME# supported from D0 D1 D2 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0: PCI bridge to [bus 06]
+[Sat Sep 13 17:22:17 2025] pci 0000:07:00.0: working around ROM BAR overlap defect
+[Sat Sep 13 17:22:17 2025] pci 0000:07:00.0: [8086:1533] type 00 class 0x020000 PCIe Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:07:00.0: BAR 0 [mem 0xc7200000-0xc727ffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:07:00.0: BAR 2 [io  0x5000-0x501f]
+[Sat Sep 13 17:22:17 2025] pci 0000:07:00.0: BAR 3 [mem 0xc7280000-0xc7283fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:07:00.0: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2: PCI bridge to [bus 07]
+[Sat Sep 13 17:22:17 2025] pci 0000:08:00.0: working around ROM BAR overlap defect
+[Sat Sep 13 17:22:17 2025] pci 0000:08:00.0: [8086:1533] type 00 class 0x020000 PCIe Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:08:00.0: BAR 0 [mem 0xc7100000-0xc717ffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:08:00.0: BAR 2 [io  0x4000-0x401f]
+[Sat Sep 13 17:22:17 2025] pci 0000:08:00.0: BAR 3 [mem 0xc7180000-0xc7183fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:08:00.0: PME# supported from D0 D3hot D3cold
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3: PCI bridge to [bus 08]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: on NUMA node 0
+[Sat Sep 13 17:22:17 2025] ACPI: PCI Root Bridge [PCI1] (domain 0000 [bus 80-fe])
+[Sat Sep 13 17:22:17 2025] acpi PNP0A08:01: _OSC: OS supports [ExtendedConfig ASPM ClockPM Segments MSI EDR HPX-Type3]
+[Sat Sep 13 17:22:17 2025] acpi PNP0A08:01: _OSC: platform does not support [SHPCHotplug AER LTR DPC]
+[Sat Sep 13 17:22:17 2025] acpi PNP0A08:01: _OSC: OS now controls [PCIeHotplug PME PCIeCapability]
+[Sat Sep 13 17:22:17 2025] acpi PNP0A08:01: FADT indicates ASPM is unsupported, using BIOS configuration
+[Sat Sep 13 17:22:17 2025] PCI host bridge to bus 0000:80
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:80: root bus resource [io  0x8000-0xffff window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:80: root bus resource [mem 0xc8000000-0xfbffbfff window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:80: root bus resource [bus 80-fe]
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.0: [8086:2f20] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.0: BAR 0 [mem 0xfbf1c000-0xfbf1ffff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.1: [8086:2f21] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.1: BAR 0 [mem 0xfbf18000-0xfbf1bfff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.2: [8086:2f22] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.2: BAR 0 [mem 0xfbf14000-0xfbf17fff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.3: [8086:2f23] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.3: BAR 0 [mem 0xfbf10000-0xfbf13fff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.4: [8086:2f24] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.4: BAR 0 [mem 0xfbf0c000-0xfbf0ffff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.5: [8086:2f25] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.5: BAR 0 [mem 0xfbf08000-0xfbf0bfff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.6: [8086:2f26] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.6: BAR 0 [mem 0xfbf04000-0xfbf07fff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.7: [8086:2f27] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.7: BAR 0 [mem 0xfbf00000-0xfbf03fff 64bit]
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.0: [8086:2f28] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.1: [8086:2f29] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.2: [8086:2f2a] type 00 class 0x088000 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.4: [8086:2f2c] type 00 class 0x080020 PCIe Root Complex Integrated Endpoint
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.4: BAR 0 [mem 0xfbf20000-0xfbf20fff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:80: on NUMA node 1
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKA configured for IRQ 0
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKA disabled
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKB configured for IRQ 0
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKB disabled
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKC configured for IRQ 0
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKC disabled
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKD configured for IRQ 0
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKD disabled
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKE configured for IRQ 0
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKE disabled
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKF configured for IRQ 0
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKF disabled
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKG configured for IRQ 0
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKG disabled
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKH configured for IRQ 0
+[Sat Sep 13 17:22:17 2025] ACPI: PCI: Interrupt link LNKH disabled
+[Sat Sep 13 17:22:17 2025] iommu: Default domain type: Translated
+[Sat Sep 13 17:22:17 2025] iommu: DMA domain TLB invalidation policy: lazy mode
+[Sat Sep 13 17:22:17 2025] SCSI subsystem initialized
+[Sat Sep 13 17:22:17 2025] libata version 3.00 loaded.
+[Sat Sep 13 17:22:17 2025] ACPI: bus type USB registered
+[Sat Sep 13 17:22:17 2025] usbcore: registered new interface driver usbfs
+[Sat Sep 13 17:22:17 2025] usbcore: registered new interface driver hub
+[Sat Sep 13 17:22:17 2025] usbcore: registered new device driver usb
+[Sat Sep 13 17:22:17 2025] pps_core: LinuxPPS API ver. 1 registered
+[Sat Sep 13 17:22:17 2025] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[Sat Sep 13 17:22:17 2025] PTP clock support registered
+[Sat Sep 13 17:22:17 2025] EDAC MC: Ver: 3.0.0
+[Sat Sep 13 17:22:17 2025] efivars: Registered efivars operations
+[Sat Sep 13 17:22:17 2025] NetLabel: Initializing
+[Sat Sep 13 17:22:17 2025] NetLabel:  domain hash size = 128
+[Sat Sep 13 17:22:17 2025] NetLabel:  protocols = UNLABELED CIPSOv4 CALIPSO
+[Sat Sep 13 17:22:17 2025] NetLabel:  unlabeled traffic allowed by default
+[Sat Sep 13 17:22:17 2025] mctp: management component transport protocol core
+[Sat Sep 13 17:22:17 2025] NET: Registered PF_MCTP protocol family
+[Sat Sep 13 17:22:17 2025] PCI: Using ACPI for IRQ routing
+[Sat Sep 13 17:22:17 2025] PCI: pci_cache_line_size set to 64 bytes
+[Sat Sep 13 17:22:17 2025] e820: reserve RAM buffer [mem 0x0003f000-0x0003ffff]
+[Sat Sep 13 17:22:17 2025] e820: reserve RAM buffer [mem 0x6f44e018-0x6fffffff]
+[Sat Sep 13 17:22:17 2025] e820: reserve RAM buffer [mem 0x6f466018-0x6fffffff]
+[Sat Sep 13 17:22:17 2025] e820: reserve RAM buffer [mem 0x6f477018-0x6fffffff]
+[Sat Sep 13 17:22:17 2025] e820: reserve RAM buffer [mem 0x6f488018-0x6fffffff]
+[Sat Sep 13 17:22:17 2025] e820: reserve RAM buffer [mem 0x76f8c000-0x77ffffff]
+[Sat Sep 13 17:22:17 2025] e820: reserve RAM buffer [mem 0x791c3000-0x7bffffff]
+[Sat Sep 13 17:22:17 2025] e820: reserve RAM buffer [mem 0x7bd53000-0x7bffffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: vgaarb: setting as boot VGA device
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: vgaarb: bridge control possible
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
+[Sat Sep 13 17:22:17 2025] vgaarb: loaded
+[Sat Sep 13 17:22:17 2025] hpet0: at MMIO 0xfed00000, IRQs 2, 8, 0, 0, 0, 0, 0, 0
+[Sat Sep 13 17:22:17 2025] hpet0: 8 comparators, 64-bit 14.318180 MHz counter
+[Sat Sep 13 17:22:17 2025] clocksource: Switched to clocksource tsc-early
+[Sat Sep 13 17:22:17 2025] VFS: Disk quotas dquot_6.6.0
+[Sat Sep 13 17:22:17 2025] VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
+[Sat Sep 13 17:22:17 2025] AppArmor: AppArmor Filesystem Enabled
+[Sat Sep 13 17:22:17 2025] pnp: PnP ACPI init
+[Sat Sep 13 17:22:17 2025] system 00:01: [io  0x0500-0x057f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [io  0x0400-0x047f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [io  0x0580-0x059f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [io  0x0600-0x061f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [io  0x0880-0x0883] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [io  0x0800-0x081f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [mem 0xfed1c000-0xfed3ffff] could not be reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [mem 0xfed45000-0xfed8bfff] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [mem 0xff000000-0xffffffff] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [mem 0xfee00000-0xfeefffff] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [mem 0xfed12000-0xfed1200f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [mem 0xfed12010-0xfed1201f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:01: [mem 0xfed1b000-0xfed1bfff] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:02: [io  0x0a00-0x0a0f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:02: [io  0x0a10-0x0a1f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:02: [io  0x0a20-0x0a2f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:02: [io  0x0a30-0x0a3f] has been reserved
+[Sat Sep 13 17:22:17 2025] system 00:02: [io  0x0a40-0x0a4f] has been reserved
+[Sat Sep 13 17:22:17 2025] pnp 00:03: [dma 0 disabled]
+[Sat Sep 13 17:22:17 2025] pnp 00:04: [dma 0 disabled]
+[Sat Sep 13 17:22:17 2025] pnp: PnP ACPI: found 5 devices
+[Sat Sep 13 17:22:17 2025] clocksource: acpi_pm: mask: 0xffffff max_cycles: 0xffffff, max_idle_ns: 2085701024 ns
+[Sat Sep 13 17:22:17 2025] NET: Registered PF_INET protocol family
+[Sat Sep 13 17:22:17 2025] IP idents hash table entries: 262144 (order: 9, 2097152 bytes, vmalloc)
+[Sat Sep 13 17:22:17 2025] tcp_listen_portaddr_hash hash table entries: 65536 (order: 8, 1048576 bytes, vmalloc)
+[Sat Sep 13 17:22:17 2025] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, vmalloc)
+[Sat Sep 13 17:22:17 2025] TCP established hash table entries: 524288 (order: 10, 4194304 bytes, vmalloc hugepage)
+[Sat Sep 13 17:22:17 2025] TCP bind hash table entries: 65536 (order: 9, 2097152 bytes, vmalloc)
+[Sat Sep 13 17:22:17 2025] TCP: Hash tables configured (established 524288 bind 65536)
+[Sat Sep 13 17:22:17 2025] MPTCP token hash table entries: 65536 (order: 8, 1572864 bytes, vmalloc)
+[Sat Sep 13 17:22:17 2025] UDP hash table entries: 65536 (order: 9, 2097152 bytes, vmalloc)
+[Sat Sep 13 17:22:17 2025] UDP-Lite hash table entries: 65536 (order: 9, 2097152 bytes, vmalloc)
+[Sat Sep 13 17:22:17 2025] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[Sat Sep 13 17:22:17 2025] NET: Registered PF_XDP protocol family
+[Sat Sep 13 17:22:17 2025] pci 0000:00:01.0: PCI bridge to [bus 01]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.0: PCI bridge to [bus 02]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.2: PCI bridge to [bus 03]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:03.0: PCI bridge to [bus 04]
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0: PCI bridge to [bus 06]
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0:   bridge window [io  0x6000-0x6fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0:   bridge window [mem 0xc6000000-0xc70fffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0: PCI bridge to [bus 05-06]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0:   bridge window [io  0x6000-0x6fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0:   bridge window [mem 0xc6000000-0xc70fffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2: PCI bridge to [bus 07]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2:   bridge window [io  0x5000-0x5fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2:   bridge window [mem 0xc7200000-0xc72fffff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3: PCI bridge to [bus 08]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3:   bridge window [io  0x4000-0x4fff]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3:   bridge window [mem 0xc7100000-0xc71fffff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: resource 4 [io  0x0000-0x03af window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: resource 5 [io  0x03e0-0x0cf7 window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: resource 6 [io  0x03b0-0x03df window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: resource 7 [io  0x1000-0x7fff window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: resource 8 [mem 0x000a0000-0x000bffff window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: resource 9 [mem 0xfedb0000-0xfedb000f window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: resource 10 [mem 0xfedc0000-0xfedc000f window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:00: resource 11 [mem 0x90000000-0xc7ffbfff window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:05: resource 0 [io  0x6000-0x6fff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:05: resource 1 [mem 0xc6000000-0xc70fffff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:06: resource 0 [io  0x6000-0x6fff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:06: resource 1 [mem 0xc6000000-0xc70fffff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:07: resource 0 [io  0x5000-0x5fff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:07: resource 1 [mem 0xc7200000-0xc72fffff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:08: resource 0 [io  0x4000-0x4fff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:08: resource 1 [mem 0xc7100000-0xc71fffff]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:80: resource 4 [io  0x8000-0xffff window]
+[Sat Sep 13 17:22:17 2025] pci_bus 0000:80: resource 5 [mem 0xc8000000-0xfbffbfff window]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.0: disabled boot interrupts on device [8086:2f28]
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1a.0: quirk_usb_early_handoff+0x0/0x190 took 16149 usecs
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1d.0: quirk_usb_early_handoff+0x0/0x190 took 15643 usecs
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.0: disabled boot interrupts on device [8086:2f28]
+[Sat Sep 13 17:22:17 2025] PCI: CLS 64 bytes, default 64
+[Sat Sep 13 17:22:17 2025] DMAR: No SATC found
+[Sat Sep 13 17:22:17 2025] Trying to unpack rootfs image as initramfs...
+[Sat Sep 13 17:22:17 2025] DMAR: dmar0: Using Queued invalidation
+[Sat Sep 13 17:22:17 2025] DMAR: dmar1: Using Queued invalidation
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.0: Adding to iommu group 0
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.1: Adding to iommu group 1
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.2: Adding to iommu group 2
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.3: Adding to iommu group 3
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.4: Adding to iommu group 4
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.5: Adding to iommu group 5
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.6: Adding to iommu group 6
+[Sat Sep 13 17:22:17 2025] pci 0000:80:04.7: Adding to iommu group 7
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:08.0: Adding to iommu group 8
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:08.2: Adding to iommu group 8
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:08.3: Adding to iommu group 8
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0b.0: Adding to iommu group 9
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0b.1: Adding to iommu group 9
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0b.2: Adding to iommu group 9
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0c.0: Adding to iommu group 10
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0c.1: Adding to iommu group 10
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0c.2: Adding to iommu group 10
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0c.3: Adding to iommu group 10
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0c.4: Adding to iommu group 10
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0c.5: Adding to iommu group 10
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0c.6: Adding to iommu group 10
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0c.7: Adding to iommu group 10
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0f.0: Adding to iommu group 11
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0f.1: Adding to iommu group 11
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0f.4: Adding to iommu group 11
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0f.5: Adding to iommu group 11
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:0f.6: Adding to iommu group 11
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:10.0: Adding to iommu group 12
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:10.1: Adding to iommu group 12
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:10.5: Adding to iommu group 12
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:10.6: Adding to iommu group 12
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:10.7: Adding to iommu group 12
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:12.0: Adding to iommu group 13
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:12.1: Adding to iommu group 13
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:13.0: Adding to iommu group 14
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:13.1: Adding to iommu group 14
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:13.2: Adding to iommu group 14
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:13.3: Adding to iommu group 14
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:13.4: Adding to iommu group 14
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:13.5: Adding to iommu group 14
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:13.6: Adding to iommu group 14
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:13.7: Adding to iommu group 14
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:14.0: Adding to iommu group 15
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:14.1: Adding to iommu group 15
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:14.2: Adding to iommu group 15
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:14.3: Adding to iommu group 15
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:14.6: Adding to iommu group 15
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:14.7: Adding to iommu group 15
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:15.0: Adding to iommu group 16
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:15.1: Adding to iommu group 16
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:15.2: Adding to iommu group 16
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:15.3: Adding to iommu group 16
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:16.0: Adding to iommu group 17
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:16.6: Adding to iommu group 17
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:16.7: Adding to iommu group 17
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:17.0: Adding to iommu group 18
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:17.4: Adding to iommu group 18
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:17.5: Adding to iommu group 18
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:17.6: Adding to iommu group 18
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:17.7: Adding to iommu group 18
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:1e.0: Adding to iommu group 19
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:1e.1: Adding to iommu group 19
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:1e.2: Adding to iommu group 19
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:1e.3: Adding to iommu group 19
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:1e.4: Adding to iommu group 19
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:1f.0: Adding to iommu group 20
+[Sat Sep 13 17:22:17 2025] pci 0000:ff:1f.2: Adding to iommu group 20
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:08.0: Adding to iommu group 21
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:08.2: Adding to iommu group 21
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:08.3: Adding to iommu group 21
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0b.0: Adding to iommu group 22
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0b.1: Adding to iommu group 22
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0b.2: Adding to iommu group 22
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0c.0: Adding to iommu group 23
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0c.1: Adding to iommu group 23
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0c.2: Adding to iommu group 23
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0c.3: Adding to iommu group 23
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0c.4: Adding to iommu group 23
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0c.5: Adding to iommu group 23
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0c.6: Adding to iommu group 23
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0c.7: Adding to iommu group 23
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0f.0: Adding to iommu group 24
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0f.1: Adding to iommu group 24
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0f.4: Adding to iommu group 24
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0f.5: Adding to iommu group 24
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:0f.6: Adding to iommu group 24
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:10.0: Adding to iommu group 25
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:10.1: Adding to iommu group 25
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:10.5: Adding to iommu group 25
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:10.6: Adding to iommu group 25
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:10.7: Adding to iommu group 25
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:12.0: Adding to iommu group 26
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:12.1: Adding to iommu group 26
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:13.0: Adding to iommu group 27
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:13.1: Adding to iommu group 27
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:13.2: Adding to iommu group 27
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:13.3: Adding to iommu group 27
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:13.4: Adding to iommu group 27
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:13.5: Adding to iommu group 27
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:13.6: Adding to iommu group 27
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:13.7: Adding to iommu group 27
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:14.0: Adding to iommu group 28
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:14.1: Adding to iommu group 28
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:14.2: Adding to iommu group 28
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:14.3: Adding to iommu group 28
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:14.6: Adding to iommu group 28
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:14.7: Adding to iommu group 28
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:15.0: Adding to iommu group 29
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:15.1: Adding to iommu group 29
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:15.2: Adding to iommu group 29
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:15.3: Adding to iommu group 29
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:16.0: Adding to iommu group 30
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:16.6: Adding to iommu group 30
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:16.7: Adding to iommu group 30
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.0: Adding to iommu group 31
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.4: Adding to iommu group 31
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.5: Adding to iommu group 31
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.6: Adding to iommu group 31
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:17.7: Adding to iommu group 31
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.0: Adding to iommu group 32
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.1: Adding to iommu group 32
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.2: Adding to iommu group 32
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.3: Adding to iommu group 32
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1e.4: Adding to iommu group 32
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1f.0: Adding to iommu group 33
+[Sat Sep 13 17:22:17 2025] pci 0000:7f:1f.2: Adding to iommu group 33
+[Sat Sep 13 17:22:17 2025] pci 0000:00:00.0: Adding to iommu group 34
+[Sat Sep 13 17:22:17 2025] pci 0000:00:01.0: Adding to iommu group 35
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.0: Adding to iommu group 36
+[Sat Sep 13 17:22:17 2025] pci 0000:00:02.2: Adding to iommu group 37
+[Sat Sep 13 17:22:17 2025] pci 0000:00:03.0: Adding to iommu group 38
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.0: Adding to iommu group 39
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.1: Adding to iommu group 40
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.2: Adding to iommu group 41
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.3: Adding to iommu group 42
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.4: Adding to iommu group 43
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.5: Adding to iommu group 44
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.6: Adding to iommu group 45
+[Sat Sep 13 17:22:17 2025] pci 0000:00:04.7: Adding to iommu group 46
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.0: Adding to iommu group 47
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.1: Adding to iommu group 48
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.2: Adding to iommu group 49
+[Sat Sep 13 17:22:17 2025] pci 0000:00:05.4: Adding to iommu group 50
+[Sat Sep 13 17:22:17 2025] pci 0000:00:11.0: Adding to iommu group 51
+[Sat Sep 13 17:22:17 2025] pci 0000:00:14.0: Adding to iommu group 52
+[Sat Sep 13 17:22:17 2025] pci 0000:00:16.0: Adding to iommu group 53
+[Sat Sep 13 17:22:17 2025] pci 0000:00:16.1: Adding to iommu group 53
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1a.0: Adding to iommu group 54
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.0: Adding to iommu group 55
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.2: Adding to iommu group 56
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1c.3: Adding to iommu group 57
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1d.0: Adding to iommu group 58
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.0: Adding to iommu group 59
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.2: Adding to iommu group 59
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.3: Adding to iommu group 59
+[Sat Sep 13 17:22:17 2025] pci 0000:00:1f.6: Adding to iommu group 59
+[Sat Sep 13 17:22:17 2025] pci 0000:05:00.0: Adding to iommu group 60
+[Sat Sep 13 17:22:17 2025] pci 0000:06:00.0: Adding to iommu group 60
+[Sat Sep 13 17:22:17 2025] pci 0000:07:00.0: Adding to iommu group 61
+[Sat Sep 13 17:22:17 2025] pci 0000:08:00.0: Adding to iommu group 62
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.0: Adding to iommu group 63
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.1: Adding to iommu group 64
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.2: Adding to iommu group 65
+[Sat Sep 13 17:22:17 2025] pci 0000:80:05.4: Adding to iommu group 66
+[Sat Sep 13 17:22:17 2025] DMAR: Intel(R) Virtualization Technology for Directed I/O
+[Sat Sep 13 17:22:17 2025] PCI-DMA: Using software bounce buffering for IO (SWIOTLB)
+[Sat Sep 13 17:22:17 2025] software IO TLB: mapped [mem 0x000000006b44e000-0x000000006f44e000] (64MB)
+[Sat Sep 13 17:22:17 2025] Initialise system trusted keyrings
+[Sat Sep 13 17:22:17 2025] Key type blacklist registered
+[Sat Sep 13 17:22:17 2025] workingset: timestamp_bits=36 max_order=25 bucket_order=0
+[Sat Sep 13 17:22:17 2025] zbud: loaded
+[Sat Sep 13 17:22:17 2025] squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[Sat Sep 13 17:22:17 2025] fuse: init (API version 7.39)
+[Sat Sep 13 17:22:17 2025] integrity: Platform Keyring initialized
+[Sat Sep 13 17:22:17 2025] integrity: Machine keyring initialized
+[Sat Sep 13 17:22:17 2025] Key type asymmetric registered
+[Sat Sep 13 17:22:17 2025] Asymmetric key parser 'x509' registered
+[Sat Sep 13 17:22:17 2025] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 243)
+[Sat Sep 13 17:22:17 2025] io scheduler mq-deadline registered
+[Sat Sep 13 17:22:17 2025] pcieport 0000:00:01.0: PME: Signaling with IRQ 25
+[Sat Sep 13 17:22:17 2025] pcieport 0000:00:02.0: PME: Signaling with IRQ 27
+[Sat Sep 13 17:22:17 2025] pcieport 0000:00:02.2: PME: Signaling with IRQ 28
+[Sat Sep 13 17:22:17 2025] pcieport 0000:00:03.0: PME: Signaling with IRQ 30
+[Sat Sep 13 17:22:17 2025] pcieport 0000:00:1c.0: PME: Signaling with IRQ 31
+[Sat Sep 13 17:22:17 2025] pcieport 0000:00:1c.2: PME: Signaling with IRQ 32
+[Sat Sep 13 17:22:17 2025] pcieport 0000:00:1c.3: PME: Signaling with IRQ 33
+[Sat Sep 13 17:22:17 2025] shpchp: Standard Hot Plug PCI Controller Driver version: 0.4
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP00: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP01: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP02: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP03: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP04: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP05: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP06: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP07: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP00: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP01: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP02: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP03: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP04: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP05: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP06: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP07: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP08: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP09: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP0A: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP0B: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP0C: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP0D: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP0E: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK0.CP0F: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP08: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP09: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP0A: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP0B: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP0C: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP0D: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP0E: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] ACPI: \_SB_.SCK1.CP0F: Found 2 idle states
+[Sat Sep 13 17:22:17 2025] input: Power Button as /devices/LNXSYSTM:00/LNXSYBUS:00/PNP0C0C:00/input/input0
+[Sat Sep 13 17:22:17 2025] ACPI: button: Power Button [PWRB]
+[Sat Sep 13 17:22:17 2025] input: Power Button as /devices/LNXSYSTM:00/LNXPWRBN:00/input/input1
+[Sat Sep 13 17:22:17 2025] ACPI: button: Power Button [PWRF]
+[Sat Sep 13 17:22:17 2025] ERST: Error Record Serialization Table (ERST) support is initialized.
+[Sat Sep 13 17:22:17 2025] pstore: Using crash dump compression: deflate
+[Sat Sep 13 17:22:17 2025] pstore: Registered erst as persistent store backend
+[Sat Sep 13 17:22:17 2025] Serial: 8250/16550 driver, 32 ports, IRQ sharing enabled
+[Sat Sep 13 17:22:17 2025] 00:03: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A
+[Sat Sep 13 17:22:17 2025] 00:04: ttyS1 at I/O 0x2f8 (irq = 3, base_baud = 115200) is a 16550A
+[Sat Sep 13 17:22:17 2025] Linux agpgart interface v0.103
+[Sat Sep 13 17:22:17 2025] loop: module loaded
+[Sat Sep 13 17:22:17 2025] ACPI: bus type drm_connector registered
+[Sat Sep 13 17:22:17 2025] tun: Universal TUN/TAP device driver, 1.6
+[Sat Sep 13 17:22:17 2025] PPP generic driver version 2.4.2
+[Sat Sep 13 17:22:17 2025] i8042: PNP: No PS/2 controller found.
+[Sat Sep 13 17:22:17 2025] mousedev: PS/2 mouse device common for all mice
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1a.0: EHCI Host Controller
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1a.0: new USB bus registered, assigned bus number 1
+[Sat Sep 13 17:22:17 2025] rtc_cmos 00:00: RTC can wake from S4
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1a.0: debug port 2
+[Sat Sep 13 17:22:17 2025] rtc_cmos 00:00: registered as rtc0
+[Sat Sep 13 17:22:17 2025] rtc_cmos 00:00: setting system clock to 2025-09-13T15:22:17 UTC (1757776937)
+[Sat Sep 13 17:22:17 2025] rtc_cmos 00:00: alarms up to one month, y3k, 114 bytes nvram
+[Sat Sep 13 17:22:17 2025] i2c_dev: i2c /dev entries driver
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1a.0: irq 18, io mem 0xc7334000
+[Sat Sep 13 17:22:17 2025] device-mapper: core: CONFIG_IMA_DISABLE_HTABLE is disabled. Duplicate IMA measurements will not be recorded in the IMA log.
+[Sat Sep 13 17:22:17 2025] device-mapper: uevent: version 1.0.3
+[Sat Sep 13 17:22:17 2025] device-mapper: ioctl: 4.48.0-ioctl (2023-03-01) initialised: dm-devel@redhat.com
+[Sat Sep 13 17:22:17 2025] platform eisa.0: Probing EISA bus 0
+[Sat Sep 13 17:22:17 2025] platform eisa.0: EISA: Cannot allocate resource for mainboard
+[Sat Sep 13 17:22:17 2025] platform eisa.0: Cannot allocate resource for EISA slot 1
+[Sat Sep 13 17:22:17 2025] platform eisa.0: Cannot allocate resource for EISA slot 2
+[Sat Sep 13 17:22:17 2025] platform eisa.0: Cannot allocate resource for EISA slot 3
+[Sat Sep 13 17:22:17 2025] platform eisa.0: Cannot allocate resource for EISA slot 4
+[Sat Sep 13 17:22:17 2025] platform eisa.0: Cannot allocate resource for EISA slot 5
+[Sat Sep 13 17:22:17 2025] platform eisa.0: Cannot allocate resource for EISA slot 6
+[Sat Sep 13 17:22:17 2025] platform eisa.0: Cannot allocate resource for EISA slot 7
+[Sat Sep 13 17:22:17 2025] platform eisa.0: Cannot allocate resource for EISA slot 8
+[Sat Sep 13 17:22:17 2025] platform eisa.0: EISA: Detected 0 cards
+[Sat Sep 13 17:22:17 2025] intel_pstate: Intel P-state driver initializing
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1a.0: USB 2.0 started, EHCI 1.00
+[Sat Sep 13 17:22:17 2025] usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.08
+[Sat Sep 13 17:22:17 2025] usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[Sat Sep 13 17:22:17 2025] usb usb1: Product: EHCI Host Controller
+[Sat Sep 13 17:22:17 2025] usb usb1: Manufacturer: Linux 6.8.0-79-generic ehci_hcd
+[Sat Sep 13 17:22:17 2025] usb usb1: SerialNumber: 0000:00:1a.0
+[Sat Sep 13 17:22:17 2025] hub 1-0:1.0: USB hub found
+[Sat Sep 13 17:22:17 2025] hub 1-0:1.0: 2 ports detected
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1d.0: EHCI Host Controller
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1d.0: new USB bus registered, assigned bus number 2
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1d.0: debug port 2
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1d.0: irq 18, io mem 0xc7333000
+[Sat Sep 13 17:22:17 2025] ehci-pci 0000:00:1d.0: USB 2.0 started, EHCI 1.00
+[Sat Sep 13 17:22:17 2025] usb usb2: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.08
+[Sat Sep 13 17:22:17 2025] usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[Sat Sep 13 17:22:17 2025] usb usb2: Product: EHCI Host Controller
+[Sat Sep 13 17:22:17 2025] usb usb2: Manufacturer: Linux 6.8.0-79-generic ehci_hcd
+[Sat Sep 13 17:22:17 2025] usb usb2: SerialNumber: 0000:00:1d.0
+[Sat Sep 13 17:22:17 2025] hub 2-0:1.0: USB hub found
+[Sat Sep 13 17:22:17 2025] hub 2-0:1.0: 2 ports detected
+[Sat Sep 13 17:22:17 2025] Freeing initrd memory: 70772K
+[Sat Sep 13 17:22:17 2025] ledtrig-cpu: registered to indicate activity on CPUs
+[Sat Sep 13 17:22:17 2025] [drm] Initialized simpledrm 1.0.0 20200625 for simple-framebuffer.0 on minor 0
+[Sat Sep 13 17:22:17 2025] Console: switching to colour frame buffer device 100x37
+[Sat Sep 13 17:22:17 2025] simple-framebuffer simple-framebuffer.0: [drm] fb0: simpledrmdrmfb frame buffer device
+[Sat Sep 13 17:22:17 2025] drop_monitor: Initializing network drop monitor service
+[Sat Sep 13 17:22:17 2025] NET: Registered PF_INET6 protocol family
+[Sat Sep 13 17:22:17 2025] Segment Routing with IPv6
+[Sat Sep 13 17:22:17 2025] In-situ OAM (IOAM) with IPv6
+[Sat Sep 13 17:22:17 2025] NET: Registered PF_PACKET protocol family
+[Sat Sep 13 17:22:17 2025] Key type dns_resolver registered
+[Sat Sep 13 17:22:17 2025] microcode: Current revision: 0x00000049
+[Sat Sep 13 17:22:17 2025] microcode: Updated early from: 0x0000002e
+[Sat Sep 13 17:22:17 2025] resctrl: L3 monitoring detected
+[Sat Sep 13 17:22:17 2025] IPI shorthand broadcast: enabled
+[Sat Sep 13 17:22:17 2025] sched_clock: Marking stable (1624001242, 1179082)->(1784285778, -159105454)
+[Sat Sep 13 17:22:17 2025] registered taskstats version 1
+[Sat Sep 13 17:22:17 2025] Loading compiled-in X.509 certificates
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Build time autogenerated kernel key: aae80fd6ff95ddd6c801cfbbc88c6abb32d6a717'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Live Patch Signing 2025 Kmod: d541cef61dc7e793b7eb7e899970a2eef0b5dc8c'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Live Patch Signing: 14df34d1a87cf37625abec039ef2bf521249b969'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Kernel Module Signing: 88f752e560a1e0737e31163a466ad7b70a850c19'
+[Sat Sep 13 17:22:17 2025] blacklist: Loading compiled-in revocation X.509 certificates
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing: 61482aa2830d0ab2ad5af10b7250da9033ddcef0'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2017): 242ade75ac4a15e50d50c84b0d45ff3eae707a03'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (ESM 2018): 365188c1d374d6b07c3c8f240f8ef722433d6a8b'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2019): c0746fd6c5da3ae827864651ad66ae47fe24b3e8'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v1): a8d54bbb3825cfb94fa13c9f8a594a195c107b8d'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v2): 4cf046892d6fd3c9a5b03f98d845f90851dc6a8c'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v3): 100437bb6de6e469b581e61cd66bce3ef4ed53af'
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (Ubuntu Core 2019): c1d57b8f6b743f23ee41f4f7ee292f06eecadfb9'
+[Sat Sep 13 17:22:17 2025] Key type .fscrypt registered
+[Sat Sep 13 17:22:17 2025] Key type fscrypt-provisioning registered
+[Sat Sep 13 17:22:17 2025] cryptd: max_cpu_qlen set to 1000
+[Sat Sep 13 17:22:17 2025] Key type encrypted registered
+[Sat Sep 13 17:22:17 2025] AppArmor: AppArmor sha256 policy hashing enabled
+[Sat Sep 13 17:22:17 2025] ima: No TPM chip found, activating TPM-bypass!
+[Sat Sep 13 17:22:17 2025] Loading compiled-in module X.509 certificates
+[Sat Sep 13 17:22:17 2025] Loaded X.509 cert 'Build time autogenerated kernel key: aae80fd6ff95ddd6c801cfbbc88c6abb32d6a717'
+[Sat Sep 13 17:22:17 2025] ima: Allocated hash algorithm: sha256
+[Sat Sep 13 17:22:17 2025] ima: No architecture policies found
+[Sat Sep 13 17:22:17 2025] evm: Initialising EVM extended attributes:
+[Sat Sep 13 17:22:17 2025] evm: security.selinux
+[Sat Sep 13 17:22:17 2025] evm: security.SMACK64
+[Sat Sep 13 17:22:17 2025] evm: security.SMACK64EXEC
+[Sat Sep 13 17:22:17 2025] evm: security.SMACK64TRANSMUTE
+[Sat Sep 13 17:22:17 2025] evm: security.SMACK64MMAP
+[Sat Sep 13 17:22:17 2025] evm: security.apparmor
+[Sat Sep 13 17:22:17 2025] evm: security.ima
+[Sat Sep 13 17:22:17 2025] evm: security.capability
+[Sat Sep 13 17:22:17 2025] evm: HMAC attrs: 0x1
+[Sat Sep 13 17:22:17 2025] PM:   Magic number: 9:409:386
+[Sat Sep 13 17:22:17 2025] thermal cooling_device1: hash matches
+[Sat Sep 13 17:22:17 2025] workqueue: drm_fb_helper_damage_work hogged CPU for >10000us 4 times, consider switching to WQ_UNBOUND
+[Sat Sep 13 17:22:17 2025] RAS: Correctable Errors collector initialized.
+[Sat Sep 13 17:22:17 2025] clk: Disabling unused clocks
+[Sat Sep 13 17:22:17 2025] Freeing unused decrypted memory: 2028K
+[Sat Sep 13 17:22:17 2025] Freeing unused kernel image (initmem) memory: 5004K
+[Sat Sep 13 17:22:17 2025] Write protecting the kernel read-only data: 38912k
+[Sat Sep 13 17:22:17 2025] Freeing unused kernel image (rodata/data gap) memory: 2004K
+[Sat Sep 13 17:22:17 2025] usb 1-1: new high-speed USB device number 2 using ehci-pci
+[Sat Sep 13 17:22:17 2025] x86/mm: Checked W+X mappings: passed, no W+X pages found.
+[Sat Sep 13 17:22:17 2025] x86/mm: Checking user space page tables
+[Sat Sep 13 17:22:17 2025] usb 2-1: new high-speed USB device number 2 using ehci-pci
+[Sat Sep 13 17:22:17 2025] workqueue: drm_fb_helper_damage_work hogged CPU for >10000us 8 times, consider switching to WQ_UNBOUND
+[Sat Sep 13 17:22:17 2025] x86/mm: Checked W+X mappings: passed, no W+X pages found.
+[Sat Sep 13 17:22:17 2025] Run /init as init process
+[Sat Sep 13 17:22:17 2025]   with arguments:
+[Sat Sep 13 17:22:17 2025]     /init
+[Sat Sep 13 17:22:17 2025]     nosplash
+[Sat Sep 13 17:22:17 2025]   with environment:
+[Sat Sep 13 17:22:17 2025]     HOME=/
+[Sat Sep 13 17:22:17 2025]     TERM=linux
+[Sat Sep 13 17:22:17 2025]     BOOT_IMAGE=/boot/vmlinuz-6.8.0-79-generic
+[Sat Sep 13 17:22:17 2025] usb 1-1: New USB device found, idVendor=8087, idProduct=800a, bcdDevice= 0.05
+[Sat Sep 13 17:22:17 2025] usb 1-1: New USB device strings: Mfr=0, Product=0, SerialNumber=0
+[Sat Sep 13 17:22:17 2025] usb 2-1: New USB device found, idVendor=8087, idProduct=8002, bcdDevice= 0.05
+[Sat Sep 13 17:22:17 2025] usb 2-1: New USB device strings: Mfr=0, Product=0, SerialNumber=0
+[Sat Sep 13 17:22:17 2025] hub 2-1:1.0: USB hub found
+[Sat Sep 13 17:22:17 2025] hub 2-1:1.0: 8 ports detected
+[Sat Sep 13 17:22:17 2025] hub 1-1:1.0: USB hub found
+[Sat Sep 13 17:22:17 2025] hub 1-1:1.0: 6 ports detected
+[Sat Sep 13 17:22:18 2025] xhci_hcd 0000:00:14.0: xHCI Host Controller
+[Sat Sep 13 17:22:18 2025] dca service started, version 1.12.1
+[Sat Sep 13 17:22:18 2025] xhci_hcd 0000:00:14.0: new USB bus registered, assigned bus number 3
+[Sat Sep 13 17:22:18 2025] xhci_hcd 0000:00:14.0: hcc params 0x200077c1 hci version 0x100 quirks 0x0000000000009810
+[Sat Sep 13 17:22:18 2025] xhci_hcd 0000:00:14.0: xHCI Host Controller
+[Sat Sep 13 17:22:18 2025] xhci_hcd 0000:00:14.0: new USB bus registered, assigned bus number 4
+[Sat Sep 13 17:22:18 2025] xhci_hcd 0000:00:14.0: Host supports USB 3.0 SuperSpeed
+[Sat Sep 13 17:22:18 2025] usb usb3: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.08
+[Sat Sep 13 17:22:18 2025] usb usb3: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[Sat Sep 13 17:22:18 2025] usb usb3: Product: xHCI Host Controller
+[Sat Sep 13 17:22:18 2025] usb usb3: Manufacturer: Linux 6.8.0-79-generic xhci-hcd
+[Sat Sep 13 17:22:18 2025] usb usb3: SerialNumber: 0000:00:14.0
+[Sat Sep 13 17:22:18 2025] hub 3-0:1.0: USB hub found
+[Sat Sep 13 17:22:18 2025] hub 3-0:1.0: 15 ports detected
+[Sat Sep 13 17:22:18 2025] usb usb4: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 6.08
+[Sat Sep 13 17:22:18 2025] usb usb4: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[Sat Sep 13 17:22:18 2025] usb usb4: Product: xHCI Host Controller
+[Sat Sep 13 17:22:18 2025] usb usb4: Manufacturer: Linux 6.8.0-79-generic xhci-hcd
+[Sat Sep 13 17:22:18 2025] usb usb4: SerialNumber: 0000:00:14.0
+[Sat Sep 13 17:22:18 2025] hub 4-0:1.0: USB hub found
+[Sat Sep 13 17:22:18 2025] hub 4-0:1.0: 6 ports detected
+[Sat Sep 13 17:22:18 2025] igb: Intel(R) Gigabit Ethernet Network Driver
+[Sat Sep 13 17:22:18 2025] igb: Copyright (c) 2007-2014 Intel Corporation.
+[Sat Sep 13 17:22:18 2025] ahci 0000:00:1f.2: version 3.0
+[Sat Sep 13 17:22:18 2025] ahci 0000:00:1f.2: AHCI 0001.0300 32 slots 6 ports 6 Gbps 0x3f impl RAID mode
+[Sat Sep 13 17:22:18 2025] ahci 0000:00:1f.2: flags: 64bit ncq pm led clo pio slum part ems apst 
+[Sat Sep 13 17:22:18 2025] igb 0000:07:00.0: added PHC on eth0
+[Sat Sep 13 17:22:18 2025] igb 0000:07:00.0: Intel(R) Gigabit Ethernet Network Connection
+[Sat Sep 13 17:22:18 2025] igb 0000:07:00.0: eth0: (PCIe:2.5Gb/s:Width x1) 0c:c4:7a:4f:0d:42
+[Sat Sep 13 17:22:18 2025] igb 0000:07:00.0: eth0: PBA No: 013A00-000
+[Sat Sep 13 17:22:18 2025] igb 0000:07:00.0: Using MSI-X interrupts. 4 rx queue(s), 4 tx queue(s)
+[Sat Sep 13 17:22:18 2025] scsi host0: ahci
+[Sat Sep 13 17:22:18 2025] scsi host1: ahci
+[Sat Sep 13 17:22:18 2025] scsi host2: ahci
+[Sat Sep 13 17:22:18 2025] scsi host3: ahci
+[Sat Sep 13 17:22:18 2025] scsi host4: ahci
+[Sat Sep 13 17:22:18 2025] scsi host5: ahci
+[Sat Sep 13 17:22:18 2025] ata1: SATA max UDMA/133 abar m2048@0xc7332000 port 0xc7332100 irq 34 lpm-pol 0
+[Sat Sep 13 17:22:18 2025] ata2: SATA max UDMA/133 abar m2048@0xc7332000 port 0xc7332180 irq 34 lpm-pol 0
+[Sat Sep 13 17:22:18 2025] ata3: SATA max UDMA/133 abar m2048@0xc7332000 port 0xc7332200 irq 34 lpm-pol 0
+[Sat Sep 13 17:22:18 2025] ata4: SATA max UDMA/133 abar m2048@0xc7332000 port 0xc7332280 irq 34 lpm-pol 0
+[Sat Sep 13 17:22:18 2025] ata5: SATA max UDMA/133 abar m2048@0xc7332000 port 0xc7332300 irq 34 lpm-pol 0
+[Sat Sep 13 17:22:18 2025] ata6: SATA max UDMA/133 abar m2048@0xc7332000 port 0xc7332380 irq 34 lpm-pol 0
+[Sat Sep 13 17:22:18 2025] igb 0000:08:00.0: added PHC on eth1
+[Sat Sep 13 17:22:18 2025] igb 0000:08:00.0: Intel(R) Gigabit Ethernet Network Connection
+[Sat Sep 13 17:22:18 2025] igb 0000:08:00.0: eth1: (PCIe:2.5Gb/s:Width x1) 0c:c4:7a:4f:0d:43
+[Sat Sep 13 17:22:18 2025] igb 0000:08:00.0: eth1: PBA No: 011000-000
+[Sat Sep 13 17:22:18 2025] igb 0000:08:00.0: Using MSI-X interrupts. 4 rx queue(s), 4 tx queue(s)
+[Sat Sep 13 17:22:18 2025] usb 3-14: new high-speed USB device number 2 using xhci_hcd
+[Sat Sep 13 17:22:18 2025] tsc: Refined TSC clocksource calibration: 2399.997 MHz
+[Sat Sep 13 17:22:18 2025] clocksource: tsc: mask: 0xffffffffffffffff max_cycles: 0x229834d6ac9, max_idle_ns: 440795285103 ns
+[Sat Sep 13 17:22:18 2025] clocksource: Switched to clocksource tsc
+[Sat Sep 13 17:22:18 2025] usb 3-14: New USB device found, idVendor=0557, idProduct=7000, bcdDevice= 0.00
+[Sat Sep 13 17:22:18 2025] usb 3-14: New USB device strings: Mfr=0, Product=0, SerialNumber=0
+[Sat Sep 13 17:22:18 2025] ata3: SATA link down (SStatus 0 SControl 300)
+[Sat Sep 13 17:22:18 2025] ata5: SATA link down (SStatus 0 SControl 300)
+[Sat Sep 13 17:22:18 2025] ata1: SATA link up 6.0 Gbps (SStatus 133 SControl 300)
+[Sat Sep 13 17:22:18 2025] ata6: SATA link down (SStatus 0 SControl 300)
+[Sat Sep 13 17:22:18 2025] ata2: SATA link down (SStatus 0 SControl 300)
+[Sat Sep 13 17:22:18 2025] ata4: SATA link down (SStatus 0 SControl 300)
+[Sat Sep 13 17:22:18 2025] ata1.00: ATA-8: WDC WD1000DHTZ-04N21V1, 04.06A01, max UDMA/133
+[Sat Sep 13 17:22:18 2025] ata1.00: 1953525168 sectors, multi 16: LBA48 NCQ (depth 32), AA
+[Sat Sep 13 17:22:18 2025] ata1.00: configured for UDMA/133
+[Sat Sep 13 17:22:18 2025] scsi 0:0:0:0: Direct-Access     ATA      WDC WD1000DHTZ-0 6A01 PQ: 0 ANSI: 5
+[Sat Sep 13 17:22:18 2025] sd 0:0:0:0: Attached scsi generic sg0 type 0
+[Sat Sep 13 17:22:18 2025] sd 0:0:0:0: [sda] 1953525168 512-byte logical blocks: (1.00 TB/932 GiB)
+[Sat Sep 13 17:22:18 2025] sd 0:0:0:0: [sda] 4096-byte physical blocks
+[Sat Sep 13 17:22:18 2025] sd 0:0:0:0: [sda] Write Protect is off
+[Sat Sep 13 17:22:18 2025] sd 0:0:0:0: [sda] Mode Sense: 00 3a 00 00
+[Sat Sep 13 17:22:18 2025] sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
+[Sat Sep 13 17:22:18 2025] sd 0:0:0:0: [sda] Preferred minimum I/O size 4096 bytes
+[Sat Sep 13 17:22:18 2025] hub 3-14:1.0: USB hub found
+[Sat Sep 13 17:22:18 2025] hub 3-14:1.0: 4 ports detected
+[Sat Sep 13 17:22:18 2025]  sda: sda1 sda2 sda3
+[Sat Sep 13 17:22:18 2025] sd 0:0:0:0: [sda] Attached SCSI disk
+[Sat Sep 13 17:22:18 2025] igb 0000:07:00.0 eno1: renamed from eth0
+[Sat Sep 13 17:22:18 2025] igb 0000:08:00.0 eno2: renamed from eth1
+[Sat Sep 13 17:22:18 2025] usb 3-14.1: new low-speed USB device number 3 using xhci_hcd
+[Sat Sep 13 17:22:18 2025] usb 3-14.1: New USB device found, idVendor=0557, idProduct=2419, bcdDevice= 1.00
+[Sat Sep 13 17:22:18 2025] usb 3-14.1: New USB device strings: Mfr=0, Product=0, SerialNumber=0
+[Sat Sep 13 17:22:19 2025] hid: raw HID events driver (C) Jiri Kosina
+[Sat Sep 13 17:22:19 2025] usbcore: registered new interface driver usbhid
+[Sat Sep 13 17:22:19 2025] usbhid: USB HID core driver
+[Sat Sep 13 17:22:19 2025] input: HID 0557:2419 as /devices/pci0000:00/0000:00:14.0/usb3/3-14/3-14.1/3-14.1:1.0/0003:0557:2419.0001/input/input2
+[Sat Sep 13 17:22:19 2025] workqueue: drm_fb_helper_damage_work hogged CPU for >10000us 16 times, consider switching to WQ_UNBOUND
+[Sat Sep 13 17:22:19 2025] hid-generic 0003:0557:2419.0001: input,hidraw0: USB HID v1.00 Keyboard [HID 0557:2419] on usb-0000:00:14.0-14.1/input0
+[Sat Sep 13 17:22:19 2025] input: HID 0557:2419 as /devices/pci0000:00/0000:00:14.0/usb3/3-14/3-14.1/3-14.1:1.1/0003:0557:2419.0002/input/input3
+[Sat Sep 13 17:22:19 2025] hid-generic 0003:0557:2419.0002: input,hidraw1: USB HID v1.00 Mouse [HID 0557:2419] on usb-0000:00:14.0-14.1/input1
+[Sat Sep 13 17:22:19 2025] raid6: avx2x4   gen() 22552 MB/s
+[Sat Sep 13 17:22:19 2025] raid6: avx2x2   gen() 22841 MB/s
+[Sat Sep 13 17:22:19 2025] raid6: avx2x1   gen() 20729 MB/s
+[Sat Sep 13 17:22:19 2025] raid6: using algorithm avx2x2 gen() 22841 MB/s
+[Sat Sep 13 17:22:19 2025] raid6: .... xor() 13658 MB/s, rmw enabled
+[Sat Sep 13 17:22:19 2025] raid6: using avx2x2 recovery algorithm
+[Sat Sep 13 17:22:19 2025] xor: automatically using best checksumming function   avx       
+[Sat Sep 13 17:22:19 2025] async_tx: api initialized (async)
+[Sat Sep 13 17:22:19 2025] Btrfs loaded, zoned=yes, fsverity=yes
+[Sat Sep 13 17:22:19 2025] PM: Image not found (code -22)
+[Sat Sep 13 17:22:19 2025] EXT4-fs (dm-0): mounted filesystem f7a2b4ca-0a3a-46b5-b1fe-e51fdc10494f ro with ordered data mode. Quota mode: none.
+[Sat Sep 13 17:22:20 2025] systemd[1]: Inserted module 'autofs4'
+[Sat Sep 13 17:22:20 2025] systemd[1]: systemd 255.4-1ubuntu8.10 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT -GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -BPF_FRAMEWORK -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[Sat Sep 13 17:22:20 2025] systemd[1]: Detected architecture x86-64.
+[Sat Sep 13 17:22:20 2025] systemd[1]: Hostname set to <wolf31>.
+[Sat Sep 13 17:22:21 2025] systemd[1]: /usr/lib/systemd/system/openafs-client.service:22: Unit uses KillMode=none. This is unsafe, as it disables systemd's process lifecycle management for the service. Please update the service to use a safer KillMode=, such as 'mixed' or 'control-group'. Support for KillMode=none is deprecated and will eventually be removed.
+[Sat Sep 13 17:22:21 2025] systemd[1]: /usr/lib/systemd/system/pbs.service:62: Unknown key name 'StartLimitIntervalSec' in section 'Service', ignoring.
+[Sat Sep 13 17:22:21 2025] systemd[1]: Queued start job for default target graphical.target.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Created slice system-modprobe.slice - Slice /system/modprobe.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Created slice system-postfix.slice - Slice /system/postfix.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Created slice system-systemd\x2dfsck.slice - Slice /system/systemd-fsck.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Created slice user.slice - User and Session Slice.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Started systemd-ask-password-wall.path - Forward Password Requests to Wall Directory Watch.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Set up automount proc-sys-fs-binfmt_misc.automount - Arbitrary Executable File Formats File System Automount Point.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Expecting device dev-disk-by\x2duuid-9BFB\x2dF761.device - /dev/disk/by-uuid/9BFB-F761...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Expecting device dev-lvm-scratch.device - /dev/lvm/scratch...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Expecting device dev-lvm-swap.device - /dev/lvm/swap...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Reached target integritysetup.target - Local Integrity Protected Volumes.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Reached target slices.target - Slice Units.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Reached target veritysetup.target - Local Verity Protected Volumes.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on dm-event.socket - Device-mapper event daemon FIFOs.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on lvm2-lvmpolld.socket - LVM2 poll daemon socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on multipathd.socket - multipathd control socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on rpcbind.socket - RPCbind Server Activation Socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on syslog.socket - Syslog Socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on systemd-coredump.socket - Process Core Dump Socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on systemd-fsckd.socket - fsck to fsckd communication Socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on systemd-initctl.socket - initctl Compatibility Named Pipe.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on systemd-journald-dev-log.socket - Journal Socket (/dev/log).
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on systemd-journald.socket - Journal Socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on systemd-networkd.socket - Network Service Netlink Socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: systemd-pcrextend.socket - TPM2 PCR Extension (Varlink) was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on systemd-udevd-control.socket - udev Control Socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Listening on systemd-udevd-kernel.socket - udev Kernel Socket.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounting dev-hugepages.mount - Huge Pages File System...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounting dev-mqueue.mount - POSIX Message Queue File System...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounting sys-kernel-debug.mount - Kernel Debug File System...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounting sys-kernel-tracing.mount - Kernel Trace File System...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting systemd-journald.service - Journal Service...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting auth-rpcgss-module.service - Kernel Module supporting RPCSEC_GSS...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting keyboard-setup.service - Set the console keyboard layout...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting kmod-static-nodes.service - Create List of Static Device Nodes...
+[Sat Sep 13 17:22:22 2025] workqueue: drm_fb_helper_damage_work hogged CPU for >10000us 32 times, consider switching to WQ_UNBOUND
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting lvm2-monitor.service - Monitoring of LVM2 mirrors, snapshots etc. using dmeventd or progress polling...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting modprobe@configfs.service - Load Kernel Module configfs...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting modprobe@dm_mod.service - Load Kernel Module dm_mod...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting modprobe@drm.service - Load Kernel Module drm...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting modprobe@efi_pstore.service - Load Kernel Module efi_pstore...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting modprobe@fuse.service - Load Kernel Module fuse...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting modprobe@loop.service - Load Kernel Module loop...
+[Sat Sep 13 17:22:22 2025] systemd[1]: netplan-ovs-cleanup.service - OpenVSwitch configuration for cleanup was skipped because of an unmet condition check (ConditionFileIsExecutable=/usr/bin/ovs-vsctl).
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting nftables.service - nftables...
+[Sat Sep 13 17:22:22 2025] systemd[1]: systemd-fsck-root.service - File System Check on Root Device was skipped because of an unmet condition check (ConditionPathExists=!/run/initramfs/fsck-root).
+[Sat Sep 13 17:22:22 2025] pstore: backend 'erst' already in use: ignoring 'efi_pstore'
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting systemd-modules-load.service - Load Kernel Modules...
+[Sat Sep 13 17:22:22 2025] systemd[1]: systemd-pcrmachine.service - TPM2 PCR Machine ID Measurement was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+[Sat Sep 13 17:22:22 2025] RPC: Registered named UNIX socket transport module.
+[Sat Sep 13 17:22:22 2025] RPC: Registered udp transport module.
+[Sat Sep 13 17:22:22 2025] RPC: Registered tcp transport module.
+[Sat Sep 13 17:22:22 2025] RPC: Registered tcp-with-tls transport module.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting systemd-remount-fs.service - Remount Root and Kernel File Systems...
+[Sat Sep 13 17:22:22 2025] RPC: Registered tcp NFSv4.1 backchannel transport module.
+[Sat Sep 13 17:22:22 2025] systemd[1]: systemd-tpm2-setup-early.service - TPM2 SRK Setup (Early) was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting systemd-udev-trigger.service - Coldplug All udev Devices...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounted dev-hugepages.mount - Huge Pages File System.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounted dev-mqueue.mount - POSIX Message Queue File System.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounted sys-kernel-debug.mount - Kernel Debug File System.
+[Sat Sep 13 17:22:22 2025] systemd-journald[644]: Collecting audit messages is disabled.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounted sys-kernel-tracing.mount - Kernel Trace File System.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Finished kmod-static-nodes.service - Create List of Static Device Nodes.
+[Sat Sep 13 17:22:22 2025] systemd[1]: modprobe@configfs.service: Deactivated successfully.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Finished modprobe@configfs.service - Load Kernel Module configfs.
+[Sat Sep 13 17:22:22 2025] systemd[1]: modprobe@dm_mod.service: Deactivated successfully.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Finished modprobe@dm_mod.service - Load Kernel Module dm_mod.
+[Sat Sep 13 17:22:22 2025] systemd[1]: modprobe@drm.service: Deactivated successfully.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Finished modprobe@drm.service - Load Kernel Module drm.
+[Sat Sep 13 17:22:22 2025] systemd[1]: modprobe@efi_pstore.service: Deactivated successfully.
+[Sat Sep 13 17:22:22 2025] EXT4-fs (dm-0): re-mounted f7a2b4ca-0a3a-46b5-b1fe-e51fdc10494f r/w. Quota mode: none.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Finished modprobe@efi_pstore.service - Load Kernel Module efi_pstore.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Finished auth-rpcgss-module.service - Kernel Module supporting RPCSEC_GSS.
+[Sat Sep 13 17:22:22 2025] systemd[1]: modprobe@fuse.service: Deactivated successfully.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Finished modprobe@fuse.service - Load Kernel Module fuse.
+[Sat Sep 13 17:22:22 2025] systemd[1]: modprobe@loop.service: Deactivated successfully.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Finished modprobe@loop.service - Load Kernel Module loop.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Finished systemd-remount-fs.service - Remount Root and Kernel File Systems.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounting sys-fs-fuse-connections.mount - FUSE Control File System...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Mounting sys-kernel-config.mount - Kernel Configuration File System...
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting multipathd.service - Device-Mapper Multipath Device Controller...
+[Sat Sep 13 17:22:22 2025] systemd[1]: systemd-hwdb-update.service - Rebuild Hardware Database was skipped because of an unmet condition check (ConditionNeedsUpdate=/etc).
+[Sat Sep 13 17:22:22 2025] systemd[1]: systemd-pstore.service - Platform Persistent Storage Archival was skipped because of an unmet condition check (ConditionDirectoryNotEmpty=/sys/fs/pstore).
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting systemd-random-seed.service - Load/Save OS Random Seed...
+[Sat Sep 13 17:22:22 2025] systemd[1]: systemd-repart.service - Repartition Root Disk was skipped because no trigger condition checks were met.
+[Sat Sep 13 17:22:22 2025] systemd[1]: Starting systemd-tmpfiles-setup-dev-early.service - Create Static Device Nodes in /dev gracefully...
+[Sat Sep 13 17:22:22 2025] systemd[1]: systemd-tpm2-setup.service - TPM2 SRK Setup was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+[Sat Sep 13 17:22:22 2025] systemd[1]: Started systemd-journald.service - Journal Service.
+[Sat Sep 13 17:22:22 2025] systemd-journald[644]: Received client request to flush runtime journal.
+[Sat Sep 13 17:22:23 2025] systemd-journald[644]: /var/log/journal/dd3408ab23682d776af428fa67c1d9f3/system.journal: Journal file uses a different sequence number ID, rotating.
+[Sat Sep 13 17:22:23 2025] systemd-journald[644]: Rotating system journal.
+[Sat Sep 13 17:22:23 2025] IPMI message handler: version 39.2
+[Sat Sep 13 17:22:23 2025] ipmi device interface
+[Sat Sep 13 17:22:23 2025] ipmi_si: IPMI System Interface driver
+[Sat Sep 13 17:22:23 2025] ipmi_si dmi-ipmi-si.0: ipmi_platform: probing via SMBIOS
+[Sat Sep 13 17:22:23 2025] ipmi_platform: ipmi_si: SMBIOS: io 0xca2 regsize 1 spacing 1 irq 0
+[Sat Sep 13 17:22:23 2025] ipmi_si: Adding SMBIOS-specified kcs state machine
+[Sat Sep 13 17:22:23 2025] ipmi_si IPI0001:00: ipmi_platform: probing via ACPI
+[Sat Sep 13 17:22:23 2025] ipmi_si IPI0001:00: ipmi_platform: [io  0x0ca2] regsize 1 spacing 1 irq 0
+[Sat Sep 13 17:22:23 2025] ipmi_si dmi-ipmi-si.0: Removing SMBIOS-specified kcs state machine in favor of ACPI
+[Sat Sep 13 17:22:23 2025] ipmi_si: Adding ACPI-specified kcs state machine
+[Sat Sep 13 17:22:23 2025] ipmi_si: Trying ACPI-specified kcs state machine at i/o address 0xca2, slave address 0x20, irq 0
+[Sat Sep 13 17:22:23 2025] ioatdma: Intel(R) QuickData Technology Driver 5.00
+[Sat Sep 13 17:22:24 2025] igb 0000:07:00.0: DCA enabled
+[Sat Sep 13 17:22:24 2025] igb 0000:08:00.0: DCA enabled
+[Sat Sep 13 17:22:24 2025] ipmi_si IPI0001:00: The BMC does not support clearing the recv irq bit, compensating, but the BMC needs to be fixed.
+[Sat Sep 13 17:22:24 2025] ipmi_si IPI0001:00: IPMI message handler: Found new BMC (man_id: 0x002a7c, prod_id: 0x0831, dev_id: 0x20)
+[Sat Sep 13 17:22:24 2025] i801_smbus 0000:00:1f.3: enabling device (0000 -> 0003)
+[Sat Sep 13 17:22:24 2025] i801_smbus 0000:00:1f.3: SMBus using PCI interrupt
+[Sat Sep 13 17:22:24 2025] Console: switching to colour dummy device 80x25
+[Sat Sep 13 17:22:24 2025] ipmi_si IPI0001:00: IPMI kcs interface initialized
+[Sat Sep 13 17:22:24 2025] ast 0000:06:00.0: vgaarb: deactivate vga console
+[Sat Sep 13 17:22:24 2025] ast 0000:06:00.0: Using P2A bridge for configuration
+[Sat Sep 13 17:22:24 2025] ast 0000:06:00.0: AST 2400 detected
+[Sat Sep 13 17:22:24 2025] ast 0000:06:00.0: [drm] Using analog VGA
+[Sat Sep 13 17:22:24 2025] ast 0000:06:00.0: [drm] dram MCLK=408 Mhz type=1 bus_width=16
+[Sat Sep 13 17:22:24 2025] ipmi_ssif: IPMI SSIF Interface driver
+[Sat Sep 13 17:22:24 2025] [drm] Initialized ast 0.1.0 20120228 for 0000:06:00.0 on minor 0
+[Sat Sep 13 17:22:24 2025] RAPL PMU: API unit is 2^-32 Joules, 2 fixed counters, 655360 ms ovfl timer
+[Sat Sep 13 17:22:24 2025] RAPL PMU: hw unit of domain package 2^-14 Joules
+[Sat Sep 13 17:22:24 2025] RAPL PMU: hw unit of domain dram 2^-16 Joules
+[Sat Sep 13 17:22:24 2025] fbcon: astdrmfb (fb0) is primary device
+[Sat Sep 13 17:22:24 2025] Console: switching to colour frame buffer device 128x48
+[Sat Sep 13 17:22:24 2025] ast 0000:06:00.0: [drm] fb0: astdrmfb frame buffer device
+[Sat Sep 13 17:22:24 2025] power_meter ACPI000D:00: Found ACPI power meter.
+[Sat Sep 13 17:22:24 2025] power_meter ACPI000D:00: Ignoring unsafe software power cap!
+[Sat Sep 13 17:22:24 2025] power_meter ACPI000D:00: hwmon_device_register() is deprecated. Please convert the driver to use hwmon_device_register_with_info().
+[Sat Sep 13 17:22:24 2025] cfg80211: Loading compiled-in X.509 certificates for regulatory database
+[Sat Sep 13 17:22:24 2025] Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+[Sat Sep 13 17:22:24 2025] Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+[Sat Sep 13 17:22:24 2025] mei_me 0000:00:16.0: Device doesn't have valid ME Interface
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fa0
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fa0
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fa0
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f60
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fa8
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fa8
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fa8
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f71
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f71
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f71
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2faa
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2faa
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2faa
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fab
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fab
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fab
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fac
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fac
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fac
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fad
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fad
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fad
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f68
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f79
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f6a
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f6b
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f6c
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2f6d
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2ffc
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2ffc
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2ffc
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2ffd
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2ffd
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2ffd
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fbd
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fbf
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fbf
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fbf
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fb9
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fb9
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fb9
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fbb
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fbb
+[Sat Sep 13 17:22:24 2025] EDAC sbridge: Seeking for: PCI ID 8086:2fbb
+[Sat Sep 13 17:22:24 2025] EDAC MC0: Giving out device to module sb_edac controller Haswell SrcID#1_Ha#0: DEV 0000:ff:12.0 (INTERRUPT)
+[Sat Sep 13 17:22:24 2025] EDAC MC1: Giving out device to module sb_edac controller Haswell SrcID#0_Ha#0: DEV 0000:7f:12.0 (INTERRUPT)
+[Sat Sep 13 17:22:24 2025] EDAC sbridge:  Ver: 1.1.2 
+[Sat Sep 13 17:22:24 2025] intel_rapl_common: Found RAPL domain package
+[Sat Sep 13 17:22:24 2025] intel_rapl_common: Found RAPL domain dram
+[Sat Sep 13 17:22:24 2025] intel_rapl_common: Found RAPL domain package
+[Sat Sep 13 17:22:24 2025] intel_rapl_common: Found RAPL domain dram
+[Sat Sep 13 17:22:25 2025] Adding 10485756k swap on /dev/mapper/lvm-swap.  Priority:-2 extents:1 across:10485756k 
+[Sat Sep 13 17:22:25 2025] EXT4-fs (dm-1): mounted filesystem 132194bf-b106-447a-9299-af0aab36d868 r/w with ordered data mode. Quota mode: none.
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.178:2): apparmor="STATUS" operation="profile_load" profile="unconfined" name="1password" pid=951 comm="apparmor_parser"
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.178:3): apparmor="STATUS" operation="profile_load" profile="unconfined" name="Discord" pid=952 comm="apparmor_parser"
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.178:4): apparmor="STATUS" operation="profile_load" profile="unconfined" name="goldendict" pid=974 comm="apparmor_parser"
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.178:5): apparmor="STATUS" operation="profile_load" profile="unconfined" name="ipa_verify" pid=975 comm="apparmor_parser"
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.178:6): apparmor="STATUS" operation="profile_load" profile="unconfined" name="epiphany" pid=967 comm="apparmor_parser"
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.179:7): apparmor="STATUS" operation="profile_load" profile="unconfined" name="kchmviewer" pid=976 comm="apparmor_parser"
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.179:8): apparmor="STATUS" operation="profile_load" profile="unconfined" name=4D6F6E676F444220436F6D70617373 pid=953 comm="apparmor_parser"
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.179:9): apparmor="STATUS" operation="profile_load" profile="unconfined" name="busybox" pid=958 comm="apparmor_parser"
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.179:10): apparmor="STATUS" operation="profile_load" profile="unconfined" name="evolution" pid=968 comm="apparmor_parser"
+[Sat Sep 13 17:22:26 2025] audit: type=1400 audit(1757776946.179:11): apparmor="STATUS" operation="profile_load" profile="unconfined" name="ch-checkns" pid=960 comm="apparmor_parser"
+[Sat Sep 13 17:22:28 2025] igb 0000:07:00.0 eno1: igb: eno1 NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX
+[Sat Sep 13 17:22:30 2025] workqueue: drm_fb_helper_damage_work hogged CPU for >10000us 64 times, consider switching to WQ_UNBOUND
+[Sat Sep 13 17:22:31 2025] kauditd_printk_skb: 107 callbacks suppressed
+[Sat Sep 13 17:22:31 2025] audit: type=1400 audit(1757776951.406:119): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="rsyslogd" pid=1113 comm="apparmor_parser"
+[Sat Sep 13 17:22:32 2025] openafs: loading out-of-tree module taints kernel.
+[Sat Sep 13 17:22:32 2025] openafs: module license 'http://www.openafs.org/dl/license10.html' taints kernel.
+[Sat Sep 13 17:22:32 2025] Disabling lock debugging due to kernel taint
+[Sat Sep 13 17:22:32 2025] openafs: module verification failed: signature and/or required key missing - tainting kernel
+[Sat Sep 13 17:22:32 2025] openafs: module license taints kernel.
+[Sat Sep 13 17:22:33 2025] Key type afs_pag registered
+[Sat Sep 13 17:22:33 2025] enabling dynamically allocated vcaches
+[Sat Sep 13 17:22:33 2025] Starting AFS cache scan...
+[Sat Sep 13 17:22:34 2025] NET: Registered PF_QIPCRTR protocol family
+[Sat Sep 13 17:22:44 2025] found 13042 non-empty cache files (8%).
+[Sat Sep 13 17:24:18 2025] netfs: FS-Cache loaded
+[Sat Sep 13 17:24:18 2025] NFS: Registering the id_resolver key type
+[Sat Sep 13 17:24:18 2025] Key type id_resolver registered
+[Sat Sep 13 17:24:18 2025] Key type id_legacy registered
+[Sat Sep 13 17:30:08 2025] nfs: server wolf.ncbr.muni.cz not responding, timed out
+[Sun Sep 14 15:53:09 2025] perf: interrupt took too long (2523 > 2500), lowering kernel.perf_event_max_sample_rate to 79000
+
+################################################################################
+#                                                                              #
+# # Date: Sun Sep 14 16:57:55 CEST 2025                                      # #
+#                                                                              #
+###                      End of the script execution                        ####
+#                                                                              #
+################################################################################
+
