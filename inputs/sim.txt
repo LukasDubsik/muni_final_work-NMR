@@ -11,8 +11,8 @@ input_type:=mol2
 tleap:=tleap.in
 opt_water:=opt_water.in
 opt_all:=opt_all.in
-opt_temp:=opt_temp
-opt_pres:=opt_pres
+opt_temp:=opt_temp.in
+opt_pres:=opt_pres.in
 md:=md.in
 
 ##Additional parameters to be added when running specific programs (Some can be left if not run, otherwise error, eg. no antechamber when 7 specified in 'input_type')
@@ -21,3 +21,8 @@ md:=md.in
 antechamber:="-c bcc -nc 0 -at gaff" 
 #Standart values :- parmchk2 -i $NAME.mol2 -f mol2 -o $NAME.frcmod
 parmchk2:=""
+
+##What file extensions, names should be saved and not deleted (any file and extensions bearing this name will be moved to the data_results)
+#Files/extensions should be separated by ';'
+extensions:=nc;mol2;rst7;parm7
+files:=
