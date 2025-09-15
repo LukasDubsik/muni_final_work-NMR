@@ -331,6 +331,13 @@ if [[ $input_type == "mol2" ]]; then
     echo -e "\t\t\t[$CHECKMARK] Nemesis fix succesfull!"
 
     #Combine the results by running tleap -> generate rst7/parm7 files for simulations (equilibrations)
-    
+    echo -e "\t\t Running tleap..."
+    run_sh_sim "tleap" "preparations/tleap" "process/preparations/antechamber/${name}_charges.mol2" "${commands_parmchk2}" "${name}.frcmod" 4 2
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} TLeap failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] Tleap finished successfully."
+    fi
     
 fi
