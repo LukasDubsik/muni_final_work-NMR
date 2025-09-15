@@ -89,7 +89,7 @@ check_sh_file(){
             res=$(echo $res | sed 's/"//g')
             com=$(tail -n 1 scripts/${pattern}.sh)
             #Replace the $1 by the name
-            com=$(echo $com | sed "s/\${1}/${name}/g")
+            com=$(echo $com | sed "s/\${name}/"${name}"/g")
             echo -e "\t\t[$CHECKMARK] ${pattern} specified and will be run as\n\t\t\t" $com ${res}
         fi
     fi
@@ -318,4 +318,19 @@ if [[ $input_type == "mol2" ]]; then
     else
         echo -e "\t\t\t[$CHECKMARK] Parmchk2 finished successfully."
     fi
+
+    #Perform a nemesis fix (fix the format for mol2 from the antechamber, may be necessary for other programs to understand)
+    echo -e "\t\t Fixing using nemesis(obabel)..."
+    module add openbabel > /dev/null 2>&1
+    #Prepare and copy the enviroment
+    mkdir -p process/preparations/n_fix
+    cp process/preparations/antechamber/${name}_charges.mol2 process/preparations/n_fix/.
+    cd process/preparations/n_fix/
+    #Perform the process by obabel (nemsis uses obabel in the background)
+    obabel -imol2 ${name}_charges.mol2 -omol2 -O ${name}_charges_fix.mol2 > /dev/null 2>&1 || echo -e "\t\t\t[$CROSS] ${RED} Failed to fix using nemesis!${NC}"
+    echo -e "\t\t\t[$CHECKMARK] Nemesis fix succesfull!"
+
+    #Combine the results by running tleap -> generate rst7/parm7 files for simulations (equilibrations)
+    
+    
 fi
