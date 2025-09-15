@@ -110,23 +110,23 @@ run_sh_sim(){
     curr_dir=`pwd`
     #Create the enviroment for running 
     mkdir -p $path
-    cp -r $hook $path/ || echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}" && return 0
+    cp -r $hook $path/ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}" && return 0)
     #Modify the .sh file - substitute the file name
-    sed "s/\${name}/${name}/g" scripts/$script_name.sh > $path/$script_name.sh || echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}" && return 0
+    sed "s/\${name}/${name}/g" scripts/$script_name.sh > $path/$script_name.sh || (echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}" && return 0)
     #Add the additional parametersi
     echo $comms >> $path/$script_name.sh
-    cd $path || echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}" && return 0
-    echo -e "\t\t\t [$CHECKMARK] Starting enviroment created succesfully"
+    cd $path || (echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}" && return 0)
+    echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
     #Submit the job by running through psubmit -> metacentrum
-    jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus},mem=${mem}gb | tail -2 || echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}" && return 0)
+    jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus},mem=${mem}gb | tail -2 || (echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}" && return 0))
     #Get the job id from second to last line
     IFS='.' read -r -a jobid_arr <<< "$jobid"
     IFS=' ' read -r -a jobid_arr2 <<< "${jobid_arr[0]}"
     #Then save the final form 
     jobid=${jobid_arr2[-1]}
     #echo $jobid
-    echo -e "\t\t\t [$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
+    echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
 
     #Cycle till the job is finished (succesfully/unsuccesfully)
     while :; do
@@ -149,13 +149,12 @@ run_sh_sim(){
     if [[ ! -f $fi ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
         return 0
-    fi
     else
         echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
     fi
 
     #Before deleting files, save the files ending with .stdout in current dir to logs
-    cat *.stdout > data_results/${name}/logs/${script_name}.log
+    cat *.stdout > ${curr_dir}/data_results/${name}/logs/${script_name}.log
 
     #Remove all files except those having given extension or in files array
     for file in *; do
