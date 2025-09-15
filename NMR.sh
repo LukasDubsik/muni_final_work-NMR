@@ -102,19 +102,51 @@ run_sh_sim(){
     path=process/$2
     hook=$3
     comms=$4
-    mem=$5
-    ncpus=$6
+    fi=$5
+    mem=$6
+    ncpus=$7
+    
+    #Save current directory so we can return to it
+    curr_dir=`pwd`
     #Create the enviroment for running 
     mkdir -p $path
     cp -r $hook $path/ || return 0
     #Modify the .sh file - substitute the file name
     sed "s/\${name}/${name}/g" scripts/$script_name.sh > $path/$script_name.sh || return 0
     #Add the additional parametersi
-    echo $comms
     echo $comms >> $path/$script_name.sh
     cd $path || return 0
+
     #Submit the job by running through psubmit -> metacentrum
-    psubmit -ys default ${script_name}.sh ncpus=${ncpus},mem=${mem}gb || return 0
+    jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus},mem=${mem}gb | tail -2 || return 0)
+    #Get the job id from second to last line
+    IFS='.' read -r -a jobid_arr <<< "$jobid"
+    IFS=' ' read -r -a jobid_arr2 <<< "${jobid_arr[0]}"
+    #Then save the final form 
+    jobid=${jobid_arr2[-1]}
+    #echo $jobid
+
+    #Cycle till the job is finished (succesfully/unsuccesfully)
+    while :; do
+        #Run qstat to pool the job
+        qstat $jobid > /dev/null 2>&1
+        res=$?
+        #If we have returned "153" job has not been run
+        if [[ $res -eq 153 ]]; then
+            return 0
+        fi
+        #If we have 35 job has finished running (even if incorrectly)
+        if [[ $res -eq 35 ]]; then
+            break
+        fi
+        sleep 10
+    done    
+
+    #Check if the final file is generated - if not, we have an error
+    if [[ ! -f $fi ]]; then
+        return 0
+    fi
+
     #Remove all files except those having given extension or in files array
     for file in *; do
         #Check if file matches any of the extensions
@@ -137,10 +169,13 @@ run_sh_sim(){
         done
 
         #If it doesn't match either, remove it
-        #if [[ $match_ext == false && $match_file == false ]]; then
-            #rm -rf "$file"
-        #fi
+        if [[ $match_ext == false && $match_file == false ]]; then
+            rm -rf "$file"
+        fi
     done
+
+    #return to the original directory
+    cd $curr_dir
 
     return 1
 }
@@ -254,9 +289,8 @@ mkdir -p data_results/${name}/logs #The directory to move all results to
 #Starting with converting the structures .mol2 (if given) to the rst7/parm7 format
 if [[ $input_type == "mol2" ]]; then
     echo -e "\t Starting with structure conversion from .mol2 to .rst7/.parm7 format."
-    echo -e $commands_antechamber
     #Firstly, run the antechamber program
-    run_sh_sim "antechamber" "preparations/antechamber" "inputs/structures/${name}.mol2" "${commands_antechamber}" 4 2
+    run_sh_sim "antechamber" "preparations/antechamber" "inputs/structures/${name}.mol2" "${commands_antechamber}" "${name}_charges.mol2" 4 2
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
         exit 1
