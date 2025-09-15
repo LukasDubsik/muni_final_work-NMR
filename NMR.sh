@@ -298,6 +298,7 @@ mkdir -p data_results/${name}/logs #The directory to move all results to
 #Starting with converting the structures .mol2 (if given) to the rst7/parm7 format
 if [[ $input_type == "mol2" ]]; then
     echo -e "\t Starting with structure conversion from .mol2 to .rst7/.parm7 format."
+
     #Firstly, run the antechamber program
     echo -e "\t\t Running antechamber..."
     run_sh_sim "antechamber" "preparations/antechamber" "inputs/structures/${name}.mol2" "${commands_antechamber}" "${name}_charges.mol2" 4 2
@@ -306,5 +307,15 @@ if [[ $input_type == "mol2" ]]; then
         exit 1
     else
         echo -e "\t\t\t[$CHECKMARK] Antechamber finished successfully."
+    fi
+
+    #Then run the parmchk2 program
+    echo -e "\t\t Running parmchk2..."
+    run_sh_sim "parmchk2" "preparations/parmchk2" "process/preparations/antechamber/${name}_charges.mol2" "${commands_parmchk2}" "${name}.frcmod" 4 2
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Parmchk2 failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] Parmchk2 finished successfully."
     fi
 fi
