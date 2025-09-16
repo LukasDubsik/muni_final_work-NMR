@@ -3,8 +3,8 @@ source leaprc.gaff2
 source leaprc.water.opc
 
 #Load ligand parameters
-loadamberparams cys.frcmod
-SYS = loadmol2 cys_charges_fixed.mol2
+loadamberparams {name}.frcmod
+SYS = loadmol2 {name}_charges_fixed.mol2
 check SYS
 
 #Solvate the system
@@ -12,6 +12,6 @@ solvatebox SYS OPCBOX 10.0 #10 angsterm
 addIons SYS Na+ 0
 
 #Export and close
-saveamberparm SYS cys.parm7 cys.rst7
+saveamberparm SYS {name}.parm7 {name}.rst7
 savepdb SYS sys_leap.pdb
 quit
