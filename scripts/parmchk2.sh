@@ -2,4 +2,4 @@
 
 module add amber
 
-parmchk2 -i cys_charges.mol2 -f mol2 -o cys.frcmod
+parmchk2 -i {name}_charges.mol2 -f mol2 -o {name}.frcmod
