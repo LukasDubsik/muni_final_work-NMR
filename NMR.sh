@@ -189,6 +189,12 @@ run_sh_sim(){
     return 1
 }
 
+substitute_name_in(){
+    script_name=$1
+    path=process/$2
+    sed -i "s/\${name}/${name}/g" $script_name > $path/$script_name || (echo -e "\t\t\t[$CROSS] ${RED} Failed to substitute the name in $path/$script_name!${NC}" && exit 1)
+}
+
 #Clean everything created by previous runs or cluttering the process directory
 rm -rf process/*
 
@@ -333,6 +339,11 @@ if [[ $input_type == "mol2" ]]; then
 
     #Combine the results by running tleap -> generate rst7/parm7 files for simulations (equilibrations)
     echo -e "\t\t Running tleap..."
+    #Substitute and copy the .in file
+    mkdir -p "process/preparations/tleap"
+    substitute_name_in "inputs/simulation/tleap.in" "preparations/tleap/"
+    echo -e "\t\t\t[$CHECKMARK] tleap.in file correctly loaded."
+    #Prepare the files to copy
     files_to_copy="process/preparations/n_fix/${name}_charges_fix.mol2 process/preparations/parmchk2/${name}.frcmod inputs/simulation/tleap.in"
     run_sh_sim "tleap" "preparations/tleap" ${files_to_copy} "${commands_parmchk2}" "${name}.rst7" 10 12
     if [[ $? -eq 0 ]]; then
