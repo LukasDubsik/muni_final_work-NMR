@@ -328,11 +328,13 @@ if [[ $input_type == "mol2" ]]; then
     cd process/preparations/n_fix/
     #Perform the process by obabel (nemsis uses obabel in the background)
     obabel -imol2 ${name}_charges.mol2 -omol2 -O ${name}_charges_fix.mol2 > /dev/null 2>&1 || echo -e "\t\t\t[$CROSS] ${RED} Failed to fix using nemesis!${NC}"
+    cd ../../../.. || (echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after nemesis!${NC}" && exit 1)
     echo -e "\t\t\t[$CHECKMARK] Nemesis fix succesfull!"
 
     #Combine the results by running tleap -> generate rst7/parm7 files for simulations (equilibrations)
     echo -e "\t\t Running tleap..."
-    run_sh_sim "tleap" "preparations/tleap" "process/preparations/antechamber/${name}_charges.mol2" "${commands_parmchk2}" "${name}.frcmod" 4 2
+    files_to_copy="process/preparations/n_fix/${name}_charges_fix.mol2 process/preparations/parmchk2/${name}.frcmod inputs/simulation/tleap.in"
+    run_sh_sim "tleap" "preparations/tleap" ${files_to_copy} "${commands_parmchk2}" "${name}.rst7" 10 12
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} TLeap failed! Exiting...${NC}"
         exit 1
