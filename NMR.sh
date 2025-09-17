@@ -115,7 +115,7 @@ run_sh_sim(){
     mkdir -p $path
     cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name
-    sed "s/\${name}/${name}/g" scripts/$script_name.sh > $path/$script_name.sh || (echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}" && return 0)
+    sed "s/\${name}/${name}/g" scripts/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
     #Add the additional parametersi
     echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
@@ -375,8 +375,7 @@ fi
 
 
 #Start the equilibration process
-echo -e "\t Starting with optimizations..."  
-counter_opt=1
+echo -e "\t Starting with optimizations..."
 
 #Firstly, run the water optimization
 echo -e "\t\t Running water optimization..."
@@ -390,11 +389,10 @@ else
 fi
 #Prepare the files to copy
 files_to_copy="process/preparations/tleap/${name}.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_ref_${counter_opt}.rst7" 10 12
+run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_ref_opt_water.rst7" 10 12
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} TLeap failed! Exiting...${NC}"
     exit 1
 else
     echo -e "\t\t\t[$CHECKMARK] Tleap finished successfully."
 fi
-((counter_opt++))
