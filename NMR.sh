@@ -369,5 +369,32 @@ if [[ $input_type == "mol2" ]]; then
     else
         echo -e "\t\t\t[$CHECKMARK] Tleap finished successfully."
     fi
-    
+
+    echo -e "\t\t[$CHECKMARK] Structure conversion finished successfully, proceeding to optimizations and MD simulations."
 fi
+
+
+#Start the equilibration process
+echo -e "\t Starting with optimizations..."  
+counter_opt=1
+
+#Firstly, run the water optimization
+echo -e "\t\t Running water optimization..."
+mkdir -p "process/equilibration/opt_water/"
+substitute_name_in "opt_water.in" "equilibration/opt_water/"
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_water.in file. The names of the resulting files need to have \${name}!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] opt_water.in file correctly loaded."
+fi
+#Prepare the files to copy
+files_to_copy="process/preparations/tleap/${name}.rst7;process/preparations/tleap/${name}.parm7"
+run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_ref_${counter_opt}.rst7" 10 12
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} TLeap failed! Exiting...${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] Tleap finished successfully."
+fi
+((counter_opt++))
