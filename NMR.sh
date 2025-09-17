@@ -397,3 +397,63 @@ if [[ $? -eq 0 ]]; then
 else
     echo -e "\t\t\t[$CHECKMARK] Optimization of water finished successfully."
 fi
+
+#Then run the full optimization
+echo -e "\t\t Running full optimization..."
+mkdir -p "process/equilibration/opt_all/"
+substitute_name_in "opt_all.in" "equilibration/opt_all/"
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_all.in file. The names of the resulting files need to have \${name}!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] opt_all.in file correctly loaded."
+fi
+#Prepare the files to copy
+files_to_copy="process/equilibration/opt_water/${name}_opt_water.rst7;process/preparations/tleap/${name}.parm7"
+run_sh_sim "opt_all" "equilibration/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 10 12
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Full optimization failed! Exiting...${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] Full optimization finished successfully."
+fi  
+
+#Then run the temperature equilibration
+echo -e "\t\t Running temperature equilibration..."
+mkdir -p "process/equilibration/opt_temp/"
+substitute_name_in "opt_temp.in" "equilibration/opt_temp/"
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_temp.in file. The names of the resulting files need to have \${name}!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] opt_temp.in file correctly loaded."
+fi
+#Prepare the files to copy
+files_to_copy="process/equilibration/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
+run_sh_sim "opt_temp" "equilibration/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 12
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] Temperature equilibration finished successfully."
+fi
+
+#Then run the pressure equilibration
+echo -e "\t\t Running pressure equilibration..."
+mkdir -p "process/equilibration/opt_pres/"
+substitute_name_in "opt_pres.in" "equilibration/opt_pres/"
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_pres.in file. The names of the resulting files need to have \${name}!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] opt_pres.in file correctly loaded."
+fi
+#Prepare the files to copy
+files_to_copy="process/equilibration/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
+run_sh_sim "opt_pres" "equilibration/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 12
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] Pressure equilibration finished successfully."
+fi
