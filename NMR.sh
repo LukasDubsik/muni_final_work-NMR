@@ -105,6 +105,7 @@ run_sh_sim(){
     fi=$5
     mem=$6
     ncpus=$7
+    ngpus=$8
 
     #Substite ';' for ' ' and combine the hook for copying
     hook=$(echo "${hook//;/ }")
@@ -122,7 +123,7 @@ run_sh_sim(){
     echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
     #Submit the job by running through psubmit -> metacentrum
-    jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus},mem=${mem}gb | tail -2 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}"; return 0; })
+    jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus} mem=${mem}gb ngpus=${ngpus} | tail -2 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}"; return 0; })
     #Get the job id from second to last line
     IFS='.' read -r -a jobid_arr <<< "$jobid"
     IFS=' ' read -r -a jobid_arr2 <<< "${jobid_arr[0]}"
@@ -389,10 +390,10 @@ else
 fi
 #Prepare the files to copy
 files_to_copy="process/preparations/tleap/${name}.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_ref_opt_water.rst7" 10 12
+run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 10 12
 if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} TLeap failed! Exiting...${NC}"
+    echo -e "\t\t\t[$CROSS] ${RED} Optimization of the water failed! Exiting...${NC}"
     exit 1
 else
-    echo -e "\t\t\t[$CHECKMARK] Tleap finished successfully."
+    echo -e "\t\t\t[$CHECKMARK] Optimization of water finished successfully."
 fi
