@@ -457,3 +457,24 @@ if [[ $? -eq 0 ]]; then
 else
     echo -e "\t\t\t[$CHECKMARK] Pressure equilibration finished successfully."
 fi
+
+
+#Start the final md simulation
+echo -e "\t Starting with the final MD simulation..."
+mkdir -p "process/md/"
+substitute_name_in "md.in" "md/"
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] md.in file correctly loaded."
+fi
+#Prepare the files to copy
+files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
+run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 12 1
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
+fi
