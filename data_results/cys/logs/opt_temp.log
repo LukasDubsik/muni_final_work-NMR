@@ -1,14 +1,16 @@
 
 # Module specification: amber (add action)
 # ==============================================================================
-  Requested CPUs     :  12  Requested GPUs     :   0
-  Num of host CPUs   :  12  Num of host GPUs   :   0
+  Requested CPUs     :  12  Requested GPUs     :   1
+  Num of host CPUs   :  12  Num of host GPUs   :   1
   Requested nodes    :   1
-  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
-                       m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
-                       m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
+  Host arch tokens   : amd, avx, avx2, cuda, gpu, i386, i686, m64-centos7,
+                       m64-deb10, m64-deb11, m64-deb12, m64-deb9, m64-ub18,
+                       m64-ub20, m64-ub22, m64-ub24, noarch, sm_89, sse4_1,
+                       sse4_2, x86_64
   Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
-  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Host SMP CPU model : AMD EPYC 7402P 24-Core Processor [Total memory: 125.6 GB]
+  Host GPU model #1  : NVIDIA GeForce RTX 4070 SUPER [Memory: 11.7 GB/GPU]
   Module maintainer  : LCC Support (support@lcc.ncbr.muni.cz) | Bundle: lcc
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   Exported module    : amber:24.0
@@ -17,14 +19,16 @@
 
 # Module specification: openmpi:5.0.3-gcc (add action)
 # ==============================================================================
-  Requested CPUs     :  12  Requested GPUs     :   0
-  Num of host CPUs   :  12  Num of host GPUs   :   0
+  Requested CPUs     :  12  Requested GPUs     :   1
+  Num of host CPUs   :  12  Num of host GPUs   :   1
   Requested nodes    :   1
-  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
-                       m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
-                       m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
+  Host arch tokens   : amd, avx, avx2, cuda, gpu, i386, i686, m64-centos7,
+                       m64-deb10, m64-deb11, m64-deb12, m64-deb9, m64-ub18,
+                       m64-ub20, m64-ub22, m64-ub24, noarch, sm_89, sse4_1,
+                       sse4_2, x86_64
   Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
-  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Host SMP CPU model : AMD EPYC 7402P 24-Core Processor [Total memory: 125.6 GB]
+  Host GPU model #1  : NVIDIA GeForce RTX 4070 SUPER [Memory: 11.7 GB/GPU]
   Module maintainer  : LCC Support (support@lcc.ncbr.muni.cz) | Bundle: devel
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   Exported module    : openmpi:5.0.3-gcc
@@ -32,42 +36,42 @@
 
 
 ======================   ALLOCATED NODES   ======================
-    wolf31: slots=12 max_slots=0 slots_inuse=0 state=UP
+    wolf32: slots=12 max_slots=0 slots_inuse=0 state=UP
 	Flags: DAEMON_LAUNCHED:LOCATION_VERIFIED:SLOTS_GIVEN
-	aliases: wolf31
+	aliases: wolf32
 =================================================================
 
 ======================   ALLOCATED NODES   ======================
-    wolf31: slots=12 max_slots=0 slots_inuse=0 state=UP
+    wolf32: slots=12 max_slots=0 slots_inuse=0 state=UP
 	Flags: DAEMON_LAUNCHED:LOCATION_VERIFIED:SLOTS_GIVEN
-	aliases: wolf31
+	aliases: wolf32
 =================================================================
 
 ======================   ALLOCATED NODES   ======================
-    wolf31: slots=12 max_slots=0 slots_inuse=0 state=UP
+    wolf32: slots=12 max_slots=0 slots_inuse=0 state=UP
 	Flags: DAEMON_LAUNCHED:LOCATION_VERIFIED:SLOTS_GIVEN
-	aliases: wolf31
+	aliases: wolf32
 =================================================================
 
 ========================   JOB MAP   ========================
-Data for JOB prterun-wolf31-2280145@1 offset 0 Total slots allocated 12
+Data for JOB prterun-wolf32-2236959@1 offset 0 Total slots allocated 12
     Mapping policy: BYCORE:NOOVERSUBSCRIBE  Ranking policy: SPAN Binding policy: CORE
     Cpu set: N/A  PPR: N/A  Cpus-per-rank: N/A  Cpu Type: CORE
 
 
-Data for node: wolf31	Num slots: 12	Max slots: 0	Num procs: 12
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 0 Bound: package[0][core:0]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 1 Bound: package[0][core:1]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 2 Bound: package[0][core:2]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 3 Bound: package[0][core:3]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 4 Bound: package[0][core:4]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 5 Bound: package[0][core:5]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 6 Bound: package[0][core:6]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 7 Bound: package[0][core:7]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 8 Bound: package[1][core:8]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 9 Bound: package[1][core:9]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 10 Bound: package[1][core:10]
-        Process jobid: prterun-wolf31-2280145@1 App: 0 Process rank: 11 Bound: package[1][core:11]
+Data for node: wolf32	Num slots: 12	Max slots: 0	Num procs: 12
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 0 Bound: package[0][core:0]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 1 Bound: package[0][core:1]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 2 Bound: package[0][core:2]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 3 Bound: package[0][core:3]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 4 Bound: package[0][core:4]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 5 Bound: package[0][core:5]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 6 Bound: package[0][core:6]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 7 Bound: package[0][core:7]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 8 Bound: package[0][core:8]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 9 Bound: package[0][core:9]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 10 Bound: package[0][core:10]
+        Process jobid: prterun-wolf32-2236959@1 App: 0 Process rank: 11 Bound: package[0][core:11]
 
 =============================================================
            0
