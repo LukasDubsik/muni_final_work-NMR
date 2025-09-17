@@ -118,11 +118,11 @@ run_sh_sim(){
     sed "s/\${name}/${name}/g" scripts/$script_name.sh > $path/$script_name.sh || (echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}" && return 0)
     #Add the additional parametersi
     echo $comms >> $path/$script_name.sh
-    cd $path || (echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}" && return 0)
+    cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
     echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
     #Submit the job by running through psubmit -> metacentrum
-    jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus},mem=${mem}gb | tail -2 || (echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}" && return 0))
+    jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus},mem=${mem}gb | tail -2 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}"; return 0; })
     #Get the job id from second to last line
     IFS='.' read -r -a jobid_arr <<< "$jobid"
     IFS=' ' read -r -a jobid_arr2 <<< "${jobid_arr[0]}"
