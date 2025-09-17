@@ -1,0 +1,95 @@
+
+# Module specification: amber (add action)
+# ==============================================================================
+  Requested CPUs     :  12  Requested GPUs     :   0
+  Num of host CPUs   :  12  Num of host GPUs   :   0
+  Requested nodes    :   1
+  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
+                       m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
+                       m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
+  Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
+  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Module maintainer  : LCC Support (support@lcc.ncbr.muni.cz) | Bundle: lcc
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Exported module    : amber:24.0
+  Module build       : amber:24.0:m64-ub22:para
+
+-I: Adding /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/prep to search path.
+-I: Adding /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/lib to search path.
+-I: Adding /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm to search path.
+-I: Adding /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd to search path.
+-f: Source tleap.in.
+
+Welcome to LEaP!
+(no leaprc in search path)
+Sourcing: ./tleap.in
+----- Source: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.gaff2
+----- Source of /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.gaff2 done
+Log file: ./leap.log
+Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/gaff2.dat
+Reading title:
+AMBER General Force Field for organic molecules (Version 2.2.20, March 2021)
+----- Source: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.water.opc
+----- Source of /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.water.opc done
+Loading library: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/lib/atomic_ions.lib
+Loading library: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/lib/solvents.lib
+Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/frcmod.opc
+Reading force field modification type file (frcmod)
+Reading title:
+Parameters for OPC water (JPCL, 2014, 5 (21), pp 3863-3871)
+Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/frcmod.ionslm_126_opc
+Reading force field modification type file (frcmod)
+Reading title:
+Li/Merz ion parameters of atomic ions for the OPC water model (12-6 set)
+Loading parameters: ./cys.frcmod
+Reading force field modification type file (frcmod)
+Reading title:
+Remark line goes here
+Loading Mol2 file: ./cys_charges_fix.mol2
+Reading MOLECULE named Structure
+Checking 'SYS'....
+Checking parameters for unit 'SYS'.
+Checking for bond parameters.
+Checking for angle parameters.
+Unit is OK.
+  Solute vdw bounding box:              5.798 5.355 8.341
+  Total bounding box for atom centers:  25.798 25.355 28.341
+  Solvent unit box:                     18.865 18.478 19.006
+  Total vdw box size:                   29.264 28.691 31.425 angstroms.
+  Volume: 26385.063 A^3 
+  Total mass 9687.652 amu,  Density 0.610 g/cc
+  Added 531 residues.
+Na+ has a charge of 0.
+addIons: Can't neutralize.
+Checking Unit.
+
+/software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/bin/teLeap: Note.
+Ignoring the warnings from Unit Checking.
+
+Building topology.
+Building atom parameters.
+Building bond parameters.
+Building angle parameters.
+Building proper torsion parameters.
+Building improper torsion parameters.
+ total 1 improper torsion applied
+Building H-Bond parameters.
+Incorporating Non-Bonded adjustments.
+Not Marking per-residue atom chain types.
+Marking per-residue atom chain types.
+  (Residues lacking connect0/connect1 - 
+   these don't have chain types marked:
+
+	res	total affected
+
+	Structure	1
+  )
+ (no restraints)
+Writing pdb file: sys_leap.pdb
+   printing CRYST1 record to PDB file with box info
+
+/software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/bin/teLeap: Warning!
+ Truncating residue name for PDB format: Structure -> Str
+	Quit
+
+Exiting LEaP: Errors = 0; Warnings = 1; Notes = 1.
