@@ -9,7 +9,7 @@
  ntc=1,
  ntf=1,
  nmropt=1,
- ioutfm=1,
+ ioutfm=0,
 
  irest=0,
  ntx=1,
