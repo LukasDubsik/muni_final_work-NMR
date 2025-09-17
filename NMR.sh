@@ -52,20 +52,20 @@ check_in_file(){
     file_iterate $pattern
     ret=$?
     if [[ $ret -eq 0 ]]; then
-        echo -e "\t\t[$CROSS] ${RED} ${pattern} not specified in $filename! Required for NMR!${NC}"
+        echo -e "\t\t\t[$CROSS] ${RED} ${pattern} not specified in $filename! Required for NMR!${NC}"
         exit 1
     else
         #Check that it ends in .in
         check=$(echo $res | grep -E '\.in$')
         if [[ -z $check ]]; then
-            echo -e "\t\t[$CROSS] ${RED} ${pattern} in $filename must end with .in!${NC}"
+            echo -e "\t\t\t[$CROSS] ${RED} ${pattern} in $filename must end with .in!${NC}"
             exit 1
         else
             if [[ ! -f inputs/simulation/${res} ]]; then
-                echo -e "\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
+                echo -e "\t\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
                 exit 1
             else
-                echo -e "\t\t[$CHECKMARK] Input file ${res} found in inputs/simulation/."
+                echo -e "\t\t\t[$CHECKMARK] Input file ${res} found in inputs/simulation/."
             fi
         fi
     fi
@@ -77,20 +77,20 @@ check_sh_file(){
     file_iterate $pattern
     ret=$?
     if [[ $ret -eq 0 ]]; then
-        echo -e "\t\t[$CROSS] ${RED} ${pattern} not specified in $filename! Required as .mol2 given. If no additions to running the program just leave \"\".${NC}"
+        echo -e "\t\t\t[$CROSS] ${RED} ${pattern} not specified in $filename! Required as .mol2 given. If no additions to running the program just leave \"\".${NC}"
         exit 1
     else
         #Check that it ends in .sh
         check=$(echo $res | grep -E '^".*"$')
         if [[ -z $check ]]; then
-            echo -e "\t\t[$CROSS] ${RED} ${pattern} in $filename must end with .sh!${NC}"
+            echo -e "\t\t\t[$CROSS] ${RED} ${pattern} in $filename must end with .sh!${NC}"
             exit 1
         else
             res=$(echo $res | sed 's/"//g')
             com=$(tail -n 1 scripts/${pattern}.sh)
             #Replace the $1 by the name
             com=$(echo $com | sed "s/\${name}/"${name}"/g")
-            echo -e "\t\t[$CHECKMARK] ${pattern} specified and will be run as\n\t\t\t" $com ${res}
+            echo -e "\t\t\t[$CHECKMARK] ${pattern} specified and will be run as\n\t\t\t\t" $com ${res}
         fi
     fi
 }
@@ -352,7 +352,6 @@ if [[ $input_type == "mol2" ]]; then
     #Combine the results by running tleap -> generate rst7/parm7 files for simulations (equilibrations)
     echo -e "\t\t Running tleap..."
     #Substitute and copy the .in file
-    pwd
     mkdir -p "process/preparations/tleap/"
     substitute_name_in "tleap.in" "preparations/tleap/"
     if [[ $? -eq 0 ]]; then
