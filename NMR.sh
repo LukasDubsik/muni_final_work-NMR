@@ -105,12 +105,15 @@ run_sh_sim(){
     fi=$5
     mem=$6
     ncpus=$7
+
+    #Substite ';' for ' ' and combine the hook for copying
+    hook=$(echo "${hook//;/ }")
     
     #Save current directory so we can return to it
     curr_dir=`pwd`
     #Create the enviroment for running 
     mkdir -p $path
-    cp -r $hook $path/ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}" && return 0)
+    cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name
     sed "s/\${name}/${name}/g" scripts/$script_name.sh > $path/$script_name.sh || (echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}" && return 0)
     #Add the additional parametersi
@@ -126,7 +129,15 @@ run_sh_sim(){
     #Then save the final form 
     jobid=${jobid_arr2[-1]}
     #echo $jobid
-    echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
+
+    #Check if the jobid is really a number
+    re='^[0-9]+$'
+    if ! [[ $jobid =~ $re ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Job was submitted incorrectly!${NC}"
+        return 0
+    else
+        echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
+    fi
 
     #Cycle till the job is finished (succesfully/unsuccesfully)
     while :; do
@@ -192,7 +203,8 @@ run_sh_sim(){
 substitute_name_in(){
     script_name=$1
     path=process/$2
-    sed -i "s/\${name}/${name}/g" $script_name > $path/$script_name || (echo -e "\t\t\t[$CROSS] ${RED} Failed to substitute the name in $path/$script_name!${NC}" && exit 1)
+    sed "s/\${name}/${name}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
+    return 1
 }
 
 #Clean everything created by previous runs or cluttering the process directory
@@ -334,18 +346,24 @@ if [[ $input_type == "mol2" ]]; then
     cd process/preparations/n_fix/
     #Perform the process by obabel (nemsis uses obabel in the background)
     obabel -imol2 ${name}_charges.mol2 -omol2 -O ${name}_charges_fix.mol2 > /dev/null 2>&1 || echo -e "\t\t\t[$CROSS] ${RED} Failed to fix using nemesis!${NC}"
-    cd ../../../.. || (echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after nemesis!${NC}" && exit 1)
+    cd ../../.. || (echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after nemesis!${NC}" && exit 1)
     echo -e "\t\t\t[$CHECKMARK] Nemesis fix succesfull!"
 
     #Combine the results by running tleap -> generate rst7/parm7 files for simulations (equilibrations)
     echo -e "\t\t Running tleap..."
     #Substitute and copy the .in file
-    mkdir -p "process/preparations/tleap"
-    substitute_name_in "inputs/simulation/tleap.in" "preparations/tleap/"
-    echo -e "\t\t\t[$CHECKMARK] tleap.in file correctly loaded."
+    pwd
+    mkdir -p "process/preparations/tleap/"
+    substitute_name_in "tleap.in" "preparations/tleap/"
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in tleap.in file. The names of the resulting files need to have \${name}!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] tleap.in file correctly loaded."
+    fi
     #Prepare the files to copy
-    files_to_copy="process/preparations/n_fix/${name}_charges_fix.mol2 process/preparations/parmchk2/${name}.frcmod inputs/simulation/tleap.in"
-    run_sh_sim "tleap" "preparations/tleap" ${files_to_copy} "${commands_parmchk2}" "${name}.rst7" 10 12
+    files_to_copy="process/preparations/n_fix/${name}_charges_fix.mol2;process/preparations/parmchk2/${name}.frcmod"
+    run_sh_sim "tleap" "preparations/tleap" ${files_to_copy} "" "${name}.rst7" 10 12
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} TLeap failed! Exiting...${NC}"
         exit 1
