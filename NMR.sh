@@ -478,3 +478,20 @@ if [[ $? -eq 0 ]]; then
 else
     echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
 fi
+
+
+##Start the process of final generation of the NMR spectra
+#Prepare the enviroment
+mkdir -p "process/spectrum/"
+
+#Run the cpptraj to sample and prepare the simulation results
+#...
+
+#Split to individual images of the simulation and convert to gauss format
+#...
+
+#Run the gaussian simulation on each file and store the results
+#...
+
+#Combine the resulting files and plot the image of the NMR spectrum
+#...
