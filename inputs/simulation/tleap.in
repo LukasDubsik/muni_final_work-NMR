@@ -1,6 +1,6 @@
 #Input params
-source leaprc.gaff2
-source leaprc.water.opc
+source leaprc.gaff
+source leaprc.water.tip3p
 
 #Load ligand parameters
 loadamberparams ${name}.frcmod
