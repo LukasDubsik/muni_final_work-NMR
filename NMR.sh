@@ -483,12 +483,48 @@ fi
 ##Start the process of final generation of the NMR spectra
 #Prepare the enviroment
 mkdir -p "process/spectrum/"
+echo -e "\t Starting with the NMR spectrum generation..."
 
 #Run the cpptraj to sample and prepare the simulation results
-#...
+echo -e "\t\t Running cpptraj to sample the MD simulation..."
+mkdir -p "process/spectrum/cpptraj/"
+substitute_name_in "cpptraj.in" "spectrum/cpptraj/"
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] cpptraj.in file correctly loaded."
+fi
+#Prepare the files to copy
+files_to_copy="process/md/${name}_md.mdcrd;process/preparations/tleap/${name}.parm7"
+run_sh_sim "cpptraj" "spectrum/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 12
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} cpptraj failed! Exiting...${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] cpptraj finished successfully."
+fi
 
 #Split to individual images of the simulation and convert to gauss format
-#...
+echo -e "\t\t Splitting the frames and converting to .gjf format..."
+mkdir -p "process/spectrum/gauss_prep/"
+#$Firstly copy the resulting .xyz file
+cp process/spectrum/cpptraj/${name}_frame.xyz process/spectrum/gauss_prep/.
+#Then split the file to individual frames by running split_xyz.sh
+cp scripts/split_xyz.sh process/spectrum/gauss_prep/.
+mkdir -p process/spectrum/gauss_prep/frames
+#Enter the directory and split the frames
+cd process/spectrum/gauss_prep/ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}" && exit 1)
+bash split_xyz.sh < ../${name}_frame.xyz || (echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}" && exit 1)
+cd ../../../ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}" && exit 1)
+echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
+#Then convert each frame to .gjf format by running xyz_to_gfj.sh
+cp scripts/xyz_to_gfj.sh process/spectrum/gauss_prep/.
+mkdir -p process/spectrum/gauss_prep/gauss
+cd process/spectrum/gauss_prep/ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}" && exit 1)
+bash xyz_to_gfj.sh || (echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}" && exit 1)
+cd ../../../ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after converting!${NC}" && exit 1)
+echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
 
 #Run the gaussian simulation on each file and store the results
 #...

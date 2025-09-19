@@ -1,0 +1,13 @@
+#Sampling done alredy in md amber
+#Only convert results for Gaussian
+
+#inputs
+parm ${name}.parm7
+trajin ${name}_md.mdcrd 1 last 100
+
+#Keep closest N solvents
+autoimage
+closest 20 @1-14 oxygen closestout closest.dat
+
+trajout ${name}_frame.xyz xyz multi
+run
