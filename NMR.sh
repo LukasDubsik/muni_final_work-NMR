@@ -540,16 +540,34 @@ cp scripts/run_NMR.sh process/spectrum/NMR/.
 cp -r process/spectrum/gauss_prep/gauss process/spectrum/NMR/.
 mkdir -p process/spectrum/NMR/nmr
 #Enter the directory and run the .sh script
-cd process/spectrum/NMR || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the NMR directory!${NC}"; exit 1; }
-bash run_NMR.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to run the NMR calculations!${NC}"; exit 1; }
-cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after NMR calculations!${NC}"; exit 1; }
-if [[ ! -d process/spectrum/NMR/nmr || -z "$(ls -A process/spectrum/NMR/nmr)" ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} NMR calculations failed, no files found!${NC}"
+run_sh_sim "run_NMR" "spectrum/NMR" "" "" "nmr/frame.1.log" 10 12 1
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Gaussian NMR calculations failed! Exiting...${NC}"
     exit 1
 else
-    echo -e "\t\t\t[$CHECKMARK] NMR calculations successful."
+    echo -e "\t\t\t[$CHECKMARK] Gaussian NMR calculations finished successfully."
 fi
 
-#Combine the resulting files and plot the image of the NMR spectrum
-#...
-
+#Combine the resulting files and plot the final spectrum
+echo -e "\t\t Plotting the final NMR spectrum..."
+mkdir -p "process/spectrum/plotting/"
+#Get the number of atoms from the initial mol file
+limit=$(grep -A 1 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
+sigma=32.2 #Assumed solvent TMS shielding constant
+#Copy the .sh and .awk and .plt scripts while replacing the values
+sed "s/\${sigma}/${sigma}/g; s/\${limit}/${limit}/g" scripts/log_to_plot.sh > process/spectrum/plotting/log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.sh file!${NC}"; exit 1; }
+cp scripts/gfj_to_plot.awk process/spectrum/plotting/log_to_plot.awk || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.awk file!${NC}"; exit 1; }
+cp scripts/average_plot.sh process/spectrum/plotting/average_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the average_plot.sh file!${NC}"; exit 1; }
+sed "s/\${name}/${name}/g" scripts/plot_nmr.plt > process/spectrum/plotting/plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the plot_nmr.plt file!${NC}"; exit 1; }
+#Run the script
+cd process/spectrum/plotting || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the plotting directory!${NC}"; exit 1; }   
+bash log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to plot the NMR spectrum!${NC}"; exit 1; }
+#Finally plot and check presence of the graphic file
+gnuplot plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to run gnuplot for NMR spectrum!${NC}"; exit 1; }
+cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after plotting!${NC}"; exit 1; }
+if [[ ! -f process/spectrum/plotting/${name}_spectrum.png ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Plotting the NMR spectrum failed, no file found!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] Plotting the NMR spectrum successful."
+fi
