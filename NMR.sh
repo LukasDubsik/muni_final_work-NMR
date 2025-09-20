@@ -310,7 +310,7 @@ else
     echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
 fi
 
-:'
+
 #All checks done
 ##Begin with simulations
 mkdir -p data_results/${name}/logs #The directory to move all results to
@@ -465,21 +465,20 @@ echo -e "\t Starting with the final MD simulation..."
 mkdir -p "process/md/"
 substitute_name_in "md.in" "md/"
 if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
+    echo -e "\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
     exit 1
 else
-    echo -e "\t\t\t[$CHECKMARK] md.in file correctly loaded."
+    echo -e "\t\t[$CHECKMARK] md.in file correctly loaded."
 fi
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
 run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
 if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
+    echo -e "\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
     exit 1
 else
-    echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
+    echo -e "\t\t[$CHECKMARK] MD simulation finished successfully."
 fi
-'
 
 ##Start the process of final generation of the NMR spectra
 #Prepare the enviroment
@@ -522,13 +521,34 @@ echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
 #Then convert each frame to .gjf format by running xyz_to_gfj.sh
 cp scripts/xyz_to_gfj.sh process/spectrum/gauss_prep/.
 mkdir -p process/spectrum/gauss_prep/gauss
-cd process/spectrum/gauss_prep/ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}" && exit 1)
-bash xyz_to_gfj.sh || (echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}" && exit 1)
-cd ../../../ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after converting!${NC}" && exit 1)
-echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
+cd process/spectrum/gauss_prep/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
+bash xyz_to_gfj.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}"; exit 1; }
+cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after converting!${NC}"; exit 1; }
+if [[ ! -d process/spectrum/gauss_prep/gauss || -z "$(ls -A process/spectrum/gauss_prep/gauss)" ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Conversion to .gjf format failed, no files found!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
+fi
 
 #Run the gaussian simulation on each file and store the results
-#...
+echo -e "\t\t Running Gaussian NMR calculations..."
+mkdir -p "process/spectrum/NMR/"
+#Copy the .sh script
+cp scripts/run_NMR.sh process/spectrum/NMR/.
+#Copy the generated .gjf files directory
+cp -r process/spectrum/gauss_prep/gauss process/spectrum/NMR/.
+mkdir -p process/spectrum/NMR/nmr
+#Enter the directory and run the .sh script
+cd process/spectrum/NMR || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the NMR directory!${NC}"; exit 1; }
+bash run_NMR.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to run the NMR calculations!${NC}"; exit 1; }
+cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after NMR calculations!${NC}"; exit 1; }
+if [[ ! -d process/spectrum/NMR/nmr || -z "$(ls -A process/spectrum/NMR/nmr)" ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} NMR calculations failed, no files found!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t[$CHECKMARK] NMR calculations successful."
+fi
 
 #Combine the resulting files and plot the image of the NMR spectrum
 #...
