@@ -1,0 +1,16 @@
+<registry>
+    <abs/>
+    <ams>
+        <variables>
+            <variable name="AMS_FLAVOUR" value=""/>
+            <variable name="AMS_HOSTS_CONFIG" value=""/>
+            <variable name="AMS_HOST_GROUP" value="wolf"/>
+            <variable name="AMS_HOST_GROUPS_PATH" value=""/>
+            <variable name="AMS_HOST_SUBSYSTEMS_PATH" value=""/>
+            <variable name="AMS_SITE_PATH" value=""/>
+            <variable name="AMS_PRINT_PROFILE_PATH" value=""/>
+            <variable name="AMS_BUNDLE_NAME" value="aisoft,bioinf,cdk,common,core,devel,docking,gpu,lcc,ncbr,protpred,python,qmsoft,rova,sbmm,strdet,strpred,visual"/>
+            <variable name="AMS_BUNDLE_PATH" value="/software/ncbr/softrepo:/software/ncbr"/>
+        </variables>
+    </ams>
+</registry>

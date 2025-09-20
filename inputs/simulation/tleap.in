@@ -8,7 +8,7 @@ SYS = loadmol2 ${name}_charges_fix.mol2
 check SYS
 
 #Solvate the system
-solvatebox SYS OPCBOX 10.0 #10 angsterm
+solvatebox SYS TIP3PBOX 10.0 #10 angsterm
 addIons SYS Na+ 0
 
 #Export and close

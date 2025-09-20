@@ -531,3 +531,4 @@ echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
 
 #Combine the resulting files and plot the image of the NMR spectrum
 #...
+

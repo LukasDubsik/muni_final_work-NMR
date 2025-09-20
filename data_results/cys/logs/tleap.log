@@ -23,24 +23,32 @@
 Welcome to LEaP!
 (no leaprc in search path)
 Sourcing: ./tleap.in
------ Source: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.gaff2
------ Source of /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.gaff2 done
+----- Source: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.gaff
+----- Source of /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.gaff done
 Log file: ./leap.log
-Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/gaff2.dat
+Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/gaff.dat
 Reading title:
-AMBER General Force Field for organic molecules (Version 2.2.20, March 2021)
------ Source: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.water.opc
------ Source of /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.water.opc done
+AMBER General Force Field for organic molecules (Version 1.81, May 2017)
+----- Source: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.water.tip3p
+----- Source of /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.water.tip3p done
 Loading library: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/lib/atomic_ions.lib
 Loading library: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/lib/solvents.lib
-Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/frcmod.opc
+Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/frcmod.tip3p
 Reading force field modification type file (frcmod)
 Reading title:
-Parameters for OPC water (JPCL, 2014, 5 (21), pp 3863-3871)
-Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/frcmod.ionslm_126_opc
+This is the additional/replacement parameter set for TIP3P water
+Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/frcmod.ions1lm_126_tip3p
 Reading force field modification type file (frcmod)
 Reading title:
-Li/Merz ion parameters of atomic ions for the OPC water model (12-6 set)
+Li/Merz ion parameters of monovalent ions for TIP3P water model (12-6 normal usage set)
+Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/frcmod.ionsjc_tip3p
+Reading force field modification type file (frcmod)
+Reading title:
+Monovalent ion parameters for Ewald and TIP3P water from Joung & Cheatham JPCB (2008)
+Loading parameters: /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/parm/frcmod.ions234lm_126_tip3p
+Reading force field modification type file (frcmod)
+Reading title:
+Li/Merz ion parameters of divalent to tetravalent ions for TIP3P water model (12-6 normal usage set)
 Loading parameters: ./cys.frcmod
 Reading force field modification type file (frcmod)
 Reading title:
@@ -52,20 +60,16 @@ Checking parameters for unit 'SYS'.
 Checking for bond parameters.
 Checking for angle parameters.
 Unit is OK.
-  Solute vdw bounding box:              5.798 5.355 8.341
-  Total bounding box for atom centers:  25.798 25.355 28.341
-  Solvent unit box:                     18.865 18.478 19.006
-  Total vdw box size:                   29.264 28.691 31.425 angstroms.
-  Volume: 26385.063 A^3 
-  Total mass 9687.652 amu,  Density 0.610 g/cc
-  Added 531 residues.
+  Solute vdw bounding box:              6.084 5.318 8.309
+  Total bounding box for atom centers:  26.084 25.318 28.309
+  Solvent unit box:                     18.774 18.774 18.774
+  Total vdw box size:                   28.912 28.501 31.349 angstroms.
+  Volume: 25832.302 A^3 
+  Total mass 10011.940 amu,  Density 0.644 g/cc
+  Added 549 residues.
 Na+ has a charge of 0.
 addIons: Can't neutralize.
 Checking Unit.
-
-/software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/bin/teLeap: Note.
-Ignoring the warnings from Unit Checking.
-
 Building topology.
 Building atom parameters.
 Building bond parameters.
@@ -83,6 +87,7 @@ Marking per-residue atom chain types.
 	res	total affected
 
 	Structure	1
+	WAT	549
   )
  (no restraints)
 Writing pdb file: sys_leap.pdb
@@ -92,4 +97,4 @@ Writing pdb file: sys_leap.pdb
  Truncating residue name for PDB format: Structure -> Str
 	Quit
 
-Exiting LEaP: Errors = 0; Warnings = 1; Notes = 1.
+Exiting LEaP: Errors = 0; Warnings = 1; Notes = 0.

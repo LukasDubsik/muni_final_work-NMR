@@ -1,0 +1,257 @@
+#!/bin/bash
+# ==============================================================================
+# ABS
+# (c) 2024, Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2017, Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2012, Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2008-2009, Petr Kulhanek, kulhanek@chemi.muni.cz
+# Charon Extension Layer v0.9
+# (c) 2006, Petr Kulhanek, kulhanek@chemi.muni.cz
+# Charon Extension Layer v0.8
+# (c) 2005, Petr Kulhanek, kulhanek@chemi.muni.cz
+# based on LCC module v1 - v5
+# (c) 2001-2004, Petr Kulhanek, kulhanek@chemi.muni.cz
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# mark this job as INFINITY job, this is used by module-add-stat
+export _INFINITY_JOB_="_INFINITY_JOB_"
+
+# header -----------------------------------------------------------------------
+
+_DATE=`date`
+
+echo
+echo "################################################################################"
+echo "#                          *** INFINITY JOB ***                                #"
+echo "#                                                                              #"
+echo "###                  Beginning of the script execution                      ####"
+echo "#                                                                              #"
+echo "# # Date: `printf %-67s \"$_DATE\"`# #"
+echo "#                                                                              #"
+echo "################################################################################"
+echo
+echo "Initial job information (recovered from transmitted environment):"
+echo "--------------------------------------------------------------------------------"
+echo "Job ID               : $PBS_JOBID"
+echo "Job name             : $INF_JOB_NAME"
+echo "Job name suffix      : $INF_JOB_NAME_SUFFIX"
+echo "Job input machine    : $INF_INPUT_MACHINE"
+echo "Job input dir        : $INF_INPUT_DIR"
+echo "Input data type      : $INF_INPUT_DATA"
+echo "Job storage machine  : $INF_STORAGE_MACHINE"
+echo "Job storage path     : $INF_STORAGE_DIR"
+echo "Job key              : $INF_JOB_KEY"
+echo "------------------------------------------------------"
+echo "Hostname             : `hostname -f`"
+echo "AMS boot script      : $INF_BOOT_SCRIPT"
+echo "Site support         : $AMS_SITE_SUPPORT"
+echo "Site name            : $INF_AMS_SITE"
+echo "ABS module version   : $INF_ABS_VERSION"
+echo "Job UMask            : $INF_UMASK"
+echo "Job host group       : $INF_JOB_HOST_GROUP"
+
+# restore AMS registry ---------------------------------------------------------
+
+function _abs_job_cleanup()
+{
+    if [ -f "$AMS_REGISTRY_CONFIG" ]; then
+        rm -f "$AMS_REGISTRY_CONFIG" 2> /dev/null
+    fi
+    if [ -f "$AMS_HOST_CACHE" ]; then
+        rm -f "$AMS_HOST_CACHE" 2> /dev/null
+    fi
+}
+
+trap _abs_job_cleanup EXIT
+
+# ------------------------------------------------------------------------------
+
+echo ""
+echo "#-------------------------------------------------------------------------------"
+echo "# LM: Sanity checks ..."
+echo "#-------------------------------------------------------------------------------"
+
+if [[ -v CUDA_VISIBLE_DEVICES ]]; then
+    if [[ -z "$CUDA_VISIBLE_DEVICES" ]]; then
+        echo "CUDA_VISIBLE_DEVICES is set but without contents, unsetting the variable ..."
+        unset CUDA_VISIBLE_DEVICES
+    fi
+fi
+
+# RT#659657
+if [[ (-f "$HOME/.k5login") && (`stat --format=%a "$HOME/.k5login"` != 644) ]]; then
+    echo ".k5login exists with incorrect access rights, fixing to 644 ..."
+    chmod 644 "$HOME/.k5login"
+fi
+
+# get info about Kerberos
+ABS_KLISTCMD=`type -P klist 2> /dev/null`
+if [ -n "$ABS_KLISTCMD" ]; then
+    $ABS_KLISTCMD
+else
+    echo ">>> INFO: the klist command not available ... skipping"
+fi
+unset ABS_KLISTCMD
+
+ABS_TOKENSCMD=`type -P tokens 2> /dev/null`
+if [ -n "$ABS_TOKENSCMD" ]; then
+    $ABS_TOKENSCMD
+else
+    echo ">>> INFO: the tokens command not available ... skipping"
+fi
+unset ABS_TOKENSCMD
+
+echo ""
+echo "#-------------------------------------------------------------------------------"
+echo "# L0: Booting the AMS/ABS environments ..."
+echo "#-------------------------------------------------------------------------------"
+echo ""
+echo "# User identity ..."
+id | tr ' ' '\n'
+echo "umask=`umask`"
+echo
+
+# restore AMS registry ---------------------------------------------------------
+
+AMS_REGISTRY_CONFIG="/tmp/ams_registry.${USER}.${PBS_JOBID}"
+export AMS_REGISTRY_CONFIG
+
+cat << EOF | base64 --decode > "$AMS_REGISTRY_CONFIG"
+PHJlZ2lzdHJ5PgogICAgPGFicy8+CiAgICA8YW1zPgogICAgICAgIDx2YXJpYWJsZXM+CiAgICAgICAg
+ICAgIDx2YXJpYWJsZSBuYW1lPSJBTVNfRkxBVk9VUiIgdmFsdWU9IiIvPgogICAgICAgICAgICA8dmFy
+aWFibGUgbmFtZT0iQU1TX0hPU1RTX0NPTkZJRyIgdmFsdWU9IiIvPgogICAgICAgICAgICA8dmFyaWFi
+bGUgbmFtZT0iQU1TX0hPU1RfR1JPVVAiIHZhbHVlPSJ3b2xmIi8+CiAgICAgICAgICAgIDx2YXJpYWJs
+ZSBuYW1lPSJBTVNfSE9TVF9HUk9VUFNfUEFUSCIgdmFsdWU9IiIvPgogICAgICAgICAgICA8dmFyaWFi
+bGUgbmFtZT0iQU1TX0hPU1RfU1VCU1lTVEVNU19QQVRIIiB2YWx1ZT0iIi8+CiAgICAgICAgICAgIDx2
+YXJpYWJsZSBuYW1lPSJBTVNfU0lURV9QQVRIIiB2YWx1ZT0iIi8+CiAgICAgICAgICAgIDx2YXJpYWJs
+ZSBuYW1lPSJBTVNfUFJJTlRfUFJPRklMRV9QQVRIIiB2YWx1ZT0iIi8+CiAgICAgICAgICAgIDx2YXJp
+YWJsZSBuYW1lPSJBTVNfQlVORExFX05BTUUiIHZhbHVlPSJhaXNvZnQsYmlvaW5mLGNkayxjb21tb24s
+Y29yZSxkZXZlbCxkb2NraW5nLGdwdSxsY2MsbmNicixwcm90cHJlZCxweXRob24scW1zb2Z0LHJvdmEs
+c2JtbSxzdHJkZXQsc3RycHJlZCx2aXN1YWwiLz4KICAgICAgICAgICAgPHZhcmlhYmxlIG5hbWU9IkFN
+U19CVU5ETEVfUEFUSCIgdmFsdWU9Ii9zb2Z0d2FyZS9uY2JyL3NvZnRyZXBvOi9zb2Z0d2FyZS9uY2Jy
+Ii8+CiAgICAgICAgPC92YXJpYWJsZXM+CiAgICA8L2Ftcz4KPC9yZWdpc3RyeT4K
+EOF
+
+# boot AMS ---------------------------------------------------------------------
+
+# the file is new, thus, this ensure that the host cache is updated
+AMS_HOST_CACHE="/tmp/ams_cache.${USER}.${PBS_JOBID}"
+export AMS_HOST_CACHE
+
+# boot AMS if not already done
+if [ -z "$AMS_ROOT_V9" ]; then
+    if [ -f "$INF_BOOT_SCRIPT" ]; then
+        # boot AMS system
+        source $INF_BOOT_SCRIPT
+    fi
+fi
+
+if [ -z "$AMS_ROOT_V9" ]; then
+    echo "" >&2
+    echo " >>> ERROR: Advanced Module System (AMS) is not available!" >&2
+    echo "            Please send contents of this output to the site support: $AMS_SITE_SUPPORT" >&2
+    echo "" >&2
+    exit 1
+fi
+
+# do not use the host chache as it can be outdated
+echo "# ams-host"
+ams-host
+
+echo "# site --force init"
+site --force init
+
+echo "# amsmodule --system add abs:$INF_ABS_VERSION"
+
+# here we should use the same version as it was used for job submision
+amsmodule --system add abs:$INF_ABS_VERSION
+
+if [ $? -ne 0 ]; then
+    echo "" >&2
+    echo " >>> ERROR: Unable to add the 'abs:$INF_ABS_VERSION' module!" >&2
+    echo "            Please send contents of this output to the site support: $AMS_SITE_SUPPORT" >&2
+    echo "" >&2
+    exit 1
+fi
+
+# we need modified rsync
+echo "# amsmodule --system add abs-rsync"
+
+amsmodule --system add abs-rsync
+
+if [ $? -ne 0 ]; then
+    echo "" >&2
+    echo " >>> ERROR: Unable to add the 'abs-rsync' module!" >&2
+    echo "            Please send contents of this output to the site support: $AMS_SITE_SUPPORT" >&2
+    echo "" >&2
+    exit 1
+fi
+
+if ! [ -e "$ABS_RSYNC" ]; then
+    echo "" >&2
+    echo " >>> ERROR: '$ABS_RSYNC' is not executable!" >&2
+    echo "            Please send contents of this output to the site support: $AMS_SITE_SUPPORT" >&2
+    echo "" >&2
+    exit 1
+fi
+
+# print rsync version and capabilities
+$ABS_RSYNC --version
+
+# ==============================================================================
+
+# be sure that PBS_SERVER is not set, default server name is taken from pbs_mom setup
+unset PBS_SERVER
+
+# ==============================================================================
+
+# ABS_ROOT is set by the abs module, sanity check
+
+if ! [ -d "$ABS_ROOT" ]; then
+    echo "" >&2
+    echo " >>> ERROR: The ABS_ROOT directory does not exist!" >&2
+    echo "" >&2
+    exit 1
+fi
+
+# load ABS library
+source $ABS_ROOT/share/scripts/abs-execution-script-LL
+
+# Restore job environment ...
+source $ABS_ROOT/share/scripts/abs-execution-script-L1
+
+# Prepare working directory ...
+source $ABS_ROOT/share/scripts/abs-execution-script-L2
+
+# Copy input job data ...
+source $ABS_ROOT/share/scripts/abs-execution-script-L3
+
+# Start job ...
+source $ABS_ROOT/share/scripts/abs-execution-script-L4
+
+# Sync data ...
+source $ABS_ROOT/share/scripts/abs-execution-script-L5 
+
+# Clean ...
+source $ABS_ROOT/share/scripts/abs-execution-script-L6 
+
+# =============================================================================
+
+# do cleanup
+_abs_job_cleanup
+
+# current time
+_DATE=`date`
+
+echo
+echo "################################################################################"
+echo "#                                                                              #"
+echo "# # Date: `printf %-67s \"$_DATE\"`# #"
+echo "#                                                                              #"
+echo "###                      End of the script execution                        ####"
+echo "#                                                                              #"
+echo "################################################################################"
+echo
+
+
