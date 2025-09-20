@@ -311,7 +311,7 @@ else
     echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
 fi
 
-:'
+#:'
 #All checks done
 ##Begin with simulations
 mkdir -p data_results/${name}/logs #The directory to move all results to
@@ -531,7 +531,7 @@ if [[ ! -d process/spectrum/gauss_prep/gauss || -z "$(ls -A process/spectrum/gau
 else
     echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
 fi
-"
+#"
 #Run the gaussian simulation on each file and store the results
 echo -e "\t\t Running Gaussian NMR calculations..."
 mkdir -p "process/spectrum/NMR/"
