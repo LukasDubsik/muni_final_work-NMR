@@ -209,7 +209,8 @@ substitute_name_in(){
 }
 
 #Clean everything created by previous runs or cluttering the process directory
-rm -rf process/*
+#rm -rf process/*
+rm -rf process/spectrum/*
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
@@ -309,7 +310,7 @@ else
     echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
 fi
 
-
+:'
 #All checks done
 ##Begin with simulations
 mkdir -p data_results/${name}/logs #The directory to move all results to
@@ -430,7 +431,7 @@ else
 fi
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_temp" "equilibration/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 12 1
+run_sh_sim "opt_temp" "equilibration/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
     exit 1
@@ -450,7 +451,7 @@ else
 fi
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_pres" "equilibration/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 12 1
+run_sh_sim "opt_pres" "equilibration/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
     exit 1
@@ -471,14 +472,14 @@ else
 fi
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 12 1
+run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
     exit 1
 else
     echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
 fi
-
+'
 
 ##Start the process of final generation of the NMR spectra
 #Prepare the enviroment
@@ -497,7 +498,7 @@ else
 fi
 #Prepare the files to copy
 files_to_copy="process/md/${name}_md.mdcrd;process/preparations/tleap/${name}.parm7"
-run_sh_sim "cpptraj" "spectrum/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 12
+run_sh_sim "cpptraj" "spectrum/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 1
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} cpptraj failed! Exiting...${NC}"
     exit 1
@@ -514,9 +515,9 @@ cp process/spectrum/cpptraj/${name}_frame.xyz process/spectrum/gauss_prep/.
 cp scripts/split_xyz.sh process/spectrum/gauss_prep/.
 mkdir -p process/spectrum/gauss_prep/frames
 #Enter the directory and split the frames
-cd process/spectrum/gauss_prep/ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}" && exit 1)
-bash split_xyz.sh < ../${name}_frame.xyz || (echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}" && exit 1)
-cd ../../../ || (echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}" && exit 1)
+cd process/spectrum/gauss_prep || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
+bash split_xyz.sh < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}"; exit 1; }
+cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
 echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
 #Then convert each frame to .gjf format by running xyz_to_gfj.sh
 cp scripts/xyz_to_gfj.sh process/spectrum/gauss_prep/.
