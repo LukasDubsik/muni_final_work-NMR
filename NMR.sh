@@ -106,6 +106,10 @@ run_sh_sim(){
     mem=$6
     ncpus=$7
     ngpus=$8
+    wai=$9
+    if [[ -z $wai ]]; then
+        wai=1
+    fi
 
     #Substite ';' for ' ' and combine the hook for copying
     hook=$(echo "${hook//;/ }")
@@ -116,15 +120,16 @@ run_sh_sim(){
     mkdir -p $path
     cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name
-    sed "s/\${name}/${name}/g" scripts/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
+    sed "s/\${name}/${name}/g; s/\${num}/${num}/g" scripts/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
     #Add the additional parametersi
     echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
-    echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
+    [ $wai -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
     #Submit the job by running through psubmit -> metacentrum
     jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus} mem=${mem}gb ngpus=${ngpus} | tail -2 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}"; return 0; })
     #Get the job id from second to last line
+    #echo $jobid
     IFS='.' read -r -a jobid_arr <<< "$jobid"
     IFS=' ' read -r -a jobid_arr2 <<< "${jobid_arr[0]}"
     #Then save the final form 
@@ -137,7 +142,13 @@ run_sh_sim(){
         echo -e "\t\t\t[$CROSS] ${RED} Job was submitted incorrectly!${NC}"
         return 0
     else
-        echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
+        [ $wai -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
+    fi
+
+    #If we don't wish to wait
+    if [[ $wai -eq 0 ]]; then
+        cd $curr_dir
+        return 1
     fi
 
     #Cycle till the job is finished (succesfully/unsuccesfully)
@@ -158,11 +169,11 @@ run_sh_sim(){
     done    
 
     #Check if the final file is generated - if not, we have an error
-    if [[ ! -f $fi ]]; then
+    if [[ ! -f $fi && $wai -ne 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
         return 0
     else
-        echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
+        [ $wai -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
     fi
 
     #Before deleting files, save the files ending with .stdout in current dir to logs
@@ -210,7 +221,7 @@ substitute_name_in(){
 
 #Clean everything created by previous runs or cluttering the process directory
 #rm -rf process/*
-rm -rf process/spectrum/*
+rm -rf process/spectrum/NMR/*
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
@@ -310,7 +321,7 @@ else
     echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
 fi
 
-
+:'
 #All checks done
 ##Begin with simulations
 mkdir -p data_results/${name}/logs #The directory to move all results to
@@ -465,19 +476,19 @@ echo -e "\t Starting with the final MD simulation..."
 mkdir -p "process/md/"
 substitute_name_in "md.in" "md/"
 if [[ $? -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
+    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
     exit 1
 else
-    echo -e "\t\t[$CHECKMARK] md.in file correctly loaded."
+    echo -e "\t\t\t[$CHECKMARK] md.in file correctly loaded."
 fi
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
 run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
 if [[ $? -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
+    echo -e "\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
     exit 1
 else
-    echo -e "\t\t[$CHECKMARK] MD simulation finished successfully."
+    echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
 fi
 
 ##Start the process of final generation of the NMR spectra
@@ -530,23 +541,35 @@ if [[ ! -d process/spectrum/gauss_prep/gauss || -z "$(ls -A process/spectrum/gau
 else
     echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
 fi
-
+"
 #Run the gaussian simulation on each file and store the results
 echo -e "\t\t Running Gaussian NMR calculations..."
 mkdir -p "process/spectrum/NMR/"
 #Copy the .sh script
-cp scripts/run_NMR.sh process/spectrum/NMR/.
+#cp scripts/run_NMR.sh process/spectrum/NMR/.
 #Copy the generated .gjf files directory
-cp -r process/spectrum/gauss_prep/gauss process/spectrum/NMR/.
 mkdir -p process/spectrum/NMR/nmr
+pids=()
 #Enter the directory and run the .sh script
-run_sh_sim "run_NMR" "spectrum/NMR" "" "" "nmr/frame.1.log" 10 12 1
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Gaussian NMR calculations failed! Exiting...${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] Gaussian NMR calculations finished successfully."
-fi
+for num in {1..100}; do
+    #create a new dir for the file
+    mkdir -p "process/spectrum/NMR/job_${num}/"
+    ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 10 12 1 )
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Gaussian NMR calculations failed! Exiting...${NC}"
+        exit 1
+    fi
+done
+echo -e "\t\t\t
+#Create the resulting directory nmr
+mkdir -p "process/spectrum/NMR/nmr"
+#Make sure that all files are done and present
+#Move the log and delete each of the job dirs
+#for i in {1..100}; do
+#    mv process/spectrum/NMR/job_${i}/frame.${i}.log process/spectrum/NMR/nmr/
+#    rm -rf process/spectrum/NMR/job_${i}
+#done
+echo -e "\t\t\t[$CHECKMARK] Gaussian NMR calculations finished successfully."
 
 #Combine the resulting files and plot the final spectrum
 echo -e "\t\t Plotting the final NMR spectrum..."
