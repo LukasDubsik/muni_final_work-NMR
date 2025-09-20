@@ -61,12 +61,12 @@ Checking for bond parameters.
 Checking for angle parameters.
 Unit is OK.
   Solute vdw bounding box:              6.084 5.318 8.309
-  Total bounding box for atom centers:  26.084 25.318 28.309
+  Total bounding box for atom centers:  46.084 45.318 48.309
   Solvent unit box:                     18.774 18.774 18.774
-  Total vdw box size:                   28.912 28.501 31.349 angstroms.
-  Volume: 25832.302 A^3 
-  Total mass 10011.940 amu,  Density 0.644 g/cc
-  Added 549 residues.
+  Total vdw box size:                   48.797 48.239 50.629 angstroms.
+  Volume: 119176.520 A^3 
+  Total mass 54637.572 amu,  Density 0.761 g/cc
+  Added 3026 residues.
 Na+ has a charge of 0.
 addIons: Can't neutralize.
 Checking Unit.
@@ -87,7 +87,7 @@ Marking per-residue atom chain types.
 	res	total affected
 
 	Structure	1
-	WAT	549
+	WAT	3026
   )
  (no restraints)
 Writing pdb file: sys_leap.pdb

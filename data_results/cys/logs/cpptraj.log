@@ -1,0 +1,107 @@
+
+# Module specification: amber (add action)
+# ==============================================================================
+  INFO:    Module is active, reactivating .. 
+           Unload module : amber:24.0:m64-ub22:single
+  Requested CPUs     :   1  Requested GPUs     :   0
+  Num of host CPUs   :   1  Num of host GPUs   :   0
+  Requested nodes    :   1
+  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
+                       m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
+                       m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
+  Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
+  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Module maintainer  : LCC Support (support@lcc.ncbr.muni.cz) | Bundle: lcc
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Exported module    : amber:24.0
+  Module build       : amber:24.0:m64-ub22:single
+
+
+CPPTRAJ: Trajectory Analysis. V6.24.0 (AmberTools)
+    ___  ___  ___  ___
+     | \/ | \/ | \/ | 
+    _|_/\_|_/\_|_/\_|_
+
+| Date/time: 09/20/25 10:33:32
+| Available memory: 76.926 GB
+
+	Reading 'cys.parm7' as Amber Topology
+	Radius Set: modified Bondi radii (mbondi)
+INPUT: Reading input from 'cpptraj.in'
+  [parm cys.parm7]
+Warning: Topology 'cys.parm7' already present.
+Warning:   To load the same topology file multiple times use tags,
+Warning:   e.g. `parm <file> [tag]`.
+  [trajin cys_md.mdcrd 1 last 100]
+	Reading 'cys_md.mdcrd' as Amber Trajectory
+  [autoimage]
+    AUTOIMAGE: To box center based on center of mass, anchor is first molecule.
+  [closest 20 @1-14 oxygen closestout closest.dat]
+    CLOSEST: Finding closest 20 solvent molecules to atoms in mask @1-14
+	Only first atom of solvent molecule used for distance calc.
+	Closest molecules will be saved to closest.dat
+  [trajout cys_frame.xyz xyz ftype namexyz multi]
+	Writing 'cys_frame.xyz' as XYZ
+  [run]
+---------- RUN BEGIN -------------------------------------------------
+
+PARAMETER FILES (1 total):
+ 0: cys.parm7, 9092 atoms, 3027 res, box: Orthorhombic, 3027 mol, 3026 solvent
+
+INPUT TRAJECTORIES (1 total):
+ 0: 'cys_md.mdcrd' is an AMBER trajectory, Parm cys.parm7 (Orthorhombic box) (reading 100 of 10000)
+  Coordinate processing will occur on 100 frames.
+
+OUTPUT TRAJECTORIES (1 total):
+  'cys_frame.xyz' (100 frames) is a standard XYZ trajectory
+
+BEGIN TRAJECTORY PROCESSING:
+.....................................................
+ACTION SETUP FOR PARM 'cys.parm7' (2 actions):
+  0: [autoimage]
+	Using first molecule as anchor.
+	3026 molecules are mobile.
+  1: [closest 20 @1-14 oxygen closestout closest.dat]
+	3026 molecules out of 3027 selected as solvent.
+	Distances will be imaged.
+	Mask [@1-14] corresponds to 14 atoms.
+	Keeping 60 solvent atoms.
+	Closest topology: 74 atoms, 21 res, box: Orthorhombic, 21 mol, 20 solvent
+.....................................................
+ACTIVE OUTPUT TRAJECTORIES (1):
+  cys_frame.xyz (coordinates, box)
+----- cys_md.mdcrd (1-10000, 100) -----
+ 0% 10% 20% 30% 40% 51% 61% 71% 81% 91% 100% Complete.
+
+Read 100 frames and processed 100 frames.
+TIME: Avg. throughput= 191.4334 frames / second.
+
+ACTION OUTPUT:
+TIME: Analyses took 0.0000 seconds.
+
+DATASETS (4 total):
+	CLOSEST_00001[Frame] "CLOSEST_00001[Frame]" (integer), size is 2000 (8.000 kB)
+	CLOSEST_00001[Mol] "CLOSEST_00001[Mol]" (integer), size is 2000 (8.000 kB)
+	CLOSEST_00001[Dist] "CLOSEST_00001[Dist]" (double), size is 2000 (16.000 kB)
+	CLOSEST_00001[FirstAtm] "CLOSEST_00001[FirstAtm]" (integer), size is 2000 (8.000 kB)
+    Total data set memory usage is at least 40.000 kB
+
+DATAFILES (1 total):
+  closest.dat (Standard Data File):  CLOSEST_00001[Frame] CLOSEST_00001[Mol] CLOSEST_00001[Dist] CLOSEST_00001[FirstAtm]
+
+RUN TIMING:
+TIME:		Init               : 0.0000 s (  0.00%)
+TIME:		Trajectory Process : 0.5224 s ( 99.69%)
+TIME:		Action Post        : 0.0000 s (  0.00%)
+TIME:		Analysis           : 0.0000 s (  0.00%)
+TIME:		Data File Write    : 0.0014 s (  0.27%)
+TIME:		Other              : 0.0002 s (  0.00%)
+TIME:	Run Total 0.5240 s
+---------- RUN END ---------------------------------------------------
+TIME: Total execution time: 0.5338 seconds.
+--------------------------------------------------------------------------------
+To cite CPPTRAJ use:
+Daniel R. Roe and Thomas E. Cheatham, III, "PTRAJ and CPPTRAJ: Software for
+  Processing and Analysis of Molecular Dynamics Trajectory Data". J. Chem.
+  Theory Comput., 2013, 9 (7), pp 3084-3095.
+

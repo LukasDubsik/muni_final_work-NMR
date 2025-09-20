@@ -9,5 +9,5 @@ trajin ${name}_md.mdcrd 1 last 100
 autoimage
 closest 20 @1-14 oxygen closestout closest.dat
 
-trajout ${name}_frame.xyz xyz multi
+trajout ${name}_frame.xyz xyz ftype namexyz multi
 run

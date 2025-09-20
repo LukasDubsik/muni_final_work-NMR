@@ -15,7 +15,7 @@ while read line; do
     fi
     
     #If we have started reading a new frame, start svaing to a new file
-    if [ "$line" = "94" ]; then
+    if [ ${#line} -eq 2 ]; then
         ((num++)) #Increase the file safe name
         name="${file}${num}.xyz" #Change the name of the file to save into
         rm -f $name #Remove if exists
