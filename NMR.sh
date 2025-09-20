@@ -106,10 +106,6 @@ run_sh_sim(){
     mem=$6
     ncpus=$7
     ngpus=$8
-    wai=$9
-    if [[ -z $wai ]]; then
-        wai=1
-    fi
 
     #Substite ';' for ' ' and combine the hook for copying
     hook=$(echo "${hook//;/ }")
@@ -121,10 +117,10 @@ run_sh_sim(){
     cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name
     sed "s/\${name}/${name}/g; s/\${num}/${num}/g" scripts/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
-    #Add the additional parametersi
+    #Add the additional parameters
     echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
-    [ $wai -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
+    echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
     #Submit the job by running through psubmit -> metacentrum
     jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus} mem=${mem}gb ngpus=${ngpus} | tail -2 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}"; return 0; })
@@ -142,13 +138,7 @@ run_sh_sim(){
         echo -e "\t\t\t[$CROSS] ${RED} Job was submitted incorrectly!${NC}"
         return 0
     else
-        [ $wai -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
-    fi
-
-    #If we don't wish to wait
-    if [[ $wai -eq 0 ]]; then
-        cd $curr_dir
-        return 1
+        echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
     fi
 
     #Cycle till the job is finished (succesfully/unsuccesfully)
@@ -173,7 +163,7 @@ run_sh_sim(){
         echo -e "\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
         return 0
     else
-        [ $wai -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
+        echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
     fi
 
     #Before deleting files, save the files ending with .stdout in current dir to logs
@@ -549,26 +539,32 @@ mkdir -p "process/spectrum/NMR/"
 #cp scripts/run_NMR.sh process/spectrum/NMR/.
 #Copy the generated .gjf files directory
 mkdir -p process/spectrum/NMR/nmr
+#Run the jobs in parallel each in different directory and subshell
 pids=()
 #Enter the directory and run the .sh script
 for num in {1..100}; do
     #create a new dir for the file
     mkdir -p "process/spectrum/NMR/job_${num}/"
-    ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 10 12 1 )
-    if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Gaussian NMR calculations failed! Exiting...${NC}"
+    ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 10 12 1 ) &
+    pids+=($!)
+done
+#Wait for all jobs to finish
+for pid in "${pids[@]}"; do
+    wait $pid
+    if [[ $? -ne 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} One of the Gaussian NMR jobs failed! Exiting...${NC}"
         exit 1
     fi
 done
-echo -e "\t\t\t
+#All jobs finished successfully
+echo -e "\t\t\t[$CHECKMARK] All Gaussian NMR jobs submitted, waiting for them to finish."
 #Create the resulting directory nmr
 mkdir -p "process/spectrum/NMR/nmr"
-#Make sure that all files are done and present
 #Move the log and delete each of the job dirs
-#for i in {1..100}; do
-#    mv process/spectrum/NMR/job_${i}/frame.${i}.log process/spectrum/NMR/nmr/
-#    rm -rf process/spectrum/NMR/job_${i}
-#done
+for i in {1..100}; do
+    mv process/spectrum/NMR/job_${i}/frame.${i}.log process/spectrum/NMR/nmr/
+    rm -rf process/spectrum/NMR/job_${i}
+done
 echo -e "\t\t\t[$CHECKMARK] Gaussian NMR calculations finished successfully."
 
 #Combine the resulting files and plot the final spectrum
