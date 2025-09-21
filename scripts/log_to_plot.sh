@@ -12,4 +12,4 @@ for file in nmr/frame.*.log; do
 done
 
 #Then average all the files into singular result -> avg.dat
-bash average_plot
+bash average_plot.sh

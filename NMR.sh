@@ -216,7 +216,7 @@ substitute_name_in(){
 
 #Clean everything created by previous runs or cluttering the process directory
 #rm -rf process/*
-rm -rf process/spectrum/NMR/*
+rm -rf process/spectrum/* #plotting/*
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
@@ -485,7 +485,7 @@ if [[ $? -eq 0 ]]; then
 else
     echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
 fi
-
+'
 ##Start the process of final generation of the NMR spectra
 #Prepare the enviroment
 mkdir -p "process/spectrum/"
@@ -536,7 +536,7 @@ if [[ ! -d process/spectrum/gauss_prep/gauss || -z "$(ls -A process/spectrum/gau
 else
     echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
 fi
-"
+
 #Run the gaussian simulation on each file and store the results
 echo -e "\t\t Running Gaussian NMR calculations..."
 mkdir -p "process/spectrum/NMR/"
@@ -547,7 +547,7 @@ mkdir -p process/spectrum/NMR/nmr
 #Run the jobs in parallel each in different directory and subshell
 pids=()
 #Enter the directory and run the .sh script
-for num in {1..100}; do
+for num in {1..3}; do
     #create a new dir for the file
     mkdir -p "process/spectrum/NMR/job_${num}/"
     ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 10 1 0 ${num} 0 ) &
@@ -579,15 +579,16 @@ echo -e "\t\t\t[$CHECKMARK] Gaussian NMR calculations finished successfully."
 
 #Combine the resulting files and plot the final spectrum
 echo -e "\t\t Plotting the final NMR spectrum..."
-mkdir -p "process/spectrum/plotting/"
+mkdir -p "process/spectrum/plotting/plots/"
 #Get the number of atoms from the initial mol file
 limit=$(grep -A 1 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
 sigma=32.2 #Assumed solvent TMS shielding constant
 #Copy the .sh and .awk and .plt scripts while replacing the values
 sed "s/\${sigma}/${sigma}/g; s/\${limit}/${limit}/g" scripts/log_to_plot.sh > process/spectrum/plotting/log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.sh file!${NC}"; exit 1; }
-cp scripts/gfj_to_plot.awk process/spectrum/plotting/log_to_plot.awk || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.awk file!${NC}"; exit 1; }
+cp scripts/gjf_to_plot.awk process/spectrum/plotting/gjf_to_plot.awk || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.awk file!${NC}"; exit 1; }
 cp scripts/average_plot.sh process/spectrum/plotting/average_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the average_plot.sh file!${NC}"; exit 1; }
 sed "s/\${name}/${name}/g" scripts/plot_nmr.plt > process/spectrum/plotting/plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the plot_nmr.plt file!${NC}"; exit 1; }
+cp -r process/spectrum/NMR/nmr process/spectrum/plotting/.
 #Run the script
 cd process/spectrum/plotting || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the plotting directory!${NC}"; exit 1; }   
 bash log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to plot the NMR spectrum!${NC}"; exit 1; }
