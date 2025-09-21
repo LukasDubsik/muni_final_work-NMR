@@ -24,5 +24,5 @@ parmchk2:=""
 
 ##What file extensions, names should be saved and not deleted (any file and extensions bearing this name will be moved to the data_results)
 #Files/extensions should be separated by ';'
-extensions:=nc;mol2;rst7;parm7;frcmod;mdcrd;xyz;gjf
+extensions:=nc;mol2;rst7;parm7;frcmod;mdcrd;xyz;gjf;log
 files:=
