@@ -107,8 +107,9 @@ run_sh_sim(){
     ncpus=$7
     ngpus=$8
     num=$9
-    if [[ -z $num ]]; then
-        num=1
+    n=${10}
+    if [[ -z $n ]]; then
+        n=1
     fi
 
     #Substite ';' for ' ' and combine the hook for copying
@@ -124,7 +125,7 @@ run_sh_sim(){
     #Add the additional parameters
     echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
-    [ $num -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
+    [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
     #Submit the job by running through psubmit -> metacentrum
     jobid=$(psubmit -ys default ${script_name}.sh ncpus=${ncpus} mem=${mem}gb ngpus=${ngpus} | tail -2 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}"; return 0; })
@@ -142,7 +143,7 @@ run_sh_sim(){
         echo -e "\t\t\t[$CROSS] ${RED} Job was submitted incorrectly!${NC}"
         return 0
     else
-        [ $num -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
+        [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
     fi
 
     #Cycle till the job is finished (succesfully/unsuccesfully)
@@ -167,7 +168,7 @@ run_sh_sim(){
         echo -e "\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
         return 0
     else
-        [ $num -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
+        [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
     fi
 
     #Before deleting files, save the files ending with .stdout in current dir to logs
@@ -315,7 +316,7 @@ else
     echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
 fi
 
-#:'
+:'
 #All checks done
 ##Begin with simulations
 mkdir -p data_results/${name}/logs #The directory to move all results to
@@ -535,7 +536,7 @@ if [[ ! -d process/spectrum/gauss_prep/gauss || -z "$(ls -A process/spectrum/gau
 else
     echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
 fi
-#"
+"
 #Run the gaussian simulation on each file and store the results
 echo -e "\t\t Running Gaussian NMR calculations..."
 mkdir -p "process/spectrum/NMR/"
@@ -549,18 +550,22 @@ pids=()
 for num in {1..100}; do
     #create a new dir for the file
     mkdir -p "process/spectrum/NMR/job_${num}/"
-    ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 10 12 1 0 ) &
+    ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 10 1 0 ${num} 0 ) &
     pids+=($!)
 done
 #Wait for all jobs to finish; kill all others if just one fails
 wai=0
 for pid in "${pids[@]}"; do
-    wait $pid || wai=1
-    if [[ $wai -ne 0 ]]; then
+    wait $pid
+    if [[ $? -eq 0 ]]; then
+        kill "${pids[@]}" 2>/dev/null        
         echo -e "\t\t\t[$CROSS] ${RED} One of the Gaussian NMR jobs failed! Exiting...${NC}"
+        qdel $(qselect -u lukasdubsik)
         exit 1
     fi
 done
+#If wai=1 detected, then kill all the jobs that are running
+#[ $wai -ne 0 ] && qdel $(qselect -u lukasdubsik)
 #All jobs finished successfully
 echo -e "\t\t\t[$CHECKMARK] All Gaussian NMR jobs submitted, waiting for them to finish."
 #Create the resulting directory nmr
