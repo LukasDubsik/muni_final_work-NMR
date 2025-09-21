@@ -4,11 +4,11 @@
   Requested CPUs     :   1  Requested GPUs     :   0
   Num of host CPUs   :   1  Num of host GPUs   :   0
   Requested nodes    :   1
-  Host arch tokens   : avx, avx2, i386, i686, intel, m64-centos7, m64-deb10,
+  Host arch tokens   : amd, avx, avx2, i386, i686, m64-centos7, m64-deb10,
                        m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
                        m64-ub22, m64-ub24, noarch, sse4_1, sse4_2, x86_64
   Operating system   : Ubuntu 24.04.3 LTS | Linux 6.8.0-79-generic
-  Host SMP CPU model : Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz [Total memory: 125.8 GB]
+  Host SMP CPU model : AMD EPYC 7402P 24-Core Processor [Total memory: 125.6 GB]
   Module maintainer  : LCC Support (support@lcc.ncbr.muni.cz) | Bundle: qmsoft
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   Exported module    : gaussian:16.C1
