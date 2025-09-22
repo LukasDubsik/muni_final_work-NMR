@@ -316,7 +316,7 @@ else
     echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
 fi
 
-:'
+
 #All checks done
 ##Begin with simulations
 mkdir -p data_results/${name}/logs #The directory to move all results to
@@ -465,6 +465,7 @@ else
     echo -e "\t\t\t[$CHECKMARK] Pressure equilibration finished successfully."
 fi
 
+
 #Start the final md simulation
 echo -e "\t Starting with the final MD simulation..."
 mkdir -p "process/md/"
@@ -484,7 +485,8 @@ if [[ $? -eq 0 ]]; then
 else
     echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
 fi
-'
+
+
 ##Start the process of final generation of the NMR spectra
 #Prepare the enviroment
 mkdir -p "process/spectrum/"
@@ -553,7 +555,6 @@ for num in {1..100}; do
     pids+=($!)
 done
 #Wait for all jobs to finish; kill all others if just one fails
-wai=0
 for pid in "${pids[@]}"; do
     wait $pid
     if [[ $? -eq 0 ]]; then
@@ -563,8 +564,6 @@ for pid in "${pids[@]}"; do
         exit 1
     fi
 done
-#If wai=1 detected, then kill all the jobs that are running
-#[ $wai -ne 0 ] && qdel $(qselect -u lukasdubsik)
 #All jobs finished successfully
 echo -e "\t\t\t[$CHECKMARK] All Gaussian NMR jobs submitted, waiting for them to finish."
 #Create the resulting directory nmr
@@ -583,18 +582,18 @@ mkdir -p "process/spectrum/plotting/plots/"
 limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
 ((limit++))
 sigma=32.2 #Assumed solvent TMS shielding constant
-echo -e "1"
+echo -e "\t\t\t[$CHECKMARK] Number of atoms in the molecule set to $limit, sigma for TMS set to $sigma."
 #Copy the .sh and .awk and .plt scripts while replacing the values
 sed "s/\${sigma}/${sigma}/g; s/\${limit}/${limit}/g" scripts/log_to_plot.sh > process/spectrum/plotting/log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.sh file!${NC}"; exit 1; }
 cp scripts/gjf_to_plot.awk process/spectrum/plotting/gjf_to_plot.awk || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.awk file!${NC}"; exit 1; }
 cp scripts/average_plot.sh process/spectrum/plotting/average_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the average_plot.sh file!${NC}"; exit 1; }
 sed "s/\${name}/${name}/g" scripts/plot_nmr.plt > process/spectrum/plotting/plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the plot_nmr.plt file!${NC}"; exit 1; }
 cp -r process/spectrum/NMR/nmr process/spectrum/plotting/.
-echo -e "2"
+echo -e "\t\t\t[$CHECKMARK] All necessary files copied to plotting directory."
 #Run the script
 cd process/spectrum/plotting || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the plotting directory!${NC}"; exit 1; }   
 bash log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to plot the NMR spectrum!${NC}"; exit 1; }
-echo -e "3"
+echo -e "\t\t\t[$CHECKMARK] Log file converted to plot data."
 #Finally plot and check presence of the graphic file
 gnuplot plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to run gnuplot for NMR spectrum!${NC}"; exit 1; }
 cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after plotting!${NC}"; exit 1; }
@@ -605,3 +604,32 @@ else
     echo -e "\t\t\t[$CHECKMARK] Plotting the NMR spectrum successful."
 fi
 
+#Start moving the results to data_results - separate by main directories (preparations, equlibration...)
+#Don't duplicate files
+echo -e "\t Moving the results to data_results/${name}/"
+#Start with preparations
+mkdir -p data_results/${name}/preparations
+cp process/preparations/antechamber/${name}_charges.mol2 data_results/${name}/preparations/ 2>/dev/null
+cp process/preparations/parmchk2/${name}.frcmod data_results/${name}/preparations/ 2>/dev/null
+cp process/preparations/tleap/${name}.rst7 data_results/${name}/preparations/ 2>/dev/null
+cp process/preparations/tleap/${name}.parm7 data_results/${name}/preparations/ 2>/dev/null
+#Then equilibration
+mkdir -p data_results/${name}/equilibration
+cp process/equilibration/opt_water/${name}_opt_water.rst7 data_results/${name}/equilibration/ 2>/dev/null
+cp process/equilibration/opt_all/${name}_opt_all.rst7 data_results/${name}/equilibration/ 2>/dev/null        
+cp process/equilibration/opt_temp/${name}_opt_temp.rst7 data_results/${name}/equilibration/ 2>/dev/null
+cp process/equilibration/opt_pres/${name}_opt_pres.rst7 data_results/${name}/equilibration/ 2>/dev/null
+cp process/equilibration/opt_pres/opt_pres.mdcrd data_results/${name}/equilibration/ 2>/dev/null
+#Then md
+mkdir -p data_results/${name}/md
+cp process/md/${name}_md.rst7 data_results/${name}/md/ 2>/dev/null
+cp process/md/${name}_md.mdcrd data_results/${name}/md/ 2>/dev/null
+#Then spectrum
+mkdir -p data_results/${name}/spectrum
+cp process/spectrum/cpptraj/cys_frame.xyz data_results/${name}/spectrum/ 2>/dev/null
+cp process/spectrum/plotting/avg.dat data_results/${name}/spectrum/ 2>/dev/null
+#Then the final image
+cp process/spectrum/plotting/${name}_nmr.png data_results/${name}/ 2>/dev/null
+
+#Delete the process directory
+rm -rf process/*
