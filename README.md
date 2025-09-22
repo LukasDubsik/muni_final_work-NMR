@@ -61,7 +61,7 @@ To run the script (and I will use *NMR.sh* as example from now on) do
 bash NMR.sh
 ```
 
-No root priviliges or nothing similar is required.
+No root priviliges or similar is required.
 
 ### Simulation run
 During the execution of the code, the user is informed of the progress with the terminal. If checkmark is present, the part passed. If cross is present the program terminates with message of what went wrong and where. There can also be present less intense *?*, which means error that can be skipped for now but user should investigate it further afterwards.
@@ -71,9 +71,145 @@ During the execution of the code, the user is informed of the progress with the 
 ### Simulation end
 Once the program's execution ends, all the files and extensions specified to be kept are copied to the **data_results/** directory where they are stored for further analysis. The outputs from running the simulations are stored in the **logs/** subdirectory. Along with this subdirectory, alongside them are other subdirecties, each for a part of the simulation pipeline where the saved files from that part are stored. There is also the final image of the spectrum under the name *(name)_nmr.png*. 
 
-Once again, the exmaple for cysteine is given in the results folder.
+The example nor the data_results folder is present due to size limits for files on github.
 
 ## Simulation: step by step
+Here I will briefly describe the individual parts of the simulation itself. Some of the examples of what the parts are doing are voluntary, as the .in files can be modified for each input into the system, but the order of their running is always the same.
+
+### Checking integrity of the input
+Before the simulation itself can even start, the presence and validity of the input files is controlled. This si to prevent possibility of incorrect or missing input down the line. 
+
+```bash
+Checking the presence of necessary files:
+		[✔] Input file inputs/sim.txt found.
+		[✔] Name of the files is set to 'cys'.
+		[✔] All necessary files found for input_type 'mol2'.
+		 Checking if .in files present!
+			[✔] Input file tleap.in found in inputs/simulation/.
+			[✔] Input file opt_water.in found in inputs/simulation/.
+			[✔] Input file opt_all.in found in inputs/simulation/.
+			[✔] Input file opt_temp.in found in inputs/simulation/.
+			[✔] Input file opt_pres.in found in inputs/simulation/.
+			[✔] Input file md.in found in inputs/simulation/.
+		 Checking if necessary .sh files present for input_type 'mol2'!
+			[✔] antechamber specified and will be run as
+				 antechamber -i cys.mol2 -fi mol2 -o cys_charges.mol2 -fo mol2 -c bcc -nc 0 -at gaff
+			[✔] parmchk2 specified and will be run as
+				 parmchk2 -i cys_charges.mol2 -f mol2 -o cys.frcmod
+		[✔] Extensions to be saved are set to 'nc;mol2;rst7;parm7;frcmod;mdcrd;xyz;gjf;log'.
+		[✔] Files to be saved are set to ''.
+```
+
+As can be seen, all .in files required by our parametrs have been found, .sh file specification given correctly, so were the names of extensions and files to be saved.
+
+### Structure conversion
+If *mol2* option was specified, the starting structural file is firstly converted to rst7/parm7 files for use by `pmemd` program.
+
+```bash
+Starting with structure conversion from .mol2 to .rst7/.parm7 format.
+		 Running antechamber...
+			[✔] Starting enviroment created succesfully
+			[✔] Job 18130 submitted succesfully, waiting for it to finish.
+			[✔] antechamber.sh finished successfully, cys_charges.mol2 found.
+			[✔] Antechamber finished successfully.
+		 Running parmchk2...
+			[✔] Starting enviroment created succesfully
+			[✔] Job 18131 submitted succesfully, waiting for it to finish.
+			[✔] parmchk2.sh finished successfully, cys.frcmod found.
+			[✔] Parmchk2 finished successfully.
+		 Fixing using nemesis(obabel)...
+			[✔] Nemesis fix succesfull!
+		 Running tleap...
+			[✔] tleap.in file correctly loaded.
+			[✔] Starting enviroment created succesfully
+			[✔] Job 18132 submitted succesfully, waiting for it to finish.
+			[✔] tleap.sh finished successfully, cys.rst7 found.
+			[✔] Tleap finished successfully.
+		[✔] Structure conversion finished successfully, proceeding to optimizations and MD simulations.
+```
+
+This means running antechamber to get charges, parmchk2 to get necessary additional data, nemesis fix to correct the possibily incorrect format of *mol2* from running antechmaber and lastly tleap to add the water enviroment, combine the files, and present the much need rst7/parm7 format.
+
+### Equilibration
+
+When the initial enviroment is fully generated, we can start the process of equilibration to achieve stable start before the md simulation itself.
+```bash
+Starting with optimizations...
+		 Running water optimization...
+			[✔] opt_water.in file correctly loaded.
+			[✔] Starting enviroment created succesfully
+			[✔] Job 18133 submitted succesfully, waiting for it to finish.
+			[✔] opt_water.sh finished successfully, cys_opt_water.rst7 found.
+			[✔] Optimization of water finished successfully.
+		 Running full optimization...
+			[✔] opt_all.in file correctly loaded.
+			[✔] Starting enviroment created succesfully
+			[✔] Job 18134 submitted succesfully, waiting for it to finish.
+			[✔] opt_all.sh finished successfully, cys_opt_all.rst7 found.
+			[✔] Full optimization finished successfully.
+		 Running temperature equilibration...
+			[✔] opt_temp.in file correctly loaded.
+			[✔] Starting enviroment created succesfully
+			[✔] Job 18135 submitted succesfully, waiting for it to finish.
+			[✔] opt_temp.sh finished successfully, cys_opt_temp.rst7 found.
+			[✔] Temperature equilibration finished successfully.
+		 Running pressure equilibration...
+			[✔] opt_pres.in file correctly loaded.
+			[✔] Starting enviroment created succesfully
+			[✔] Job 18136 submitted succesfully, waiting for it to finish.
+			[✔] opt_pres.sh finished successfully, cys_opt_pres.rst7 found.
+			[✔] Pressure equilibration finished successfully.
+```
+The steps themselve are self explanatory.
+
+### Md simulation
+Continues where the pressure equilibration ended up and runs the md simulation
+
+```bash
+Starting with the final MD simulation...
+			[✔] md.in file correctly loaded.
+			[✔] Starting enviroment created succesfully
+			[✔] Job 18137 submitted succesfully, waiting for it to finish.
+			[✔] md.sh finished successfully, cys_md.rst7 found.
+			[✔] MD simulation finished successfully.
+```
+
+### Spectrum generation
+Is split into multiple steps. The first one is running cpptraj to extract the closest water molecules and extracts 100 frames of the run for running the NMR simulation.
+
+```bash
+Running cpptraj to sample the MD simulation...
+			[✔] cpptraj.in file correctly loaded.
+			[✔] Starting enviroment created succesfully
+			[✔] Job 18138 submitted succesfully, waiting for it to finish.
+			[✔] cpptraj.sh finished successfully, cys_frame.xyz found.
+			[✔] cpptraj finished successfully.
+```
+
+Since cpptraj outputs singular, large .xyz file, it is necessary to separate it into separate .xyz files, which are then converted to *.gjf* format to be run by gaussian.
+
+```bash
+Splitting the frames and converting to .gjf format...
+			[✔] Frames split successfully.
+			[✔] Conversion to .gjf format successful.
+```
+
+Then we can finally run the gaussian itself on each file. This is done paralelly to save time and 100 jobs are run at once.
+
+```bash
+
+```
+
+Lastly, the necessary data is extract from the resulting *logs*, averaged, and plotted by *gnuplot* into a resulting NMR spectrum
+
+```bash
+
+```
+
+As mentioned previosuly, teh results are then posted to **data_results/(name)**.
 
 ## TODO
-   - [x] Smth
+   - [ ] Ability that when programs terminates prematurely we can start from the place of termination instead of rerunning the whole ciode from teh start
+   - [ ] Rework the metacentrum file *m_NMR.sh* to be inputted as single job and be run as such
+   - [ ] Extend the .sh file extensions inside *sim.txt*
+   - [ ] Give ability to modify gaussian file generation
