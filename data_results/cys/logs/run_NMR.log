@@ -1,8 +1,8 @@
 
 # Module specification: gaussian (add action)
 # ==============================================================================
-  Requested CPUs     :   1  Requested GPUs     :   0
-  Num of host CPUs   :   1  Num of host GPUs   :   0
+  Requested CPUs     :   4  Requested GPUs     :   0
+  Num of host CPUs   :   4  Num of host GPUs   :   0
   Requested nodes    :   1
   Host arch tokens   : amd, avx, avx2, i386, i686, m64-centos7, m64-deb10,
                        m64-deb11, m64-deb12, m64-deb9, m64-ub18, m64-ub20,
@@ -14,7 +14,4 @@
   Exported module    : gaussian:16.C1
   Module build       : gaussian:16.C1:x86_64#avx2:node
 
-fname=gauss/frame.100.chk fd = -1
-
-open-new-file: No such file or directory
-Segmentation fault (core dumped)
+./run_NMR.sh: line 5: psanitaze: command not found
