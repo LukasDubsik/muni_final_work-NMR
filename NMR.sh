@@ -633,3 +633,7 @@ cp process/spectrum/plotting/${name}_nmr.png data_results/${name}/ 2>/dev/null
 
 #Delete the process directory
 rm -rf process/*
+
+#Zip the results for better movement
+zip -r data_results/${name}.zip data_results/${name}/
+mv data_results/${name}.zip data_results/${name}/${name}.zip
