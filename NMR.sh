@@ -4,7 +4,7 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 
-#CChecmark, cross, etc
+#Checmark, cross, etc
 NC='\033[0m' # No Color
 CHECKMARK="${GREEN}\xE2\x9C\x94${NC}"
 CROSS="${RED}\xE2\x9C\x98${NC}"
@@ -162,7 +162,6 @@ run_sh_sim(){
         fi
         sleep 10
     done    
-
     #Check if the final file is generated - if not, we have an error
     if [[ ! -f $fi && $wai -ne 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
@@ -175,7 +174,53 @@ run_sh_sim(){
     cat *.stdout > ${curr_dir}/data_results/${name}/logs/${script_name}.log
 
     #Remove all files except those having given extension or in files array
-    for file in *; do
+    #for file in *; do
+    #    #Check if file matches any of the extensions
+    #    match_ext=false
+    #    for ext in "${ext_array[@]}"; do
+    #        if [[ $file == *.$ext ]]; then
+    #            match_ext=true
+    #            break
+    #        fi
+    #    done
+
+    #    #Check if file matches any of the files
+    #    match_file=false
+    #    for fname in "${files_array[@]}"; do
+
+    #        if [[ $file == $fname ]]; then
+    #            match_file=true
+    #            break
+    #        fi
+    #    done
+
+    #    #If it doesn't match either, remove it
+    #    if [[ $match_ext == false && $match_file == false ]]; then
+    #        rm -rf "$file"
+    #    fi
+    #done
+
+    #return to the original directory
+    cd $curr_dir
+
+    return 1
+}
+
+substitute_name_in(){
+    script_name=$1
+    path=process/$2
+    sed "s/\${name}/${name}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
+    return 1
+}
+
+move_for_presentation(){
+    input_dir=$1
+    destination_dir=$2
+
+    mkdir -p $destination_dir
+
+    #Remove all files except those having given extension or in files array
+    for file in $input_dir; do
         #Check if file matches any of the extensions
         match_ext=false
         for ext in "${ext_array[@]}"; do
@@ -199,24 +244,15 @@ run_sh_sim(){
         if [[ $match_ext == false && $match_file == false ]]; then
             rm -rf "$file"
         fi
+
+        #Then copy the results to the resulting dir
+        cp -r $input_dir $destination_dir
     done
-
-    #return to the original directory
-    cd $curr_dir
-
-    return 1
 }
 
-substitute_name_in(){
-    script_name=$1
-    path=process/$2
-    sed "s/\${name}/${name}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
-    return 1
-}
 
 #Clean everything created by previous runs or cluttering the process directory
-#rm -rf process/*
-rm -rf process/spectrum/*
+rm -rf process/*
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
@@ -239,6 +275,17 @@ if [[ $ret -eq 0 ]]; then
 else
     name=$res
     echo -e "\t\t[$CHECKMARK] Name of the files is set to '$name'."
+fi
+
+#Is the name for the save given
+file_iterate "save_as"
+ret=$?
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} name to save not specified in $filename!${NC}"
+    exit 1
+else
+    save_as=$res
+    echo -e "\t\t[$CHECKMARK] Name of the save directory is set to '$save_as'."
 fi
 
 #Is the correct structure file then provided?
@@ -607,10 +654,15 @@ fi
 #Start moving the results to data_results - separate by main directories (preparations, equlibration...)
 #Don't duplicate files
 echo -e "\t Moving the results to data_results/${name}/"
+#delete the file for save if already present
+rm -rf data_results/${save_as}/
+#Copy everything for posterity
+cp -r process/ data_results/${save_as}/
 #Start with preparations
-mkdir -p data_results/${name}/preparations
-cp process/preparations/antechamber/${name}_charges.mol2 data_results/${name}/preparations/ 2>/dev/null
-cp process/preparations/parmchk2/${name}.frcmod data_results/${name}/preparations/ 2>/dev/null
+prep=data_results/${name}/preparations
+mkdir -p $prep
+move_for_presentation process/preparations/antechamber/ data_results/${name}/preparations/ 2>/dev/null
+move_for_presentation process/preparations/parmchk2/ data_results/${name}/preparations/ 2>/dev/null
 cp process/preparations/tleap/${name}.rst7 data_results/${name}/preparations/ 2>/dev/null
 cp process/preparations/tleap/${name}.parm7 data_results/${name}/preparations/ 2>/dev/null
 #Then equilibration
@@ -636,4 +688,4 @@ rm -rf process/*
 
 #Zip the results for better movement
 zip -r data_results/${name}.zip data_results/${name}/
-mv data_results/${name}.zip data_results/${name}/${name}.zip
+rm -rf data_results/${name}
