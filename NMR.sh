@@ -663,25 +663,21 @@ prep=data_results/${name}/preparations
 mkdir -p $prep
 move_for_presentation process/preparations/antechamber/ data_results/${name}/preparations/ 2>/dev/null
 move_for_presentation process/preparations/parmchk2/ data_results/${name}/preparations/ 2>/dev/null
-cp process/preparations/tleap/${name}.rst7 data_results/${name}/preparations/ 2>/dev/null
-cp process/preparations/tleap/${name}.parm7 data_results/${name}/preparations/ 2>/dev/null
+move_for_presentation process/preparations/tleap/ data_results/${name}/preparations/ 2>/dev/null
 #Then equilibration
 mkdir -p data_results/${name}/equilibration
-cp process/equilibration/opt_water/${name}_opt_water.rst7 data_results/${name}/equilibration/ 2>/dev/null
-cp process/equilibration/opt_all/${name}_opt_all.rst7 data_results/${name}/equilibration/ 2>/dev/null        
-cp process/equilibration/opt_temp/${name}_opt_temp.rst7 data_results/${name}/equilibration/ 2>/dev/null
-cp process/equilibration/opt_pres/${name}_opt_pres.rst7 data_results/${name}/equilibration/ 2>/dev/null
-cp process/equilibration/opt_pres/opt_pres.mdcrd data_results/${name}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_water/ data_results/${name}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_all/ data_results/${name}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_temp/ data_results/${name}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_pres/ data_results/${name}/equilibration/ 2>/dev/null
 #Then md
 mkdir -p data_results/${name}/md
-cp process/md/${name}_md.rst7 data_results/${name}/md/ 2>/dev/null
-cp process/md/${name}_md.mdcrd data_results/${name}/md/ 2>/dev/null
+move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
+move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
 #Then spectrum
 mkdir -p data_results/${name}/spectrum
-cp process/spectrum/cpptraj/cys_frame.xyz data_results/${name}/spectrum/ 2>/dev/null
-cp process/spectrum/plotting/avg.dat data_results/${name}/spectrum/ 2>/dev/null
-#Then the final image
-cp process/spectrum/plotting/${name}_nmr.png data_results/${name}/ 2>/dev/null
+move_for_presentation process/spectrum/cpptraj/ data_results/${name}/spectrum/ 2>/dev/null
+move_for_presentation process/spectrum/plotting/ data_results/${name}/spectrum/ 2>/dev/null
 
 #Delete the process directory
 rm -rf process/*
