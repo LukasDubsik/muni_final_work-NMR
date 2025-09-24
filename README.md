@@ -23,6 +23,7 @@ The files the program requires to run need to be located in the **inputs/** dire
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
 name:=cys
+save_as:=cys1
 
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
@@ -53,8 +54,7 @@ Any lines starting with *#* are ignored, the number is just arbitrary for cleane
 The .in files should be included in the **inputs/simulations/** directory, the files describing structure (be they of mol2 or rst/parm7 kind) should be in **inputs/structures/**. Please bear in mind that they must include the name given in the *sim.txt* file, so in this case we will have *cys.mol2*.
 
 ### Starting the simulation
-The code itself is written fully in bash, some scripts afre called as awk or gnuplot (more on this later). There are additionally two versions: *NMR.sh* and *m_NMR.sh*. The first one is for running on cluster WOLF, the second one on metacentrum (tested on **sokar**). While both are functional, only the first one is optimized. Due to the number of jobs in metacentrum, the process of submitting the parts of the pipeline job by job is inefficient and the whole code itself should be submitted as one job to run. This requires some code changes that will be done later but it still can be run without issue (but is slower that WOLF version).
-
+The code itself is written fully in bash, some scripts afre called as awk or gnuplot (more on this later). There are additionally two versions: *NMR.sh* and *m_NMR.sh*. The first one is for running on cluster WOLF, the second one on metacentrum (tested on **sokar**). Both are currently functional and working. 
 To run the script (and I will use *NMR.sh* as example from now on) do
 
 ```bash
@@ -69,7 +69,9 @@ During the execution of the code, the user is informed of the progress with the 
 [✔] md.in file correctly loaded.
 
 ### Simulation end
-Once the program's execution ends, all the files and extensions specified to be kept are copied to the **data_results/** directory where they are stored for further analysis. The outputs from running the simulations are stored in the **logs/** subdirectory. Along with this subdirectory, alongside them are other subdirecties, each for a part of the simulation pipeline where the saved files from that part are stored. There is also the final image of the spectrum under the name *(name)_nmr.png*. 
+Once the program's execution ends, all the files and extensions specified to be kept are copied to the **data_results/** directory where they are stored for further analysis. The outputs from running the simulations are stored in the **logs/** subdirectory. Along with this subdirectory, alongside them are other subdirecties, each for a part of the simulation pipeline where the saved files from that part are stored. There is also the final image of the spectrum under the name *(name)_nmr.png* in **spectrum** directory. 
+
+The full save is present under the the *save_as* name for replication. Pure data for visualization are zipped based on the save files and extensions given above in *sim.txt*.
 
 The example nor the data_results folder is present due to size limits for files on github.
 
@@ -197,16 +199,21 @@ Splitting the frames and converting to .gjf format...
 Then we can finally run the gaussian itself on each file. This is done paralelly to save time and 100 jobs are run at once.
 
 ```bash
-
+Running Gaussian NMR calculations...
+			[✔] Gaussian NMR calculations finished successfully
 ```
 
 Lastly, the necessary data is extract from the resulting *logs*, averaged, and plotted by *gnuplot* into a resulting NMR spectrum
 
 ```bash
-
+Plotting the final NMR spectrum...
+			[✔] Number of atoms in the molecule set to 15, sigma for TMS set to 32.2.
+			[✔] All necessary files copied to plotting directory.
+			[✔] Log file converted to plot data.
+			[✔] Plotting the NMR spectrum successful.
 ```
 
-As mentioned previosuly, teh results are then posted to **data_results/(name)**.
+As mentioned previosuly, the results are then posted to **data_results/(name)**.
 
 ## TODO
    - [ ] Ability that when programs terminates prematurely we can start from the place of termination instead of rerunning the whole ciode from teh start
