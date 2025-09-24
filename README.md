@@ -220,3 +220,4 @@ As mentioned previosuly, the results are then posted to **data_results/(name)**.
    - [ ] Rework the metacentrum file *m_NMR.sh* to be inputted as single job and be run as such
    - [ ] Extend the .sh file extensions inside *sim.txt*
    - [ ] Give ability to modify gaussian file generation
+   - [ ] Make the file system numeric and more organized
