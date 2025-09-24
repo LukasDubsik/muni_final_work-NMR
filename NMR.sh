@@ -171,7 +171,7 @@ run_sh_sim(){
     fi
 
     #Before deleting files, save the files ending with .stdout in current dir to logs
-    cat *.stdout > ${curr_dir}/data_results/${name}/logs/${script_name}.log
+    cat *.stdout > ${curr_dir}/data_results/logs/${script_name}.log
 
     #Remove all files except those having given extension or in files array
     #for file in *; do
@@ -656,6 +656,9 @@ fi
 echo -e "\t Moving the results to data_results/${name}/"
 #delete the file for save if already present
 rm -rf data_results/${save_as}/
+mkdir -p data_results/${save_as}/
+#Move the logs in there
+mv logs/ > data_results/${save_as}/ 2>/dev/null
 #Copy everything for posterity
 cp -r process/ data_results/${save_as}/
 #Start with preparations

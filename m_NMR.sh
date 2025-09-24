@@ -4,7 +4,7 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 
-#CChecmark, cross, etc
+#Checmark, cross, etc
 NC='\033[0m' # No Color
 CHECKMARK="${GREEN}\xE2\x9C\x94${NC}"
 CROSS="${RED}\xE2\x9C\x98${NC}"
@@ -128,7 +128,7 @@ run_sh_sim(){
     [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
     #Submit the job by running through psubmit -> metacentrum
-    jobid=$(qsub -q default -l select=1:ncpus=${ncpus}:ngpus=${ngpus}:mem=${mem}gb -l walltime=1:00:00 ${script_name}.sh | tail -2 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}"; return 0; })
+    jobid=$(qsub -q default -l select=1:ncpus=${ncpus}:ngpus=${ngpus}:mem=${mem}gb -l walltime=0:40:00 ${script_name}.sh | tail -2 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to submit the job!${NC}"; return 0; })
     #Get the job id from second to last line
     #echo $jobid
     IFS='.' read -r -a jobid_arr <<< "$jobid"
@@ -162,7 +162,6 @@ run_sh_sim(){
         fi
         sleep 10
     done    
-
     #Check if the final file is generated - if not, we have an error
     if [[ ! -f $fi && $wai -ne 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
@@ -170,13 +169,58 @@ run_sh_sim(){
     else
         [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
     fi
-	
-    #ls
+
     #Before deleting files, save the files ending with .stdout in current dir to logs
-    #cat *.stdout > ${curr_dir}/data_results/${name}/logs/${script_name}.log
+    #cat *.stdout > ${curr_dir}/data_results/logs/${script_name}.log
 
     #Remove all files except those having given extension or in files array
-    for file in *; do
+    #for file in *; do
+    #    #Check if file matches any of the extensions
+    #    match_ext=false
+    #    for ext in "${ext_array[@]}"; do
+    #        if [[ $file == *.$ext ]]; then
+    #            match_ext=true
+    #            break
+    #        fi
+    #    done
+
+    #    #Check if file matches any of the files
+    #    match_file=false
+    #    for fname in "${files_array[@]}"; do
+
+    #        if [[ $file == $fname ]]; then
+    #            match_file=true
+    #            break
+    #        fi
+    #    done
+
+    #    #If it doesn't match either, remove it
+    #    if [[ $match_ext == false && $match_file == false ]]; then
+    #        rm -rf "$file"
+    #    fi
+    #done
+
+    #return to the original directory
+    cd $curr_dir
+
+    return 1
+}
+
+substitute_name_in(){
+    script_name=$1
+    path=process/$2
+    sed "s/\${name}/${name}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
+    return 1
+}
+
+move_for_presentation(){
+    input_dir=$1
+    destination_dir=$2
+
+    mkdir -p $destination_dir
+
+    #Remove all files except those having given extension or in files array
+    for file in $input_dir; do
         #Check if file matches any of the extensions
         match_ext=false
         for ext in "${ext_array[@]}"; do
@@ -200,24 +244,15 @@ run_sh_sim(){
         if [[ $match_ext == false && $match_file == false ]]; then
             rm -rf "$file"
         fi
+
+        #Then copy the results to the resulting dir
+        cp -r $input_dir $destination_dir
     done
-
-    #return to the original directory
-    cd $curr_dir
-
-    return 1
 }
 
-substitute_name_in(){
-    script_name=$1
-    path=process/$2
-    sed "s/\${name}/${name}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
-    return 1
-}
 
 #Clean everything created by previous runs or cluttering the process directory
-#rm -rf process/*
-rm -rf process/spectrum/* #plotting/*
+rm -rf process/*
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
@@ -240,6 +275,17 @@ if [[ $ret -eq 0 ]]; then
 else
     name=$res
     echo -e "\t\t[$CHECKMARK] Name of the files is set to '$name'."
+fi
+
+#Is the name for the save given
+file_iterate "save_as"
+ret=$?
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} name to save not specified in $filename!${NC}"
+    exit 1
+else
+    save_as=$res
+    echo -e "\t\t[$CHECKMARK] Name of the save directory is set to '$save_as'."
 fi
 
 #Is the correct structure file then provided?
@@ -317,7 +363,7 @@ else
     echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
 fi
 
-#:'
+
 #All checks done
 ##Begin with simulations
 mkdir -p data_results/${name}/logs #The directory to move all results to
@@ -486,7 +532,8 @@ if [[ $? -eq 0 ]]; then
 else
     echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
 fi
-#'
+
+
 ##Start the process of final generation of the NMR spectra
 #Prepare the enviroment
 mkdir -p "process/spectrum/"
@@ -548,14 +595,13 @@ mkdir -p process/spectrum/NMR/nmr
 #Run the jobs in parallel each in different directory and subshell
 pids=()
 #Enter the directory and run the .sh script
-for num in {1..3}; do
+for num in {1..100}; do
     #create a new dir for the file
     mkdir -p "process/spectrum/NMR/job_${num}/"
-    ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 15 5 0 ${num} 0 ) &
+    ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 15 4 0 ${num} 0 ) &
     pids+=($!)
 done
 #Wait for all jobs to finish; kill all others if just one fails
-wai=0
 for pid in "${pids[@]}"; do
     wait $pid
     if [[ $? -eq 0 ]]; then
@@ -565,8 +611,6 @@ for pid in "${pids[@]}"; do
         exit 1
     fi
 done
-#If wai=1 detected, then kill all the jobs that are running
-#[ $wai -ne 0 ] && qdel $(qselect -u lukasdubsik)
 #All jobs finished successfully
 echo -e "\t\t\t[$CHECKMARK] All Gaussian NMR jobs submitted, waiting for them to finish."
 #Create the resulting directory nmr
@@ -582,23 +626,65 @@ echo -e "\t\t\t[$CHECKMARK] Gaussian NMR calculations finished successfully."
 echo -e "\t\t Plotting the final NMR spectrum..."
 mkdir -p "process/spectrum/plotting/plots/"
 #Get the number of atoms from the initial mol file
-limit=$(grep -A 1 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
+limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
+((limit++))
 sigma=32.2 #Assumed solvent TMS shielding constant
+echo -e "\t\t\t[$CHECKMARK] Number of atoms in the molecule set to $limit, sigma for TMS set to $sigma."
 #Copy the .sh and .awk and .plt scripts while replacing the values
 sed "s/\${sigma}/${sigma}/g; s/\${limit}/${limit}/g" scripts/log_to_plot.sh > process/spectrum/plotting/log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.sh file!${NC}"; exit 1; }
 cp scripts/gjf_to_plot.awk process/spectrum/plotting/gjf_to_plot.awk || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.awk file!${NC}"; exit 1; }
 cp scripts/average_plot.sh process/spectrum/plotting/average_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the average_plot.sh file!${NC}"; exit 1; }
 sed "s/\${name}/${name}/g" scripts/plot_nmr.plt > process/spectrum/plotting/plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the plot_nmr.plt file!${NC}"; exit 1; }
 cp -r process/spectrum/NMR/nmr process/spectrum/plotting/.
+echo -e "\t\t\t[$CHECKMARK] All necessary files copied to plotting directory."
 #Run the script
 cd process/spectrum/plotting || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the plotting directory!${NC}"; exit 1; }   
 bash log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to plot the NMR spectrum!${NC}"; exit 1; }
+echo -e "\t\t\t[$CHECKMARK] Log file converted to plot data."
 #Finally plot and check presence of the graphic file
 gnuplot plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to run gnuplot for NMR spectrum!${NC}"; exit 1; }
 cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after plotting!${NC}"; exit 1; }
-if [[ ! -f process/spectrum/plotting/${name}_spectrum.png ]]; then
+if [[ ! -f process/spectrum/plotting/${name}_nmr.png ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Plotting the NMR spectrum failed, no file found!${NC}"
     exit 1
 else
     echo -e "\t\t\t[$CHECKMARK] Plotting the NMR spectrum successful."
 fi
+
+#Start moving the results to data_results - separate by main directories (preparations, equlibration...)
+#Don't duplicate files
+echo -e "\t Moving the results to data_results/${name}/"
+#delete the file for save if already present
+rm -rf data_results/${save_as}/
+mkdir -p data_results/${save_as}/
+#Move the logs in there
+mv logs/ > data_results/${save_as}/ 2>/dev/null
+#Copy everything for posterity
+cp -r process/ data_results/${save_as}/
+#Start with preparations
+prep=data_results/${name}/preparations
+mkdir -p $prep
+move_for_presentation process/preparations/antechamber/ data_results/${name}/preparations/ 2>/dev/null
+move_for_presentation process/preparations/parmchk2/ data_results/${name}/preparations/ 2>/dev/null
+move_for_presentation process/preparations/tleap/ data_results/${name}/preparations/ 2>/dev/null
+#Then equilibration
+mkdir -p data_results/${name}/equilibration
+move_for_presentation process/equilibration/opt_water/ data_results/${name}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_all/ data_results/${name}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_temp/ data_results/${name}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_pres/ data_results/${name}/equilibration/ 2>/dev/null
+#Then md
+mkdir -p data_results/${name}/md
+move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
+move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
+#Then spectrum
+mkdir -p data_results/${name}/spectrum
+move_for_presentation process/spectrum/cpptraj/ data_results/${name}/spectrum/ 2>/dev/null
+move_for_presentation process/spectrum/plotting/ data_results/${name}/spectrum/ 2>/dev/null
+
+#Delete the process directory
+rm -rf process/*
+
+#Zip the results for better movement
+zip -r data_results/${name}.zip data_results/${name}/
+rm -rf data_results/${name}
