@@ -12,7 +12,7 @@ cp $DATADIR/{tleap.in,${name}.frcmod,${name}_charges_fix.mol2}  $SCRATCHDIR || {
 
 cd $SCRATCHDIR 
 
-module add amber-14
+module add amber/22.1.3-gcc-10.2.1-man1
 
 tleap -f tleap.in
 

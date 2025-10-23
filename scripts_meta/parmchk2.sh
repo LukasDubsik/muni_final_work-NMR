@@ -12,7 +12,7 @@ cp "$DATADIR/${name}_charges.mol2"  $SCRATCHDIR || { echo >&2 "Error while copyi
 
 cd $SCRATCHDIR 
 
-module add amber-14
+module add amber/22.1.3-gcc-10.2.1-man1
 
 parmchk2 -i ${name}_charges.mol2 -f mol2 -o ${name}.frcmod ${comms}
 

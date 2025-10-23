@@ -4,7 +4,7 @@ DATADIR=${dir}/process/preparations/antechamber
 
 echo "$PBS_JOBID is running on node $(hostname -f) in a scratch directory $SCRATCHDIR" >> "$DATADIR/jobs_info.txt"
 
-module add amber-14
+module add amber/22.1.3-gcc-10.2.1-man1
 
 test -n "$SCRATCHDIR" || { echo >&2 "Variable SCRATCHDIR is not set!"; exit 1; }
 
