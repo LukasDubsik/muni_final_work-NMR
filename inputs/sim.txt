@@ -8,6 +8,9 @@ save_as:=cys1
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
 
+##Directory for metacentrum - where this directory is present (always needs to be here, but ignored if not m_NMR.sh file)
+directory:=/storage/brno2/home/lukasdubsik/NMR_meta
+
 ##Names for the expected *.in files for individual optimizations
 tleap:=tleap.in
 opt_water:=opt_water.in

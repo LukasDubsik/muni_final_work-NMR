@@ -312,6 +312,9 @@ else
     fi
 fi
 
+#Ignore the directory
+file_iterate "directory"
+
 #Checking that all .in files are present
 echo -e "\t\t Checking if .in files present!"
 

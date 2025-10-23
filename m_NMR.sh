@@ -120,8 +120,8 @@ run_sh_sim(){
     #Create the enviroment for running 
     mkdir -p $path
     cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
-    #Modify the .sh file - substitute the file name
-    sed "s/\${name}/${name}/g; s/\${num}/${num}/g" scripts_meta/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
+    #Modify the .sh file - substitute the file name, number and directory
+    sed "s/\${name}/${name}/g; s/\${num}/${num}/g; s/\${dir}/${dir}/g" scripts_meta/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
     #Add the additional parameters
     echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
@@ -310,6 +310,17 @@ else
             echo -e "\t\t[$CHECKMARK] All necessary files found for input_type '$input_type'."
         fi
     fi
+fi
+
+#Get the directory for the metacentrum
+file_iterate "directory"
+ret=$?
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} name to save not specified in $filename!${NC}"
+    exit 1
+else
+    dir=$res
+    echo -e "\t\t[$CHECKMARK] Name of the save directory is set to '$save_as'."
 fi
 
 #Checking that all .in files are present

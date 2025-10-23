@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-DATADIR=/storage/brno2/home/lukasdubsik/NMR_meta/process/preparations/antechamber
+DATADIR=${dir}/process/preparations/antechamber
 
 echo "$PBS_JOBID is running on node $(hostname -f) in a scratch directory $SCRATCHDIR" >> "$DATADIR/jobs_info.txt"
 
