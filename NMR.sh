@@ -547,7 +547,7 @@ limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 
 echo -e "\t\t Running cpptraj to sample the MD simulation..."
 mkdir -p "process/spectrum/cpptraj/"
 substitute_name_in "cpptraj.in" "spectrum/cpptraj/"
-sed "s/\${number}/${limit}/g" inputs/simulation/spectrum/cpptraj/cpptraj.in | sponge inputs/simulation/spectrum/cpptraj/cpptraj.in || return 0
+sed "s/\${number}/${limit}/g" process/spectrum/cpptraj/cpptraj.in | sponge process/spectrum/cpptraj/cpptraj.in || return 0
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"
     exit 1

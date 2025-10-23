@@ -543,6 +543,7 @@ echo -e "\t Starting with the NMR spectrum generation..."
 echo -e "\t\t Running cpptraj to sample the MD simulation..."
 mkdir -p "process/spectrum/cpptraj/"
 substitute_name_in "cpptraj.in" "spectrum/cpptraj/"
+sed "s/\${number}/${limit}/g" inputs/simulation/spectrum/cpptraj/cpptraj.in | sponge inputs/simulation/spectrum/cpptraj/cpptraj.in || return 0
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"
     exit 1
