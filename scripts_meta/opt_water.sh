@@ -16,6 +16,8 @@ module add amber-14
 
 pmemd -O -i opt_water.in -p ${name}.parm7 -c ${name}.rst7 -ref ${name}.rst7 -o optim.out -r ${name}_opt_water.rst7
 
+ls >> "$DATADIR/jobs_info.txt"
+
 cp {optim.out,${name}_opt_water.rst7} $DATADIR/ || { echo >&2 "Result file(s) copying failed (with a code $?) !!"; exit 4; }
 
 clean_scratch
