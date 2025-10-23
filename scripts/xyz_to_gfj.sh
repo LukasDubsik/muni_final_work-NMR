@@ -21,7 +21,7 @@ for file in frames/frame.*.xyz; do
 
     echo "" >> ${base}.gjf
     echo "ReadAtoms" >> ${base}.gjf
-    echo "atoms=1-${H_ATOMS}" >> ${base}.gjf
+    echo "atoms=${H_ATOMS}" >> ${base}.gjf
     echo "" >> ${base}.gjf
 
 done

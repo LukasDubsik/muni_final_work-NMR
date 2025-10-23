@@ -541,7 +541,7 @@ echo -e "\t Starting with the NMR spectrum generation..."
 
 # Get the number of atoms from the initial mol file
 limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
-((limit++))
+#((limit++))
 
 #Run the cpptraj to sample and prepare the simulation results
 echo -e "\t\t Running cpptraj to sample the MD simulation..."
