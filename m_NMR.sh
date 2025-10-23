@@ -120,17 +120,14 @@ run_sh_sim(){
     hook=$(echo "${hook//;/ }")
     
     #Save current directory so we can return to it
-    curr_dir=`pwd`
+    curr_dir=`pwd` 
     #Create the enviroment for running 
     mkdir -p $path
     cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name, number and directory
     sed "s/\${name}/${name}/g; s/\${num}/${num}/g; s/\${dir}/${dir_esc}/g" scripts_meta/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
-    #Add the additional parameters
-    awk -v pat="$script_type" -v repl="$comms" '
-    index($0, pat) { $0 = $0 " " repl }
-    { print }
-    ' "$path/$script_name.sh" > "$path/$script_name.sh.tmp" && mv "$path/$script_name.sh.tmp" "$path/$script_name.sh"
+    #Add the additional parameters - always must be line numbered 17
+    sed '17s/$/ ${comms}/' "$path/$script_name"
     #echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
     [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
