@@ -123,7 +123,9 @@ run_sh_sim(){
     #Modify the .sh file - substitute the file name, number and directory
     sed "s/\${name}/${name}/g; s/\${num}/${num}/g; s/\${dir}/${dir}/g" scripts_meta/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
     #Add the additional parameters
-    sed '/${script_type}/s/$/ ${$comms}/' $path/$script_name.sh
+    script_pat=$(printf '%s' "$script_type" | sed 's/[][.^$*+?(){|}/\\&/g')
+    repl=$(printf '%s' "$comms" | sed 's/[&|\\]/\\&/g')
+    sed "/$script_pat/ s|\$| $repl|" "$path/$script_name.sh"
     #echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
     [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
@@ -386,6 +388,7 @@ if [[ $input_type == "mol2" ]]; then
 
     #Firstly, run the antechamber program
     echo -e "\t\t Running antechamber..."
+    script_type="antechamber"
     run_sh_sim "antechamber" "preparations/antechamber" "inputs/structures/${name}.mol2" "${commands_antechamber}" "${name}_charges.mol2" 4 2
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
