@@ -16,6 +16,9 @@ module add amber-14
 
 parmchk2 -i ${name}_charges.mol2 -f mol2 -o ${name}.frcmod ${comms}
 
+echo "The files in the directory at the end" >> "$DATADIR/jobs_info.txt"
+ls >> "$DATADIR/jobs_info.txt"
+
 cp ${name}.frcmod $DATADIR/ || { echo >&2 "Result file(s) copying failed (with a code $?) !!"; exit 4; }
 
 clean_scratch

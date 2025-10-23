@@ -16,6 +16,9 @@ module add amber-14
 
 antechamber -i ${name}.mol2 -fi mol2 -o ${name}_charges.mol2 -fo mol2 ${comms}
 
+echo "The files in the directory at the end" >> "$DATADIR/jobs_info.txt"
+ls >> "$DATADIR/jobs_info.txt"
+
 cp ${name}_charges.mol2 $DATADIR/ || { echo >&2 "Result file(s) copying failed (with a code $?) !!"; exit 4; }
 
 clean_scratch

@@ -9,7 +9,7 @@ check SYS
 
 #Solvate the system
 solvatebox SYS TIP3PBOX 20.0 #20 angsterm
-addIons SYS Na+ 0
+addIonsRand SYS Na+ 0
 
 #Export and close
 saveamberparm SYS ${name}.parm7 ${name}.rst7
