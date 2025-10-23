@@ -87,7 +87,7 @@ check_sh_file(){
             exit 1
         else
             res=$(echo $res | sed 's/"//g')
-            com=$(tail -n 1 scripts/${pattern}.sh)
+            com=$(tail -n 1 scripts_meta/${pattern}.sh)
             #Replace the $1 by the name
             com=$(echo $com | sed "s/\${name}/"${name}"/g")
             echo -e "\t\t\t[$CHECKMARK] ${pattern} specified and will be run as\n\t\t\t\t" $com ${res}
@@ -121,7 +121,7 @@ run_sh_sim(){
     mkdir -p $path
     cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name
-    sed "s/\${name}/${name}/g; s/\${num}/${num}/g" scripts/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
+    sed "s/\${name}/${name}/g; s/\${num}/${num}/g" scripts_meta/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
     #Add the additional parameters
     echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
@@ -566,7 +566,7 @@ mkdir -p "process/spectrum/gauss_prep/"
 #$Firstly copy the resulting .xyz file
 cp process/spectrum/cpptraj/${name}_frame.xyz process/spectrum/gauss_prep/.
 #Then split the file to individual frames by running split_xyz.sh
-cp scripts/split_xyz.sh process/spectrum/gauss_prep/.
+cp scripts_meta/split_xyz.sh process/spectrum/gauss_prep/.
 mkdir -p process/spectrum/gauss_prep/frames
 #Enter the directory and split the frames
 cd process/spectrum/gauss_prep || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
@@ -574,7 +574,7 @@ bash split_xyz.sh < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed
 cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
 echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
 #Then convert each frame to .gjf format by running xyz_to_gfj.sh
-cp scripts/xyz_to_gfj.sh process/spectrum/gauss_prep/.
+cp scripts_meta/xyz_to_gfj.sh process/spectrum/gauss_prep/.
 mkdir -p process/spectrum/gauss_prep/gauss
 cd process/spectrum/gauss_prep/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
 bash xyz_to_gfj.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}"; exit 1; }
@@ -632,10 +632,10 @@ limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 
 sigma=32.2 #Assumed solvent TMS shielding constant
 echo -e "\t\t\t[$CHECKMARK] Number of atoms in the molecule set to $limit, sigma for TMS set to $sigma."
 #Copy the .sh and .awk and .plt scripts while replacing the values
-sed "s/\${sigma}/${sigma}/g; s/\${limit}/${limit}/g" scripts/log_to_plot.sh > process/spectrum/plotting/log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.sh file!${NC}"; exit 1; }
-cp scripts/gjf_to_plot.awk process/spectrum/plotting/gjf_to_plot.awk || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.awk file!${NC}"; exit 1; }
-cp scripts/average_plot.sh process/spectrum/plotting/average_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the average_plot.sh file!${NC}"; exit 1; }
-sed "s/\${name}/${name}/g" scripts/plot_nmr.plt > process/spectrum/plotting/plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the plot_nmr.plt file!${NC}"; exit 1; }
+sed "s/\${sigma}/${sigma}/g; s/\${limit}/${limit}/g" scripts_meta/log_to_plot.sh > process/spectrum/plotting/log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.sh file!${NC}"; exit 1; }
+cp scripts_meta/gjf_to_plot.awk process/spectrum/plotting/gjf_to_plot.awk || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.awk file!${NC}"; exit 1; }
+cp scripts_meta/average_plot.sh process/spectrum/plotting/average_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the average_plot.sh file!${NC}"; exit 1; }
+sed "s/\${name}/${name}/g" scripts_meta/plot_nmr.plt > process/spectrum/plotting/plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the plot_nmr.plt file!${NC}"; exit 1; }
 cp -r process/spectrum/NMR/nmr process/spectrum/plotting/.
 echo -e "\t\t\t[$CHECKMARK] All necessary files copied to plotting directory."
 #Run the script
