@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-DATADIR=${dir}/process/preparations/antechamber
+DATADIR=${dir}/process/preparations/tleap
 
 echo "$PBS_JOBID is running on node $(hostname -f) in a scratch directory $SCRATCHDIR" >> "$DATADIR/jobs_info.txt"
 
