@@ -14,7 +14,7 @@ cd $SCRATCHDIR
 
 module add amber-14
 
-antechamber -i ${name}.mol2 -fi mol2 -o ${name}_charges.mol2 -fo mol2 
+antechamber -i ${name}.mol2 -fi mol2 -o ${name}_charges.mol2 -fo mol2 ${comms}
 
 cp ${name}_charges.mol2 $DATADIR/ || { echo >&2 "Result file(s) copying failed (with a code $?) !!"; exit 4; }
 
