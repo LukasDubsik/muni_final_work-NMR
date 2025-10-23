@@ -1,6 +1,6 @@
 #Input params
 source leaprc.gaff
-source leaprc.water.tip3p
+source /software/ncbr/softrepo/lcc/amber/24.0/m64-ub22/para/dat/leap/cmd/leaprc.water.tip3p
 
 #Load ligand parameters
 loadamberparams ${name}.frcmod
