@@ -112,6 +112,10 @@ run_sh_sim(){
         n=1
     fi
 
+    #Make directory workable for sed by reworking /
+    dir_esc=${dir//&/\\&}
+    dir_esc=${dir_esc//\//\\/}
+
     #Substite ';' for ' ' and combine the hook for copying
     hook=$(echo "${hook//;/ }")
     
@@ -121,7 +125,7 @@ run_sh_sim(){
     mkdir -p $path
     cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name, number and directory
-    sed "s/\${name}/${name}/g; s/\${num}/${num}/g; s/\${dir}/${dir}/g" scripts_meta/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
+    sed "s/\${name}/${name}/g; s/\${num}/${num}/g; s/\${dir}/${dir_esc}/g" scripts_meta/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
     #Add the additional parameters
     script_pat=$(printf '%s' "$script_type" | sed 's/[][.^$*+?(){|}/\\&/g')
     repl=$(printf '%s' "$comms" | sed 's/[&|\\]/\\&/g')
@@ -319,11 +323,11 @@ fi
 file_iterate "directory"
 ret=$?
 if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} name to save not specified in $filename!${NC}"
+    echo -e "\t\t[$CROSS] ${RED} name of the metacentrum directory not given $filename!${NC}"
     exit 1
 else
     dir=$res
-    echo -e "\t\t[$CHECKMARK] Name of the save directory is set to '$save_as'."
+    echo -e "\t\t[$CHECKMARK] Name of the metacentrum directory is set to '$dir'."
 fi
 
 #Checking that all .in files are present
