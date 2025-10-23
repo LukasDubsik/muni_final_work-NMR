@@ -123,7 +123,8 @@ run_sh_sim(){
     #Modify the .sh file - substitute the file name, number and directory
     sed "s/\${name}/${name}/g; s/\${num}/${num}/g; s/\${dir}/${dir}/g" scripts_meta/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
     #Add the additional parameters
-    echo $comms >> $path/$script_name.sh
+    sed '/${script_type}/s/$/ ${$comms}/' $path/$script_name.sh
+    #echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
     [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
