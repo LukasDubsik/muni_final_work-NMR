@@ -384,7 +384,7 @@ if [[ $ret -eq 0 ]]; then
     echo -e "\t\t[$CROSS] ${RED} Tpl not specified even if tpl set!${NC}"
     exit 1
 else
-    save_as=$res
+    tpl=$res
     echo -e "\t\t[$CHECKMARK] Name of the tpl file is: '$tpl'."
 fi
 #Check if the file exists
