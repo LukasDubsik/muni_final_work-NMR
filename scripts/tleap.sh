@@ -2,4 +2,4 @@
 
 module add amber
 
-tleap -f tleap.in
+tleap -f ${file}
