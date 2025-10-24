@@ -218,7 +218,8 @@ run_sh_sim(){
 substitute_name_in(){
     script_name=$1
     path=process/$2
-    sed "s/\${name}/${name}/g; s/\${num}/${limit}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
+    file=$3
+    sed "s/\${name}/${name}/g; s/\${num}/${limit}/g; s/\${file}/${file}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
     return 1
 }
 
@@ -371,11 +372,17 @@ echo -e "\t\t Checking if .in files present!"
 
 #Check for each .in file
 check_in_file "tleap"
+tleap_file=$res
 check_in_file "opt_water"
+opt_water_file=$res
 check_in_file "opt_all"
+opt_all_file=$res
 check_in_file "opt_temp"
+opt_temp_file=$res
 check_in_file "opt_pres"
+opt_pres_file=$res
 check_in_file "md"
+md_file=$res
 
 #Check if tpl is present - only if qmmm set already
 file_iterate "tpl"
@@ -477,7 +484,7 @@ if [[ $input_type == "mol2" ]]; then
     echo -e "\t\t Running tleap..."
     #Substitute and copy the .in file
     mkdir -p "process/preparations/tleap/"
-    substitute_name_in "tleap.in" "preparations/tleap/"
+    substitute_name_in "tleap.in" "preparations/tleap/" "$tleap_file"
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in tleap.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
@@ -504,7 +511,7 @@ echo -e "\t Starting with optimizations..."
 #Firstly, run the water optimization
 echo -e "\t\t Running water optimization..."
 mkdir -p "process/equilibration/opt_water/"
-substitute_name_in "opt_water.in" "equilibration/opt_water/"
+substitute_name_in "opt_water.in" "equilibration/opt_water/" "$opt_water_file"
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_water.in file. The names of the resulting files need to have \${name}!${NC}"
     exit 1
@@ -524,7 +531,7 @@ fi
 #Then run the full optimization
 echo -e "\t\t Running full optimization..."
 mkdir -p "process/equilibration/opt_all/"
-substitute_name_in "opt_all.in" "equilibration/opt_all/"
+substitute_name_in "opt_all.in" "equilibration/opt_all/" "$opt_all_file"
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_all.in file. The names of the resulting files need to have \${name}!${NC}"
     exit 1
@@ -544,7 +551,7 @@ fi
 #Then run the temperature equilibration
 echo -e "\t\t Running temperature equilibration..."
 mkdir -p "process/equilibration/opt_temp/"
-substitute_name_in "opt_temp.in" "equilibration/opt_temp/"
+substitute_name_in "opt_temp.in" "equilibration/opt_temp/" "$opt_temp_file"
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_temp.in file. The names of the resulting files need to have \${name}!${NC}"
     exit 1
@@ -564,7 +571,7 @@ fi
 #Then run the pressure equilibration
 echo -e "\t\t Running pressure equilibration..."
 mkdir -p "process/equilibration/opt_pres/"
-substitute_name_in "opt_pres.in" "equilibration/opt_pres/"
+substitute_name_in "opt_pres.in" "equilibration/opt_pres/" "$opt_pres_file"
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_pres.in file. The names of the resulting files need to have \${name}!${NC}"
     exit 1
@@ -585,7 +592,7 @@ fi
 #Start the final md simulation
 echo -e "\t Starting with the final MD simulation..."
 mkdir -p "process/md/"
-substitute_name_in "md.in" "md/"
+substitute_name_in "md.in" "md/" "$md_file"
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
     exit 1
@@ -615,7 +622,7 @@ echo -e "\t Starting with the NMR spectrum generation..."
 #Run the cpptraj to sample and prepare the simulation results
 echo -e "\t\t Running cpptraj to sample the MD simulation..."
 mkdir -p "process/spectrum/cpptraj/"
-substitute_name_in "cpptraj.in" "spectrum/cpptraj/"
+substitute_name_in "cpptraj.in" "spectrum/cpptraj/" "cpptraj.in"
 sed "s/\${number}/${limit}/g" inputs/simulation/spectrum/cpptraj/cpptraj.in | sponge inputs/simulation/spectrum/cpptraj/cpptraj.in || return 0
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"

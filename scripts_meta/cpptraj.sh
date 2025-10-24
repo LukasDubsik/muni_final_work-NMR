@@ -2,4 +2,4 @@
 
 module add amber
 
-cpptraj -p ${name}.parm7 -i cpptraj.in
+cpptraj -p ${name}.parm7 -i ${file}
