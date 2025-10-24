@@ -11,13 +11,19 @@ input_type:=mol2
 ##Directory for metacentrum - where this directory is present (always needs to be here, but ignored if not m_NMR.sh file)
 directory:=/storage/brno2/home/lukasdubsik/NMR_meta
 
+##Is the simulation QM/MM?
+qmmm:=true
+
 ##Names for the expected *.in files for individual optimizations
 tleap:=tleap.in
 opt_water:=opt_water.in
 opt_all:=opt_all.in
 opt_temp:=opt_temp.in
 opt_pres:=opt_pres.in
-md:=md.in
+md:=md_qmmm.in
+
+##Name of the tpl file (always needs to be here, but ignored if qmmm false)
+tpl:=md.tpl
 
 ##Additional parameters to be added when running specific programs (Some can be left if not run, otherwise error, eg. no antechamber when 7 specified in 'input_type')
 ##The parameters must be enclosed in "..." brackets
