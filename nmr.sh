@@ -344,9 +344,9 @@ else
 fi
 
 #Get the directory for the metacentrum
-file_iterate "directory"
-ret=$?
 if [[ $META == true ]]; then
+    file_iterate "directory"
+    ret=$?
     if [[ $ret -eq 0 ]]; then
         echo -e "\t\t[$CROSS] ${RED} name of the metacentrum directory not given in $filename!${NC}"
         exit 1
