@@ -8,7 +8,10 @@ save_as:=cys1
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
 
-##Directory for metacentrum - where this directory is present (always needs to be here, but ignored if not m_NMR.sh file)
+##If we are running in metacentrum
+meta:=true
+
+##Directory for metacentrum - where this directory is present (only if meta set to true)
 directory:=/storage/brno2/home/lukasdubsik/NMR_meta
 
 ##Is the simulation QM/MM?
@@ -22,7 +25,7 @@ opt_temp:=opt_temp.in
 opt_pres:=opt_pres.in
 md:=md_qmmm.in
 
-##Name of the tpl file (always needs to be here, but ignored if qmmm false)
+##Name of the tpl file (only if qmmm true)
 tpl:=md.tpl
 
 ##Additional parameters to be added when running specific programs (Some can be left if not run, otherwise error, eg. no antechamber when 7 specified in 'input_type')

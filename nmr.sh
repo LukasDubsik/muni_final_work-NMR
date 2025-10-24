@@ -267,20 +267,6 @@ rm -rf process/*
 echo -e "Starting the simulation process..."
 echo -e "\t Checking the presence of necessary files:"
 
-#Check if the simulation is in metacentrum mode
-if [[ $1 == "-m" ]]; then
-    META=true
-else 
-    META=false
-fi
-
-#Choose the script folder based on META
-if [[ $META == true ]]; then
-    SCRIPTS="scripts_meta"
-else
-    SCRIPTS="scripts"
-fi
-
 #Is the sim.txt file present?
 if [ ! -f $filename ]; then
     echo -e "\t\t[$CROSS] ${RED} Input file $filename not found!${NC}"
@@ -335,15 +321,45 @@ else
     fi
 fi
 
+#Check if the simulation is in metacentrum mode
+file_iterate "meta"
+ret=$?
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} If running in metacentrum not specified $filename!${NC}"
+    exit 1
+else
+    META=$res
+    echo -e "\t\t[$CHECKMARK] It is going to be run in metacentrum: '$META'."
+fi
+
+#Choose the script folder based on META
+if [[ $META == true ]]; then
+    SCRIPTS="scripts_meta"
+else
+    SCRIPTS="scripts"
+fi
+
 #Get the directory for the metacentrum
 file_iterate "directory"
 ret=$?
+if [[ $META == true ]]; then
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} name of the metacentrum directory not given in $filename!${NC}"
+        exit 1
+    else
+        dir=$res
+        echo -e "\t\t[$CHECKMARK] Name of the metacentrum directory is set to '$dir'."
+    fi
+fi
+
+#If the simulation is to be qmmm
+file_iterate "qmmm"
 if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} name of the metacentrum directory not given $filename!${NC}"
+    echo -e "\t\t[$CROSS] ${RED} Not found qmmm specification in $filename!${NC}"
     exit 1
 else
-    dir=$res
-    echo -e "\t\t[$CHECKMARK] Name of the metacentrum directory is set to '$dir'."
+    qmmm=$res
+    echo -e "\t\t[$CHECKMARK] QM?MM is set to: '$qmmm'."
 fi
 
 #Checking that all .in files are present
@@ -357,7 +373,21 @@ check_in_file "opt_temp"
 check_in_file "opt_pres"
 check_in_file "md"
 
-### Currently in process of possible additions
+#Check if tpl is present - only if qmmm set already
+file_iterate "tpl"
+ret=$?
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} Tpl not specified even if tpl set!${NC}"
+    exit 1
+else
+    save_as=$res
+    echo -e "\t\t[$CHECKMARK] Name of the tpl file is: '$tpl'."
+fi
+#Check if the file exists
+if [[ ! -f inputs/simulation/${res} ]]; then
+    echo -e "\t\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
+    exit 1
+fi
 
 #Check that all necessary .sh files are meantioned and present
 #If .mol2 specified, check that antechamber and parmchk2 are given
