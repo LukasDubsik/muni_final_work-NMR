@@ -1,5 +1,4 @@
 &cntrl
-
  imin=0,    !Runs the simulations, 1 means optimilization
  nstlim=10000,     !Run for 100ps
  dt=0.001,      !Units for nstlim
@@ -27,8 +26,6 @@
  ntr=0,
 
  ifqnt=1,        !Enable QM/MM
-
-&end
 /
 &qmmm
   qmmask='@1-${num}',
