@@ -9,10 +9,10 @@ save_as:=cys1
 input_type:=mol2
 
 ##If we are running in metacentrum
-meta:=true
+meta:=false
 
 ##Directory for metacentrum - where this directory is present (only if meta set to true)
-directory:=/storage/brno2/home/lukasdubsik/NMR_meta
+#directory:=/storage/brno2/home/lukasdubsik/NMR_meta
 
 ##Is the simulation QM/MM?
 qmmm:=true
