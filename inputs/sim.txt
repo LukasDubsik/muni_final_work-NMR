@@ -26,7 +26,7 @@ opt_pres:=opt_pres.in
 md:=md_qmmm.in
 
 ##Name of the tpl file (only if qmmm true)
-tpl:=md.tpl
+tpl:=gau_job.tpl
 
 ##Additional parameters to be added when running specific programs (Some can be left if not run, otherwise error, eg. no antechamber when 7 specified in 'input_type')
 ##The parameters must be enclosed in "..." brackets
