@@ -218,7 +218,7 @@ run_sh_sim(){
 substitute_name_in(){
     script_name=$1
     path=process/$2
-    sed "s/\${name}/${name}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
+    sed "s/\${name}/${name}/g; s/\${num}/${limit}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
     return 1
 }
 
@@ -320,6 +320,10 @@ else
         fi
     fi
 fi
+
+#Get the number of atoms from the initial mol file
+limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
+((limit++))
 
 #Check if the simulation is in metacentrum mode
 file_iterate "meta"
@@ -588,6 +592,10 @@ if [[ $? -eq 0 ]]; then
 else
     echo -e "\t\t\t[$CHECKMARK] md.in file correctly loaded."
 fi
+#Copy tpl if qmmm enabled
+if [[ $qmmm == "true" ]]; then
+    cp "inputs/simulation/${tpl}" "process/md/."
+fi
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
 run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
@@ -691,9 +699,6 @@ echo -e "\t\t\t[$CHECKMARK] Gaussian NMR calculations finished successfully."
 #Combine the resulting files and plot the final spectrum
 echo -e "\t\t Plotting the final NMR spectrum..."
 mkdir -p "process/spectrum/plotting/plots/"
-#Get the number of atoms from the initial mol file
-limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
-((limit++))
 sigma=32.2 #Assumed solvent TMS shielding constant
 echo -e "\t\t\t[$CHECKMARK] Number of atoms in the molecule set to $limit, sigma for TMS set to $sigma."
 #Copy the .sh and .awk and .plt scripts while replacing the values

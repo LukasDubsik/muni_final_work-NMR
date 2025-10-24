@@ -1,7 +1,7 @@
 &cntrl
 
  imin=0,    !Runs the simulations, 1 means optimilization
- nstlim=100000,     !Run for 100ps
+ nstlim=10000,     !Run for 100ps
  dt=0.001,      !Units for nstlim
  
  ntb=2,     !NTP system
@@ -31,7 +31,7 @@
 &end
 /
 &qmmm
-  qmmask='@1-${number}',
+  qmmask='@1-${num}',
   qmcharge=0,
   spin=1,
   qm_ewald=0,
