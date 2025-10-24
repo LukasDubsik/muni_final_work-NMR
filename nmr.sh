@@ -610,7 +610,7 @@ if [[ $qmmm == "true" ]]; then
 fi
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
-if [[ $META == "true" ]]; then
+if [[ $qmmm == "true" ]]; then
     run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
 else
     run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
