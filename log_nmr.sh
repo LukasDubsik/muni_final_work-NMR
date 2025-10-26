@@ -17,7 +17,8 @@ filename="inputs/sim.txt"
 line_number=0
 res=""
 
-#File to store the progress of the simulation
+#File to store the progress of the simulation - so it can be restarted when something fails from last succesfull place
+run_log="run_log.log"
 
 #Functions
 #Iterate through the "sim.txt"file
@@ -260,156 +261,165 @@ move_for_presentation(){
     done
 }
 
+check_files(){
+    echo -e "\t Checking the presence of necessary files:"
+
+    #Is the sim.txt file present?
+    if [ ! -f $filename ]; then
+        echo -e "\t\t[$CROSS] ${RED} Input file $filename not found!${NC}"
+        exit 1
+    else
+        echo -e "\t\t[$CHECKMARK] Input file $filename found."
+    fi
+
+    #Is the name of the files given?
+    file_iterate "name"
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} name not specified in $filename!${NC}"
+        exit 1
+    else
+        name=$res
+        echo -e "\t\t[$CHECKMARK] Name of the files is set to '$name'."
+    fi
+
+    #Is the name for the save given
+    file_iterate "save_as"
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} name to save not specified in $filename!${NC}"
+        exit 1
+    else
+        save_as=$res
+        echo -e "\t\t[$CHECKMARK] Name of the save directory is set to '$save_as'."
+    fi
+
+    #Is the correct structure file then provided?
+    file_iterate "input_type"
+    ret=$?
+
+    #Check that the correct files are present based on input_type
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} input_type not specified in $filename!${NC}"
+        exit 1
+    else
+        input_type=$res
+        if [[ $input_type != "mol2" && $input_type != "7" ]]; then
+            echo -e "\t\t[$CROSS] ${RED} input_type must be either 'mol2' or '7'!${NC}"
+            exit 1
+        else
+            if [[ $input_type == "mol2" && ! -f inputs/structures/${name}.mol2 ]]; then
+                echo -e "\t\t[$CROSS] ${RED} input_type is set to 'mol2' but no .mol2 files found in inputs/structures/!${NC}"
+            elif [[ $input_type == "7" && (! -f inputs/structures/${name}.rst7 || ! -f inputs/structures/${name}.parm7) ]]; then
+                echo -e "\t\t[$CROSS] ${RED} input_type is set to '7' but no .rst7 or .parm7 files found in inputs/structures/!${NC}"
+            else
+                echo -e "\t\t[$CHECKMARK] All necessary files found for input_type '$input_type'."
+            fi
+        fi
+    fi
+
+    #Get the number of atoms from the initial mol file
+    limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
+    ((limit++))
+
+    #Check if the simulation is in metacentrum mode
+    file_iterate "meta"
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} If running in metacentrum not specified $filename!${NC}"
+        exit 1
+    else
+        META=$res
+        echo -e "\t\t[$CHECKMARK] It is going to be run in metacentrum: '$META'."
+    fi
+
+    #Choose the script folder based on META
+    if [[ $META == true ]]; then
+        SCRIPTS="scripts_meta"
+    else
+        SCRIPTS="scripts"
+    fi
+
+    #Get the directory for the metacentrum
+    if [[ $META == true ]]; then
+        file_iterate "directory"
+        ret=$?
+        if [[ $ret -eq 0 ]]; then
+            echo -e "\t\t[$CROSS] ${RED} name of the metacentrum directory not given in $filename!${NC}"
+            exit 1
+        else
+            dir=$res
+            echo -e "\t\t[$CHECKMARK] Name of the metacentrum directory is set to '$dir'."
+        fi
+    fi
+
+    #If the simulation is to be qmmm
+    file_iterate "qmmm"
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} Not found qmmm specification in $filename!${NC}"
+        exit 1
+    else
+        qmmm=$res
+        echo -e "\t\t[$CHECKMARK] QM?MM is set to: '$qmmm'."
+    fi
+
+    #Checking that all .in files are present
+    echo -e "\t\t Checking if .in files present!"
+
+    #Check for each .in file
+    check_in_file "tleap"
+    tleap_file=$res
+    check_in_file "opt_water"
+    opt_water_file=$res
+    check_in_file "opt_all"
+    opt_all_file=$res
+    check_in_file "opt_temp"
+    opt_temp_file=$res
+    check_in_file "opt_pres"
+    opt_pres_file=$res
+    check_in_file "md"
+    md_file=$res
+
+    #Check if tpl is present - only if qmmm set already
+    file_iterate "tpl"
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} Tpl not specified even if tpl set!${NC}"
+        exit 1
+    else
+        tpl=$res
+        echo -e "\t\t[$CHECKMARK] Name of the tpl file is: '$tpl'."
+    fi
+    #Check if the file exists
+    if [[ ! -f inputs/simulation/${res} ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
+        exit 1
+    fi
+
+    #Check that all necessary .sh files are meantioned and present
+    #If .mol2 specified, check that antechamber and parmchk2 are given
+    if [[ $input_type == "mol2" ]]; then
+        echo -e "\t\t Checking if necessary .sh files present for input_type 'mol2'!"
+
+        check_sh_file "antechamber"
+        commands_antechamber=$res
+        check_sh_file "parmchk2"
+        commands_parmchk2=$res
+    fi
+}
+
+#Check if log file for run is present
+if [[ -f $run_log ]]; then
+    echo -e "Do you wish to start where the log ended?"
+    echo -e "[y/n]"
+
+fi
 
 #Clean everything created by previous runs or cluttering the process directory
 rm -rf process/*
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
-echo -e "\t Checking the presence of necessary files:"
-
-#Is the sim.txt file present?
-if [ ! -f $filename ]; then
-    echo -e "\t\t[$CROSS] ${RED} Input file $filename not found!${NC}"
-    exit 1
-else
-    echo -e "\t\t[$CHECKMARK] Input file $filename found."
-fi
-
-#Is the name of the files given?
-file_iterate "name"
-ret=$?
-if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} name not specified in $filename!${NC}"
-    exit 1
-else
-    name=$res
-    echo -e "\t\t[$CHECKMARK] Name of the files is set to '$name'."
-fi
-
-#Is the name for the save given
-file_iterate "save_as"
-ret=$?
-if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} name to save not specified in $filename!${NC}"
-    exit 1
-else
-    save_as=$res
-    echo -e "\t\t[$CHECKMARK] Name of the save directory is set to '$save_as'."
-fi
-
-#Is the correct structure file then provided?
-file_iterate "input_type"
-ret=$?
-
-#Check that the correct files are present based on input_type
-if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} input_type not specified in $filename!${NC}"
-    exit 1
-else
-    input_type=$res
-    if [[ $input_type != "mol2" && $input_type != "7" ]]; then
-        echo -e "\t\t[$CROSS] ${RED} input_type must be either 'mol2' or '7'!${NC}"
-        exit 1
-    else
-        if [[ $input_type == "mol2" && ! -f inputs/structures/${name}.mol2 ]]; then
-            echo -e "\t\t[$CROSS] ${RED} input_type is set to 'mol2' but no .mol2 files found in inputs/structures/!${NC}"
-        elif [[ $input_type == "7" && (! -f inputs/structures/${name}.rst7 || ! -f inputs/structures/${name}.parm7) ]]; then
-            echo -e "\t\t[$CROSS] ${RED} input_type is set to '7' but no .rst7 or .parm7 files found in inputs/structures/!${NC}"
-        else
-            echo -e "\t\t[$CHECKMARK] All necessary files found for input_type '$input_type'."
-        fi
-    fi
-fi
-
-#Get the number of atoms from the initial mol file
-limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
-((limit++))
-
-#Check if the simulation is in metacentrum mode
-file_iterate "meta"
-ret=$?
-if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} If running in metacentrum not specified $filename!${NC}"
-    exit 1
-else
-    META=$res
-    echo -e "\t\t[$CHECKMARK] It is going to be run in metacentrum: '$META'."
-fi
-
-#Choose the script folder based on META
-if [[ $META == true ]]; then
-    SCRIPTS="scripts_meta"
-else
-    SCRIPTS="scripts"
-fi
-
-#Get the directory for the metacentrum
-if [[ $META == true ]]; then
-    file_iterate "directory"
-    ret=$?
-    if [[ $ret -eq 0 ]]; then
-        echo -e "\t\t[$CROSS] ${RED} name of the metacentrum directory not given in $filename!${NC}"
-        exit 1
-    else
-        dir=$res
-        echo -e "\t\t[$CHECKMARK] Name of the metacentrum directory is set to '$dir'."
-    fi
-fi
-
-#If the simulation is to be qmmm
-file_iterate "qmmm"
-if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} Not found qmmm specification in $filename!${NC}"
-    exit 1
-else
-    qmmm=$res
-    echo -e "\t\t[$CHECKMARK] QM?MM is set to: '$qmmm'."
-fi
-
-#Checking that all .in files are present
-echo -e "\t\t Checking if .in files present!"
-
-#Check for each .in file
-check_in_file "tleap"
-tleap_file=$res
-check_in_file "opt_water"
-opt_water_file=$res
-check_in_file "opt_all"
-opt_all_file=$res
-check_in_file "opt_temp"
-opt_temp_file=$res
-check_in_file "opt_pres"
-opt_pres_file=$res
-check_in_file "md"
-md_file=$res
-
-#Check if tpl is present - only if qmmm set already
-file_iterate "tpl"
-ret=$?
-if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} Tpl not specified even if tpl set!${NC}"
-    exit 1
-else
-    tpl=$res
-    echo -e "\t\t[$CHECKMARK] Name of the tpl file is: '$tpl'."
-fi
-#Check if the file exists
-if [[ ! -f inputs/simulation/${res} ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
-    exit 1
-fi
-
-#Check that all necessary .sh files are meantioned and present
-#If .mol2 specified, check that antechamber and parmchk2 are given
-if [[ $input_type == "mol2" ]]; then
-    echo -e "\t\t Checking if necessary .sh files present for input_type 'mol2'!"
-
-    check_sh_file "antechamber"
-    commands_antechamber=$res
-    check_sh_file "parmchk2"
-    commands_parmchk2=$res
-fi
 
 ###
 
@@ -612,7 +622,7 @@ fi
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
 if [[ $qmmm == "true" ]]; then
-    run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 16 8 0
+    run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 16 8 1
 else
     run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
 fi
