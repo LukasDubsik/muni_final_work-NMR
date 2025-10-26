@@ -425,7 +425,21 @@ else
 fi
 
 #If not running by previous log, clean everything created by previous runs or cluttering the process directory
-rm -rf process/*
+if [[ $log_run == "false" ]]; then
+    rm -rf process/*
+else
+    #Otherwise delete everything that is not taken as finished in the log
+    base="process"
+    # build a prune expression from keep.txt
+    expr=()
+    while IFS= read -r rel; do
+    [ -z "$rel" ] && continue
+    expr+=( -path "$base/$rel" -o -path "$base/$rel/*" )
+    done < keep.txt
+
+    # shellcheck disable=SC2145
+    find "$base" \( "${expr[@]}" \) -prune -o -exec rm -rf -- {} +
+fi
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
