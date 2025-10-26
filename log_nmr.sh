@@ -433,51 +433,7 @@ check_files(){
     fi
 }
 
-#Check if log file for run is present
-if [[ -f $run_log ]]; then
-#If present ask the user if he really wishes to use it
-    echo -e "Do you wish to start where the log ended?"
-    echo -e "[y/n]"
-    read -r answer
-    if [[ $answer == "y" ]]; then
-        log_run=true
-    else
-        log_run=false
-    fi
-else
-    #If not present then we can't use it
-    log_run=false
-fi
-
-#If not running by previous log, clean everything created by previous runs or cluttering the process directory
-if [[ $log_run == "false" ]]; then
-    rm -rf process/*
-else
-    #Otherwise delete everything that is not taken as finished in the log
-    base="process"
-    # build a prune expression from the log file
-    expr=()
-    while IFS= read -r rel; do
-        [ -z "$rel" ] && continue
-        expr+=( -path "$base/$rel" -o -path "$base/$rel/*" )
-    done < $run_log
-
-    # Find and delete all that are not present
-    find "$base" \( "${expr[@]}" \) -prune -o -exec rm -rf -- {} +
-fi
-
-#Starting to write the log
-echo -e "Starting the simulation process..."
-
-#Check that all files are present - necessary for both logged and unlogged
-check_files
-
-#All checks done
-##Begin with simulations
-mkdir -p data_results/${name}/logs #The directory to move all results to
-
-#Starting with converting the structures .mol2 (if given) to the rst7/parm7 format
-if [[ $input_type == "mol2" ]]; then
+run_structure_creation(){
     echo -e "\t Starting with structure conversion from .mol2 to .rst7/.parm7 format."
 
     #Firstly, run the antechamber program
@@ -536,6 +492,54 @@ if [[ $input_type == "mol2" ]]; then
     fi
 
     echo -e "\t\t[$CHECKMARK] Structure conversion finished successfully, proceeding to optimizations and MD simulations."
+}
+
+#Check if log file for run is present
+if [[ -f $run_log ]]; then
+#If present ask the user if he really wishes to use it
+    echo -e "Do you wish to start where the log ended?"
+    echo -e "[y/n]"
+    read -r answer
+    if [[ $answer == "y" ]]; then
+        log_run=true
+    else
+        log_run=false
+    fi
+else
+    #If not present then we can't use it
+    log_run=false
+fi
+
+#If not running by previous log, clean everything created by previous runs or cluttering the process directory
+if [[ $log_run == "false" ]]; then
+    rm -rf process/*
+else
+    #Otherwise delete everything that is not taken as finished in the log
+    base="process"
+    # build a prune expression from the log file
+    expr=()
+    while IFS= read -r rel; do
+        [ -z "$rel" ] && continue
+        expr+=( -path "$base/$rel" -o -path "$base/$rel/*" )
+    done < $run_log
+
+    # Find and delete all that are not present
+    find "$base" \( "${expr[@]}" \) -prune -o -exec rm -rf -- {} +
+fi
+
+#Starting to write the log
+echo -e "Starting the simulation process..."
+
+#Check that all files are present - necessary for both logged and unlogged
+check_files
+
+#All checks done
+##Begin with simulations
+mkdir -p data_results/${name}/logs #The directory to move all results to
+
+#Starting with converting the structures .mol2 (if given) to the rst7/parm7 format
+if [[ $input_type == "mol2" ]]; then
+    run_structure_creation
 fi
 
 
