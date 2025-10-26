@@ -410,12 +410,21 @@ check_files(){
 
 #Check if log file for run is present
 if [[ -f $run_log ]]; then
+#If present ask the user if he really wishes to use it
     echo -e "Do you wish to start where the log ended?"
     echo -e "[y/n]"
-
+    read -r answer
+    if [[ $answer == "y" ]]; then
+        log_run=true
+    else
+        log_run=false
+    fi
+else
+    #If not present then we can't use it
+    log_run=false
 fi
 
-#Clean everything created by previous runs or cluttering the process directory
+#If not running by previous log, clean everything created by previous runs or cluttering the process directory
 rm -rf process/*
 
 #Starting to write the log

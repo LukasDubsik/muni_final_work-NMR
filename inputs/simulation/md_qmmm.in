@@ -1,7 +1,7 @@
 QMMM
 &cntrl
  imin=0,    !Runs the simulations, 1 means optimilization
- nstlim=10000,     !Run for 100ps
+ nstlim=10000,     !Run for 10ps
  dt=0.001,      !Units for nstlim
  
  ntb=2,     !NTP system
@@ -39,5 +39,5 @@ QMMM
 &gau
   use_template=1,
   num_threads=8,
-  mem='8GB'
+  mem='12GB'
 /
