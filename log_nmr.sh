@@ -406,6 +406,31 @@ check_files(){
         check_sh_file "parmchk2"
         commands_parmchk2=$res
     fi
+
+    #Check that files and extensions to save are mentioned and extract that data
+    file_iterate "extensions"
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} extensions not specified in $filename! Required for moving files to data_results!${NC}"
+        exit 1
+    else
+        extensions=$res
+        #Convert to array by separation with ;
+        IFS=';' read -r -a ext_array <<< "$extensions"
+        echo -e "\t\t[$CHECKMARK] Extensions to be saved are set to '$extensions'."
+    fi
+
+    file_iterate "files"
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} files not specified in $filename! Required for moving files to data_results!${NC}"
+        exit 1
+    else
+        files=$res
+        #Convert to array by separation with ;
+        IFS=';' read -r -a files_array <<< "$files"
+        echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
+    fi
 }
 
 #Check if log file for run is present
@@ -430,47 +455,22 @@ if [[ $log_run == "false" ]]; then
 else
     #Otherwise delete everything that is not taken as finished in the log
     base="process"
-    # build a prune expression from keep.txt
+    # build a prune expression from the log file
     expr=()
     while IFS= read -r rel; do
-    [ -z "$rel" ] && continue
-    expr+=( -path "$base/$rel" -o -path "$base/$rel/*" )
-    done < keep.txt
+        [ -z "$rel" ] && continue
+        expr+=( -path "$base/$rel" -o -path "$base/$rel/*" )
+    done < $run_log
 
-    # shellcheck disable=SC2145
+    # Find and delete all that are not present
     find "$base" \( "${expr[@]}" \) -prune -o -exec rm -rf -- {} +
 fi
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
 
-###
-
-#Check that files and extensions to save are mentioned and extract that data
-file_iterate "extensions"
-ret=$?
-if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} extensions not specified in $filename! Required for moving files to data_results!${NC}"
-    exit 1
-else
-    extensions=$res
-    #Convert to array by separation with ;
-    IFS=';' read -r -a ext_array <<< "$extensions"
-    echo -e "\t\t[$CHECKMARK] Extensions to be saved are set to '$extensions'."
-fi
-
-file_iterate "files"
-ret=$?
-if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} files not specified in $filename! Required for moving files to data_results!${NC}"
-    exit 1
-else
-    files=$res
-    #Convert to array by separation with ;
-    IFS=';' read -r -a files_array <<< "$files"
-    echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
-fi
-
+#Check that all files are present - necessary for both logged and unlogged
+check_files
 
 #All checks done
 ##Begin with simulations
