@@ -533,6 +533,12 @@ echo -e "Starting the simulation process..."
 #Check that all files are present - necessary for both logged and unlogged
 check_files
 
+#Set a special counter to get where in the file we currently are 
+position=0
+
+#get the number of lines of the log file
+num_of_lines_log=$(wc -l $run_log)
+
 #All checks done
 ##Begin with simulations
 mkdir -p data_results/${name}/logs #The directory to move all results to
@@ -540,8 +546,9 @@ mkdir -p data_results/${name}/logs #The directory to move all results to
 #Starting with converting the structures .mol2 (if given) to the rst7/parm7 format
 if [[ $input_type == "mol2" ]]; then
     run_structure_creation
+    #If going this path add four to the position
+    position=$((position + 4))
 fi
-
 
 #Start the equilibration process
 echo -e "\t Starting with optimizations..."
