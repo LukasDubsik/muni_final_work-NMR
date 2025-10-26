@@ -21,6 +21,18 @@ res=""
 run_log="run_log.log"
 
 #Functions
+#Write to the run log if conditions met
+write_run_log(){
+    pos=$1
+    log_end_pos=$2
+    path_to_write=$3
+
+    #Expand the log by another written path
+    if [[ $pos > $log_end_pos ]]; then
+        echo "$path_to_write" >> $run_log
+        ((position_test++))
+    fi
+}
 #Iterate through the "sim.txt"file
 file_iterate(){
     pattern=$1
@@ -76,7 +88,7 @@ check_in_file(){
 #Check for given .sh files
 check_sh_file(){
     pattern=$1
-    file_iterate $pattern
+    file_iterate "$pattern"
     ret=$?
     if [[ $ret -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} ${pattern} not specified in $filename! Required as .mol2 given. If no additions to running the program just leave \"\".${NC}"
@@ -159,7 +171,7 @@ run_sh_sim(){
     #Cycle till the job is finished (succesfully/unsuccesfully)
     while :; do
         #Run qstat to pool the job
-        qstat $jobid > /dev/null 2>&1
+        qstat "$jobid" > /dev/null 2>&1
         res=$?
         #If we have returned "153" job has not been run
         if [[ $res -eq 153 ]]; then
@@ -174,7 +186,7 @@ run_sh_sim(){
     done    
 
     #Check if the final file is generated - if not, we have an error
-    if [[ ! -f $fi && $wai -ne 0 ]]; then
+    if [[ ! -f $fi ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
         return 0
     else
@@ -438,7 +450,6 @@ run_structure_creation(){
 
     #Firstly, run the antechamber program
     echo -e "\t\t Running antechamber..."
-    script_type="antechamber"
     run_sh_sim "antechamber" "preparations/antechamber" "inputs/structures/${name}.mol2" "${commands_antechamber}" "${name}_charges.mol2" 4 2
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
@@ -446,6 +457,7 @@ run_structure_creation(){
     else
         echo -e "\t\t\t[$CHECKMARK] Antechamber finished successfully."
     fi
+    write_run_log $position_test "$num_of_lines_log" "preparations/antechamber"
 
     #Then run the parmchk2 program
     echo -e "\t\t Running parmchk2..."
@@ -456,6 +468,7 @@ run_structure_creation(){
     else
         echo -e "\t\t\t[$CHECKMARK] Parmchk2 finished successfully."
     fi
+    write_run_log $position_test "$num_of_lines_log" "preparations/parmchk2"
 
     #Perform a nemesis fix (fix the format for mol2 from the antechamber, may be necessary for other programs to understand)
     echo -e "\t\t Fixing using nemesis(obabel)..."
@@ -463,11 +476,12 @@ run_structure_creation(){
     #Prepare and copy the enviroment
     mkdir -p process/preparations/n_fix
     cp process/preparations/antechamber/${name}_charges.mol2 process/preparations/n_fix/.
-    cd process/preparations/n_fix/
+    cd process/preparations/n_fix/ || exit 1
     #Perform the process by obabel (nemsis uses obabel in the background)
     obabel -imol2 ${name}_charges.mol2 -omol2 -O ${name}_charges_fix.mol2 > /dev/null 2>&1 || echo -e "\t\t\t[$CROSS] ${RED} Failed to fix using nemesis!${NC}"
     cd ../../.. || (echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after nemesis!${NC}" && exit 1)
     echo -e "\t\t\t[$CHECKMARK] Nemesis fix succesfull!"
+    write_run_log $position_test "$num_of_lines_log" "preparations/n_fix"
 
     #Combine the results by running tleap -> generate rst7/parm7 files for simulations (equilibrations)
     echo -e "\t\t Running tleap..."
@@ -490,9 +504,108 @@ run_structure_creation(){
     else
         echo -e "\t\t\t[$CHECKMARK] Tleap finished successfully."
     fi
+    write_run_log $position_test "$num_of_lines_log" "preparations/tleap"
 
     echo -e "\t\t[$CHECKMARK] Structure conversion finished successfully, proceeding to optimizations and MD simulations."
 }
+
+water_opt(){
+    echo -e "\t\t Running water optimization..."
+    mkdir -p "process/equilibration/opt_water/"
+    substitute_name_in "opt_water.in" "equilibration/opt_water/"
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_water.in file. The names of the resulting files need to have \${name}!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] opt_water.in file correctly loaded."
+    fi
+    file="$opt_water_file"
+    #Prepare the files to copy
+    files_to_copy="process/preparations/tleap/${name}.rst7;process/preparations/tleap/${name}.parm7"
+    run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 10 12
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Optimization of the water failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] Optimization of water finished successfully."
+    fi
+    write_run_log $position_test "$num_of_lines_log" "equilibration/opt_water"
+}
+
+full_opt(){
+    echo -e "\t\t Running full optimization..."
+    mkdir -p "process/equilibration/opt_all/"
+    substitute_name_in "opt_all.in" "equilibration/opt_all/"
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_all.in file. The names of the resulting files need to have \${name}!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] opt_all.in file correctly loaded."
+    fi
+    file="$opt_all_file"
+    #Prepare the files to copy
+    files_to_copy="process/equilibration/opt_water/${name}_opt_water.rst7;process/preparations/tleap/${name}.parm7"
+    run_sh_sim "opt_all" "equilibration/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 10 12
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Full optimization failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] Full optimization finished successfully."
+    fi  
+    write_run_log $position_test "$num_of_lines_log" "equilibration/opt_all"
+}
+
+temp_opt(){
+    echo -e "\t\t Running temperature equilibration..."
+    mkdir -p "process/equilibration/opt_temp/"
+    substitute_name_in "opt_temp.in" "equilibration/opt_temp/"
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_temp.in file. The names of the resulting files need to have \${name}!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] opt_temp.in file correctly loaded."
+    fi
+    file="$opt_temp_file"
+    #Prepare the files to copy
+    files_to_copy="process/equilibration/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
+    run_sh_sim "opt_temp" "equilibration/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] Temperature equilibration finished successfully."
+    fi
+    write_run_log $position_test "$num_of_lines_log" "equilibration/opt_temp"
+}
+
+pres_opt(){
+    echo -e "\t\t Running pressure equilibration..."
+    mkdir -p "process/equilibration/opt_pres/"
+    substitute_name_in "opt_pres.in" "equilibration/opt_pres/"
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_pres.in file. The names of the resulting files need to have \${name}!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] opt_pres.in file correctly loaded."
+    fi
+    file="$opt_pres_file"
+    #Prepare the files to copy
+    files_to_copy="process/equilibration/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
+    run_sh_sim "opt_pres" "equilibration/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] Pressure equilibration finished successfully."
+    fi
+    write_run_log $position_test "$num_of_lines_log" "equilibration/opt_pres"
+}
+
+###############################################################################################
+###############################################################################################
+###############################################################################################
+###############################################################################################
+###############################################################################################
 
 #Check if log file for run is present
 if [[ -f $run_log ]]; then
@@ -513,6 +626,9 @@ fi
 #If not running by previous log, clean everything created by previous runs or cluttering the process directory
 if [[ $log_run == "false" ]]; then
     rm -rf process/*
+    #Also create a new log
+    rm -f $run_log
+    touch $run_log
 else
     #Otherwise delete everything that is not taken as finished in the log
     base="process"
@@ -534,7 +650,7 @@ echo -e "Starting the simulation process..."
 check_files
 
 #Set a special counter to get where in the file we currently are 
-position=0
+position_test=0
 
 #get the number of lines of the log file
 num_of_lines_log=$(wc -l $run_log)
@@ -554,88 +670,16 @@ fi
 echo -e "\t Starting with optimizations..."
 
 #Firstly, run the water optimization
-echo -e "\t\t Running water optimization..."
-mkdir -p "process/equilibration/opt_water/"
-substitute_name_in "opt_water.in" "equilibration/opt_water/"
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_water.in file. The names of the resulting files need to have \${name}!${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] opt_water.in file correctly loaded."
-fi
-file="$opt_water_file"
-#Prepare the files to copy
-files_to_copy="process/preparations/tleap/${name}.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 10 12
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Optimization of the water failed! Exiting...${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] Optimization of water finished successfully."
-fi
+water_opt
 
 #Then run the full optimization
-echo -e "\t\t Running full optimization..."
-mkdir -p "process/equilibration/opt_all/"
-substitute_name_in "opt_all.in" "equilibration/opt_all/"
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_all.in file. The names of the resulting files need to have \${name}!${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] opt_all.in file correctly loaded."
-fi
-file="$opt_all_file"
-#Prepare the files to copy
-files_to_copy="process/equilibration/opt_water/${name}_opt_water.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_all" "equilibration/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 10 12
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Full optimization failed! Exiting...${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] Full optimization finished successfully."
-fi  
+full_opt
 
 #Then run the temperature equilibration
-echo -e "\t\t Running temperature equilibration..."
-mkdir -p "process/equilibration/opt_temp/"
-substitute_name_in "opt_temp.in" "equilibration/opt_temp/"
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_temp.in file. The names of the resulting files need to have \${name}!${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] opt_temp.in file correctly loaded."
-fi
-file="$opt_temp_file"
-#Prepare the files to copy
-files_to_copy="process/equilibration/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_temp" "equilibration/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] Temperature equilibration finished successfully."
-fi
+temp_opt
 
 #Then run the pressure equilibration
-echo -e "\t\t Running pressure equilibration..."
-mkdir -p "process/equilibration/opt_pres/"
-substitute_name_in "opt_pres.in" "equilibration/opt_pres/"
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_pres.in file. The names of the resulting files need to have \${name}!${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] opt_pres.in file correctly loaded."
-fi
-file="$opt_pres_file"
-#Prepare the files to copy
-files_to_copy="process/equilibration/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_pres" "equilibration/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] Pressure equilibration finished successfully."
-fi
+pres_opt
 
 
 #Start the final md simulation
