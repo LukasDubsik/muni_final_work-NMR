@@ -601,6 +601,186 @@ pres_opt(){
     write_run_log $position_test "$num_of_lines_log" "equilibration/opt_pres"
 }
 
+final_md(){
+    echo -e "\t Starting with the final MD simulation..."
+    mkdir -p "process/md/"
+    substitute_name_in "${md_file}" "md/"
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] md.in file correctly loaded."
+    fi
+    file="$md_file"
+    #Copy tpl if qmmm enabled
+    if [[ $qmmm == "true" ]]; then
+        cp "inputs/simulation/${tpl}" "process/md/."
+    fi
+    #Prepare the files to copy
+    files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
+    if [[ $qmmm == "true" ]]; then
+        run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 16 8 1
+    else
+        run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
+    fi
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
+    fi
+    write_run_log $position_test "$num_of_lines_log" "md/"
+}
+
+run_cpptraj(){
+    echo -e "\t\t Running cpptraj to sample the MD simulation..."
+    mkdir -p "process/spectrum/cpptraj/"
+    substitute_name_in "cpptraj.in" "spectrum/cpptraj/"
+    sed "s/\${number}/${limit}/g" inputs/simulation/spectrum/cpptraj/cpptraj.in | sponge inputs/simulation/spectrum/cpptraj/cpptraj.in || return 0
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] cpptraj.in file correctly loaded."
+    fi
+    file="cpptraj.in"
+    #Prepare the files to copy
+    files_to_copy="process/md/${name}_md.mdcrd;process/preparations/tleap/${name}.parm7"
+    run_sh_sim "cpptraj" "spectrum/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 1
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} cpptraj failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] cpptraj finished successfully."
+    fi
+    write_run_log $position_test "$num_of_lines_log" "spectrum/cpptraj"
+}
+
+gauss_prep(){
+    echo -e "\t\t Splitting the frames and converting to .gjf format..."
+    mkdir -p "process/spectrum/gauss_prep/"
+    #$Firstly copy the resulting .xyz file
+    cp process/spectrum/cpptraj/${name}_frame.xyz process/spectrum/gauss_prep/.
+    #Then split the file to individual frames by running split_xyz.sh
+    cp $SCRIPTS/split_xyz.sh process/spectrum/gauss_prep/.
+    mkdir -p process/spectrum/gauss_prep/frames
+    #Enter the directory and split the frames
+    cd process/spectrum/gauss_prep || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
+    bash split_xyz.sh < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}"; exit 1; }
+    cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
+    echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
+    #Then convert each frame to .gjf format by running xyz_to_gfj.sh
+    cp $SCRIPTS/xyz_to_gfj.sh process/spectrum/gauss_prep/.
+    mkdir -p process/spectrum/gauss_prep/gauss
+    cd process/spectrum/gauss_prep/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
+    bash xyz_to_gfj.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}"; exit 1; }
+    cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after converting!${NC}"; exit 1; }
+    if [[ ! -d process/spectrum/gauss_prep/gauss || -z "$(ls -A process/spectrum/gauss_prep/gauss)" ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Conversion to .gjf format failed, no files found!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
+    fi
+    write_run_log $position_test "$num_of_lines_log" "spectrum/gauss_prep"
+}
+
+run_nmr(){
+    echo -e "\t\t Running Gaussian NMR calculations..."
+    mkdir -p "process/spectrum/NMR/"
+    #Copy the generated .gjf files directory
+    mkdir -p process/spectrum/NMR/nmr
+    #Run the jobs in parallel each in different directory and subshell
+    pids=()
+    #Enter the directory and run the .sh script
+    for num in {1..100}; do
+        #create a new dir for the file
+        mkdir -p "process/spectrum/NMR/job_${num}/"
+        ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 15 4 0 ${num} 0 ) &
+        pids+=($!)
+    done
+    #Wait for all jobs to finish; kill all others if just one fails
+    for pid in "${pids[@]}"; do
+        wait $pid
+        if [[ $? -eq 0 ]]; then
+            kill "${pids[@]}" 2>/dev/null        
+            echo -e "\t\t\t[$CROSS] ${RED} One of the Gaussian NMR jobs failed! Exiting...${NC}"
+            qdel $(qselect -u lukasdubsik)
+            exit 1
+        fi
+    done
+    #All jobs finished successfully
+    echo -e "\t\t\t[$CHECKMARK] All Gaussian NMR jobs submitted, waiting for them to finish."
+    #Create the resulting directory nmr
+    mkdir -p "process/spectrum/NMR/nmr"
+    #Move the log and delete each of the job dirs
+    for i in {1..100}; do
+        mv process/spectrum/NMR/job_${i}/frame.${i}.log process/spectrum/NMR/nmr/
+        rm -rf process/spectrum/NMR/job_${i}
+    done
+    echo -e "\t\t\t[$CHECKMARK] Gaussian NMR calculations finished successfully."
+    write_run_log $position_test "$num_of_lines_log" "spectrum/NMR"
+}
+
+final_plot(){
+    echo -e "\t\t Plotting the final NMR spectrum..."
+    mkdir -p "process/spectrum/plotting/plots/"
+    sigma=32.2 #Assumed solvent TMS shielding constant
+    echo -e "\t\t\t[$CHECKMARK] Number of atoms in the molecule set to $limit, sigma for TMS set to $sigma."
+    #Copy the .sh and .awk and .plt scripts while replacing the values
+    sed "s/\${sigma}/${sigma}/g; s/\${limit}/${limit}/g" $SCRIPTS/log_to_plot.sh > process/spectrum/plotting/log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.sh file!${NC}"; exit 1; }
+    cp $SCRIPTS/gjf_to_plot.awk process/spectrum/plotting/gjf_to_plot.awk || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.awk file!${NC}"; exit 1; }
+    cp $SCRIPTS/average_plot.sh process/spectrum/plotting/average_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the average_plot.sh file!${NC}"; exit 1; }
+    sed "s/\${name}/${name}/g" $SCRIPTS/plot_nmr.plt > process/spectrum/plotting/plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the plot_nmr.plt file!${NC}"; exit 1; }
+    cp -r process/spectrum/NMR/nmr process/spectrum/plotting/.
+    echo -e "\t\t\t[$CHECKMARK] All necessary files copied to plotting directory."
+    #Run the script
+    cd process/spectrum/plotting || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the plotting directory!${NC}"; exit 1; }   
+    bash log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to plot the NMR spectrum!${NC}"; exit 1; }
+    echo -e "\t\t\t[$CHECKMARK] Log file converted to plot data."
+    #Finally plot and check presence of the graphic file
+    gnuplot plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to run gnuplot for NMR spectrum!${NC}"; exit 1; }
+    cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after plotting!${NC}"; exit 1; }
+    if [[ ! -f process/spectrum/plotting/${name}_nmr.png ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Plotting the NMR spectrum failed, no file found!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] Plotting the NMR spectrum successful."
+    fi
+    write_run_log $position_test "$num_of_lines_log" "spectrum/plotting"
+}
+
+store_res(){
+    #Don't duplicate files
+    echo -e "\t Moving the results to data_results/${name}/"
+    #delete the file for save if already present
+    rm -rf data_results/${save_as}/
+    mkdir -p data_results/${save_as}/
+    #Move the logs in there
+    mv logs/ > data_results/${save_as}/ 2>/dev/null
+    #Copy everything for posterity
+    cp -r process/ data_results/${save_as}/
+    #Start with preparations
+    prep=data_results/${name}/preparations
+    mkdir -p $prep
+    move_for_presentation process/preparations/antechamber/ data_results/${name}/preparations/ 2>/dev/null
+    move_for_presentation process/preparations/parmchk2/ data_results/${name}/preparations/ 2>/dev/null
+    move_for_presentation process/preparations/tleap/ data_results/${name}/preparations/ 2>/dev/null
+    #Then equilibration
+    mkdir -p data_results/${name}/equilibration
+    move_for_presentation process/equilibration/opt_water/ data_results/${name}/equilibration/ 2>/dev/null
+    move_for_presentation process/equilibration/opt_all/ data_results/${name}/equilibration/ 2>/dev/null
+    move_for_presentation process/equilibration/opt_temp/ data_results/${name}/equilibration/ 2>/dev/null
+    move_for_presentation process/equilibration/opt_pres/ data_results/${name}/equilibration/ 2>/dev/null
+    #Then md
+    mkdir -p data_results/${name}/md
+    move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
+    move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
+    #Then spectrum
+    mkdir -p data_results/${name}/spectrum
+    move_for_presentation process/spectrum/cpptraj/ data_results/${name}/spectrum/ 2>/dev/null
+    move_for_presentation process/spectrum/plotting/ data_results/${name}/spectrum/ 2>/dev/null
+}
+
 ###############################################################################################
 ###############################################################################################
 ###############################################################################################
@@ -683,33 +863,7 @@ pres_opt
 
 
 #Start the final md simulation
-echo -e "\t Starting with the final MD simulation..."
-mkdir -p "process/md/"
-substitute_name_in "${md_file}" "md/"
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] md.in file correctly loaded."
-fi
-file="$md_file"
-#Copy tpl if qmmm enabled
-if [[ $qmmm == "true" ]]; then
-    cp "inputs/simulation/${tpl}" "process/md/."
-fi
-#Prepare the files to copy
-files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
-if [[ $qmmm == "true" ]]; then
-    run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 16 8 1
-else
-    run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
-fi
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
-fi
+full_md
 
 
 ##Start the process of final generation of the NMR spectra
@@ -718,146 +872,19 @@ mkdir -p "process/spectrum/"
 echo -e "\t Starting with the NMR spectrum generation..."
 
 #Run the cpptraj to sample and prepare the simulation results
-echo -e "\t\t Running cpptraj to sample the MD simulation..."
-mkdir -p "process/spectrum/cpptraj/"
-substitute_name_in "cpptraj.in" "spectrum/cpptraj/"
-sed "s/\${number}/${limit}/g" inputs/simulation/spectrum/cpptraj/cpptraj.in | sponge inputs/simulation/spectrum/cpptraj/cpptraj.in || return 0
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] cpptraj.in file correctly loaded."
-fi
-file="cpptraj.in"
-#Prepare the files to copy
-files_to_copy="process/md/${name}_md.mdcrd;process/preparations/tleap/${name}.parm7"
-run_sh_sim "cpptraj" "spectrum/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 1
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} cpptraj failed! Exiting...${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] cpptraj finished successfully."
-fi
+run_cpptraj
 
 #Split to individual images of the simulation and convert to gauss format
-echo -e "\t\t Splitting the frames and converting to .gjf format..."
-mkdir -p "process/spectrum/gauss_prep/"
-#$Firstly copy the resulting .xyz file
-cp process/spectrum/cpptraj/${name}_frame.xyz process/spectrum/gauss_prep/.
-#Then split the file to individual frames by running split_xyz.sh
-cp $SCRIPTS/split_xyz.sh process/spectrum/gauss_prep/.
-mkdir -p process/spectrum/gauss_prep/frames
-#Enter the directory and split the frames
-cd process/spectrum/gauss_prep || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
-bash split_xyz.sh < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}"; exit 1; }
-cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
-echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
-#Then convert each frame to .gjf format by running xyz_to_gfj.sh
-cp $SCRIPTS/xyz_to_gfj.sh process/spectrum/gauss_prep/.
-mkdir -p process/spectrum/gauss_prep/gauss
-cd process/spectrum/gauss_prep/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
-bash xyz_to_gfj.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}"; exit 1; }
-cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after converting!${NC}"; exit 1; }
-if [[ ! -d process/spectrum/gauss_prep/gauss || -z "$(ls -A process/spectrum/gauss_prep/gauss)" ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Conversion to .gjf format failed, no files found!${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] Conversion to .gjf format successful."
-fi
+gauss_prep
 
 #Run the gaussian simulation on each file and store the results
-echo -e "\t\t Running Gaussian NMR calculations..."
-mkdir -p "process/spectrum/NMR/"
-#Copy the .sh script
-#cp scripts/run_NMR.sh process/spectrum/NMR/.
-#Copy the generated .gjf files directory
-mkdir -p process/spectrum/NMR/nmr
-#Run the jobs in parallel each in different directory and subshell
-pids=()
-#Enter the directory and run the .sh script
-for num in {1..100}; do
-    #create a new dir for the file
-    mkdir -p "process/spectrum/NMR/job_${num}/"
-    ( run_sh_sim "run_NMR" "spectrum/NMR/job_${num}/" "process/spectrum/gauss_prep/gauss/frame.${num}.gjf" "" "frame.${num}.log" 15 4 0 ${num} 0 ) &
-    pids+=($!)
-done
-#Wait for all jobs to finish; kill all others if just one fails
-for pid in "${pids[@]}"; do
-    wait $pid
-    if [[ $? -eq 0 ]]; then
-        kill "${pids[@]}" 2>/dev/null        
-        echo -e "\t\t\t[$CROSS] ${RED} One of the Gaussian NMR jobs failed! Exiting...${NC}"
-        qdel $(qselect -u lukasdubsik)
-        exit 1
-    fi
-done
-#All jobs finished successfully
-echo -e "\t\t\t[$CHECKMARK] All Gaussian NMR jobs submitted, waiting for them to finish."
-#Create the resulting directory nmr
-mkdir -p "process/spectrum/NMR/nmr"
-#Move the log and delete each of the job dirs
-for i in {1..100}; do
-    mv process/spectrum/NMR/job_${i}/frame.${i}.log process/spectrum/NMR/nmr/
-    rm -rf process/spectrum/NMR/job_${i}
-done
-echo -e "\t\t\t[$CHECKMARK] Gaussian NMR calculations finished successfully."
+run_nmr
 
 #Combine the resulting files and plot the final spectrum
-echo -e "\t\t Plotting the final NMR spectrum..."
-mkdir -p "process/spectrum/plotting/plots/"
-sigma=32.2 #Assumed solvent TMS shielding constant
-echo -e "\t\t\t[$CHECKMARK] Number of atoms in the molecule set to $limit, sigma for TMS set to $sigma."
-#Copy the .sh and .awk and .plt scripts while replacing the values
-sed "s/\${sigma}/${sigma}/g; s/\${limit}/${limit}/g" $SCRIPTS/log_to_plot.sh > process/spectrum/plotting/log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.sh file!${NC}"; exit 1; }
-cp $SCRIPTS/gjf_to_plot.awk process/spectrum/plotting/gjf_to_plot.awk || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the log_to_plot.awk file!${NC}"; exit 1; }
-cp $SCRIPTS/average_plot.sh process/spectrum/plotting/average_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the average_plot.sh file!${NC}"; exit 1; }
-sed "s/\${name}/${name}/g" $SCRIPTS/plot_nmr.plt > process/spectrum/plotting/plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the plot_nmr.plt file!${NC}"; exit 1; }
-cp -r process/spectrum/NMR/nmr process/spectrum/plotting/.
-echo -e "\t\t\t[$CHECKMARK] All necessary files copied to plotting directory."
-#Run the script
-cd process/spectrum/plotting || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the plotting directory!${NC}"; exit 1; }   
-bash log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to plot the NMR spectrum!${NC}"; exit 1; }
-echo -e "\t\t\t[$CHECKMARK] Log file converted to plot data."
-#Finally plot and check presence of the graphic file
-gnuplot plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to run gnuplot for NMR spectrum!${NC}"; exit 1; }
-cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after plotting!${NC}"; exit 1; }
-if [[ ! -f process/spectrum/plotting/${name}_nmr.png ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Plotting the NMR spectrum failed, no file found!${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] Plotting the NMR spectrum successful."
-fi
+final_plot
 
 #Start moving the results to data_results - separate by main directories (preparations, equlibration...)
-#Don't duplicate files
-echo -e "\t Moving the results to data_results/${name}/"
-#delete the file for save if already present
-rm -rf data_results/${save_as}/
-mkdir -p data_results/${save_as}/
-#Move the logs in there
-mv logs/ > data_results/${save_as}/ 2>/dev/null
-#Copy everything for posterity
-cp -r process/ data_results/${save_as}/
-#Start with preparations
-prep=data_results/${name}/preparations
-mkdir -p $prep
-move_for_presentation process/preparations/antechamber/ data_results/${name}/preparations/ 2>/dev/null
-move_for_presentation process/preparations/parmchk2/ data_results/${name}/preparations/ 2>/dev/null
-move_for_presentation process/preparations/tleap/ data_results/${name}/preparations/ 2>/dev/null
-#Then equilibration
-mkdir -p data_results/${name}/equilibration
-move_for_presentation process/equilibration/opt_water/ data_results/${name}/equilibration/ 2>/dev/null
-move_for_presentation process/equilibration/opt_all/ data_results/${name}/equilibration/ 2>/dev/null
-move_for_presentation process/equilibration/opt_temp/ data_results/${name}/equilibration/ 2>/dev/null
-move_for_presentation process/equilibration/opt_pres/ data_results/${name}/equilibration/ 2>/dev/null
-#Then md
-mkdir -p data_results/${name}/md
-move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
-move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
-#Then spectrum
-mkdir -p data_results/${name}/spectrum
-move_for_presentation process/spectrum/cpptraj/ data_results/${name}/spectrum/ 2>/dev/null
-move_for_presentation process/spectrum/plotting/ data_results/${name}/spectrum/ 2>/dev/null
+store_res
 
 #Delete the process directory
 rm -rf process/*
