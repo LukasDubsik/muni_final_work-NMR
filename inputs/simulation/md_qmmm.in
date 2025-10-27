@@ -30,7 +30,7 @@ QMMM
 &end
 /
 &qmmm
-  qmmask='@1-${num}',
+  qmmask=':1',
   qmcharge=0,
   spin=1,
   qm_ewald=0,
