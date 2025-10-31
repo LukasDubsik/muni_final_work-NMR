@@ -23,7 +23,7 @@ opt_water:=opt_water.in
 opt_all:=opt_all.in
 opt_temp:=opt_temp.in
 opt_pres:=opt_pres.in
-md:=md_qmmm.in
+md:=md.in
 
 ##Name of the tpl file (only if qmmm true)
 #tpl:=gau_job.tpl

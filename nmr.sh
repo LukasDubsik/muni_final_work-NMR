@@ -385,15 +385,18 @@ check_in_file "md"
 md_file=$res
 
 #Check if tpl is present - only if qmmm set already
-file_iterate "tpl"
-ret=$?
-if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} Tpl not specified even if tpl set!${NC}"
-    exit 1
-else
-    tpl=$res
-    echo -e "\t\t[$CHECKMARK] Name of the tpl file is: '$tpl'."
+if [[ $qmmm == true ]]; then
+    file_iterate "tpl"
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} Tpl not specified even if tpl set!${NC}"
+        exit 1
+    else
+        tpl=$res
+        echo -e "\t\t[$CHECKMARK] Name of the tpl file is: '$tpl'."
+    fi
 fi
+
 #Check if the file exists
 if [[ ! -f inputs/simulation/${res} ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
