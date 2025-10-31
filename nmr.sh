@@ -761,30 +761,32 @@ mkdir -p data_results/${save_as}/
 mv logs/ data_results/${save_as}/ 2>/dev/null
 #Copy everything for posterity
 cp -r process/ data_results/${save_as}/
+#Define the name of the partial save
+save="$save_as"+"_partial"
 #Start with preparations
-prep=data_results/${save_as}/preparations
+prep=data_results/${save}/preparations
 mkdir -p $prep
-move_for_presentation process/preparations/antechamber/ data_results/${save_as}/preparations/ 2>/dev/null
-move_for_presentation process/preparations/parmchk2/ data_results/${save_as}/preparations/ 2>/dev/null
-move_for_presentation process/preparations/tleap/ data_results/${save_as}/preparations/ 2>/dev/null
+move_for_presentation process/preparations/antechamber/ data_results/${save}/preparations/ 2>/dev/null
+move_for_presentation process/preparations/parmchk2/ data_results/${save}/preparations/ 2>/dev/null
+move_for_presentation process/preparations/tleap/ data_results/${save}/preparations/ 2>/dev/null
 #Then equilibration
-mkdir -p data_results/${save_as}/equilibration
-move_for_presentation process/equilibration/opt_water/ data_results/${save_as}/equilibration/ 2>/dev/null
-move_for_presentation process/equilibration/opt_all/ data_results/${save_as}/equilibration/ 2>/dev/null
-move_for_presentation process/equilibration/opt_temp/ data_results/${save_as}/equilibration/ 2>/dev/null
-move_for_presentation process/equilibration/opt_pres/ data_results/${save_as}/equilibration/ 2>/dev/null
+mkdir -p data_results/${save}/equilibration
+move_for_presentation process/equilibration/opt_water/ data_results/${save}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_all/ data_results/${save}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_temp/ data_results/${save}/equilibration/ 2>/dev/null
+move_for_presentation process/equilibration/opt_pres/ data_results/${save}/equilibration/ 2>/dev/null
 #Then md
-mkdir -p data_results/${save_as}/md
-move_for_presentation process/md/ data_results/${save_as}/md/ 2>/dev/null
-move_for_presentation process/md/ data_results/${save_as}/md/ 2>/dev/null
+mkdir -p data_results/${save}/md
+move_for_presentation process/md/ data_results/${save}/md/ 2>/dev/null
+move_for_presentation process/md/ data_results/${save}/md/ 2>/dev/null
 #Then spectrum
-mkdir -p data_results/${save_as}/spectrum
-move_for_presentation process/spectrum/cpptraj/ data_results/${save_as}/spectrum/ 2>/dev/null
-move_for_presentation process/spectrum/plotting/ data_results/${save_as}/spectrum/ 2>/dev/null
+mkdir -p data_results/${save}/spectrum
+move_for_presentation process/spectrum/cpptraj/ data_results/${save}/spectrum/ 2>/dev/null
+move_for_presentation process/spectrum/plotting/ data_results/${save}/spectrum/ 2>/dev/null
 
 #Delete the process directory
 rm -rf process/*
 
 #Zip the results for better movement
 zip -r data_results/${save_as}.zip data_results/${save_as}/
-rm -rf data_results/${save_as}
+#rm -rf data_results/${save_as}
