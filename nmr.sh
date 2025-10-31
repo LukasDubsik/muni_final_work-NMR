@@ -223,6 +223,13 @@ substitute_name_in(){
     return 1
 }
 
+substitute_name_sh(){
+    script_name=$1
+    path=process/$2
+    sed "s/\${name}/${name}/g; s/\${num}/${limit}/g; s/\${limit}/${limit}/g" scripts/${script_name} > $path/$script_name || return 0
+    return 1
+}
+
 move_for_presentation(){
     input_dir=$1
     destination_dir=$2
@@ -668,7 +675,8 @@ bash split_xyz.sh < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed
 cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
 echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
 #Then convert each frame to .gjf format by running xyz_to_gfj.sh
-cp $SCRIPTS/xyz_to_gfj.sh process/spectrum/gauss_prep/.
+#cp $SCRIPTS/xyz_to_gfj.sh process/spectrum/gauss_prep/.
+substitute_name_sh "xyz_to_gfj.sh" "spectrum/gauss_prep/"
 mkdir -p process/spectrum/gauss_prep/gauss
 cd process/spectrum/gauss_prep/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
 bash xyz_to_gfj.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}"; exit 1; }
