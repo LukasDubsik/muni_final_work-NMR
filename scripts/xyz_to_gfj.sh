@@ -25,7 +25,7 @@ for file in frames/frame.*.xyz; do
     echo "" >> ${base}.gjf
 
     # Build list of hydrogen atom indices (1-based over the printed geometry)
-    H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | head -n ${N_CORE} awk '{i++; if ($1=="H") h=(h?h","i:i)} END{print h}')
+    H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | head -n ${N_CORE} | awk '{i++; if ($1=="H") h=(h?h","i:i)} END{print h}')
     echo "ReadAtoms" >> ${base}.gjf
     echo "atoms=${H_ATOMS}" >> ${base}.gjf
     echo "" >> ${base}.gjf
