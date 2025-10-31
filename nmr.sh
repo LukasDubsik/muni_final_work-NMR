@@ -622,9 +622,9 @@ fi
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
 if [[ $qmmm == "true" ]]; then
-    run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 16 8 0
+    run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 16 16 0
 else
-    run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 16 8 0
+    run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 16 16 0
 fi
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
