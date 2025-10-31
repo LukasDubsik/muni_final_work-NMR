@@ -3,7 +3,7 @@
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
 name:=cys
-save_as:=cys_qmmm
+save_as:=cys_md_explicit
 
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
@@ -15,7 +15,7 @@ meta:=false
 #directory:=/storage/brno2/home/lukasdubsik/NMR_meta
 
 ##Is the simulation QM/MM?
-qmmm:=true
+qmmm:=false
 
 ##Names for the expected *.in files for individual optimizations
 tleap:=tleap.in
@@ -26,7 +26,7 @@ opt_pres:=opt_pres.in
 md:=md_qmmm.in
 
 ##Name of the tpl file (only if qmmm true)
-tpl:=gau_job.tpl
+#tpl:=gau_job.tpl
 
 ##Additional parameters to be added when running specific programs (Some can be left if not run, otherwise error, eg. no antechamber when 7 specified in 'input_type')
 ##The parameters must be enclosed in "..." brackets

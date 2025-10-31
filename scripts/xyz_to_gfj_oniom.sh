@@ -1,6 +1,6 @@
 #!/bin/bash
 
-N_CORE=15
+N_CORE=${limit}
 
 for file in frames/frame.*.xyz; do
 

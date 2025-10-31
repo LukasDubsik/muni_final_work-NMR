@@ -7,7 +7,7 @@ trajin ${name}_md.mdcrd 1 last 100
 
 #Keep closest N solvents
 autoimage
-closest 20 @1-14 oxygen closestout closest.dat
+strip !@1-${limit}
 
 trajout ${name}_frame.xyz xyz ftype namexyz multi
 run
