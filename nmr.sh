@@ -532,7 +532,7 @@ fi
 file="$opt_water_file"
 #Prepare the files to copy
 files_to_copy="process/preparations/tleap/${name}.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 10 12
+run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 10 8
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Optimization of the water failed! Exiting...${NC}"
     exit 1
@@ -553,7 +553,7 @@ fi
 file="$opt_all_file"
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_water/${name}_opt_water.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_all" "equilibration/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 10 12
+run_sh_sim "opt_all" "equilibration/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 10 8
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Full optimization failed! Exiting...${NC}"
     exit 1
@@ -574,7 +574,7 @@ fi
 file="$opt_temp_file"
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_temp" "equilibration/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
+run_sh_sim "opt_temp" "equilibration/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 8
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
     exit 1
@@ -595,7 +595,7 @@ fi
 file="$opt_pres_file"
 #Prepare the files to copy
 files_to_copy="process/equilibration/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
-run_sh_sim "opt_pres" "equilibration/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
+run_sh_sim "opt_pres" "equilibration/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 8
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
     exit 1
@@ -624,7 +624,7 @@ files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/prep
 if [[ $qmmm == "true" ]]; then
     run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 16 8 0
 else
-    run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 10 1 1
+    run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 16 8 0
 fi
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
