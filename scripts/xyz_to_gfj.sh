@@ -9,7 +9,7 @@ for file in frames/frame.*.xyz; do
     echo "%chk=${bas}.chk" > ${base}.gjf
     #echo "%mem=15000MB" >> ${base}.gjf
     #echo "%nprocshared=4" >> ${base}.gjf
-    echo "#P ONIOM(B3LYP/6-31G(d):UFF)=EmbedCharge NMR=ReadAtoms SCF=(XQC,Tight) Integral=UltraFine CPHF=Grid=Ultrafine" >> ${base}.gjf
+    echo "#P ONIOM(B3LYP/6-31G(d):UFF)=EmbedCharge NMR=ReadAtoms SCRF=COSMO SCF=(XQC,Tight) Integral=UltraFine CPHF=Grid=Ultrafine" >> ${base}.gjf
     echo "" >> ${base}.gjf
     echo "${bas} — GIAO NMR (Cys only, COSMO, ONIOM)" >> ${base}.gjf
     echo "" >> ${base}.gjf
@@ -24,7 +24,7 @@ for file in frames/frame.*.xyz; do
         else 
           printf("%s L\n", $0);
       }' >> ${base}.gjf
-      
+
     echo "" >> ${base}.gjf
 
     # Build list of hydrogen atom indices (1-based over the printed geometry)
