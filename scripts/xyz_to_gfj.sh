@@ -24,13 +24,6 @@ for file in frames/frame.*.xyz; do
     tail -n +3 "$file" | grep -v 'XP' | head -n ${N_CORE} >> ${base}.gjf
     echo "" >> ${base}.gjf
 
-    # Build list of hydrogen atom indices (1-based over the printed geometry)
-    H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | head -n ${N_CORE} | awk '{i++; if ($1=="H") h=(h?h","i:i)} END{print h}')
-    echo "ReadAtoms" >> ${base}.gjf
-    echo "atoms=${H_ATOMS}" >> ${base}.gjf
-    echo "" >> ${base}.gjf
-
-
     # Process atom lines: skip first 2 header lines in XYZ, then get water atoms, give them charges
     tail -n +3 "$file" | grep -v 'XP' | tail -n +$((N_CORE+1)) \
       | awk -v qO="${Q_O}" -v qH="${Q_H}" '{
@@ -39,6 +32,12 @@ for file in frames/frame.*.xyz; do
             printf("%s %s %s %s 0.0\n", x, y, z, q);
         }' >> ${base}.gjf
     
+    echo "" >> ${base}.gjf
+
+    # Build list of hydrogen atom indices (1-based over the printed geometry)
+    H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | head -n ${N_CORE} | awk '{i++; if ($1=="H") h=(h?h","i:i)} END{print h}')
+    echo "ReadAtoms" >> ${base}.gjf
+    echo "atoms=${H_ATOMS}" >> ${base}.gjf
     echo "" >> ${base}.gjf
 
 done
