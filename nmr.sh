@@ -788,5 +788,5 @@ move_for_presentation process/spectrum/plotting/ data_results/${save}/spectrum/ 
 rm -rf process/*
 
 #Zip the results for better movement
-zip -r data_results/${save_as}.zip data_results/${save_as}/
+zip -r data_results/${save_as}.zip ${save_as}/
 #rm -rf data_results/${save_as}
