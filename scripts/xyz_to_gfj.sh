@@ -13,7 +13,11 @@ for file in frames/frame.*.xyz; do
     echo "%chk=${bas}.chk" > ${base}.gjf
     #echo "%mem=15000MB" >> ${base}.gjf
     #echo "%nprocshared=4" >> ${base}.gjf
-    echo "#P B3LYP/6-31G(d) NMR=(GIAO,ReadAtoms) SCF=(XQC,Tight) Integral=UltraFine CPHF=Grid=UltraFine Charge NoSymm Geom=NoOrient" >> ${base}.gjf
+   {
+        echo "#P B3LYP/6-31G(d) NMR=(GIAO,ReadAtoms) SCF=(XQC,Tight) Integral=UltraFine"
+        echo " Charge NoSymm Geom=NoOrient"
+    } >> ${base}.gjf
+
     echo "" >> ${base}.gjf
     echo "${bas} — GIAO NMR (Cys only, Explicit water as point charges)" >> ${base}.gjf
     echo "" >> ${base}.gjf
