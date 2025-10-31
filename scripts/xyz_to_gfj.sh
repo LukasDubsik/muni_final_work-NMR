@@ -13,10 +13,7 @@ for file in frames/frame.*.xyz; do
     echo "%chk=${bas}.chk" > ${base}.gjf
     #echo "%mem=15000MB" >> ${base}.gjf
     #echo "%nprocshared=4" >> ${base}.gjf
-    printf "%s\n" "#P B3LYP/6-31G(d) NMR=(GIAO,ReadAtoms)"      >> ${base}.gjf
-    printf "%s\n" " SCF=XQC Int=UltraFine CPHF=Grid=Ultrafine"  >> ${base}.gjf
-    printf "%s\n" " Charge NoSymm"                >> ${base}.gjf
-
+    printf "%s\n" "#P B3LYP/6-31G(d) NMR=(GIAO,ReadAtoms) SCF=XQC Int=UltraFine CPHF=Grid=Ultrafine Charge"      >> ${base}.gjf
 
     echo "" >> ${base}.gjf
     echo "${bas} — GIAO NMR (Cys only, Explicit water as point charges)" >> ${base}.gjf
@@ -28,8 +25,7 @@ for file in frames/frame.*.xyz; do
     echo "" >> ${base}.gjf
 
     # Build list of hydrogen atom indices (1-based over the printed geometry)
-    H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | awk '{i++; if ($1=="H") h=(h?h","i:i)} END{print h}')
-    echo "" >> ${base}.gjf
+    H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | head -n ${N_CORE} awk '{i++; if ($1=="H") h=(h?h","i:i)} END{print h}')
     echo "ReadAtoms" >> ${base}.gjf
     echo "atoms=${H_ATOMS}" >> ${base}.gjf
     echo "" >> ${base}.gjf
