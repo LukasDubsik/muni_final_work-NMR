@@ -2,12 +2,12 @@
 
  imin=0,    !Runs the simulations, 1 means optimilization
  nstlim=100000,     !Run for 100ps
- dt=0.001,      !Units for nstlim
+ dt=0.002,      !Units for nstlim
  
  ntb=2,     !NTP system
  cut=9.0,   !PME cutoff (for forces calculation cutoff)
- ntc=1,     !Hydrogen bonds are flexible
- ntf=1,     !Don't skip hydrogen bond computation
+ ntc=2,     !Hydrogen bonds are flexible
+ ntf=2,     !Don't skip hydrogen bond computation
  ioutfm=0,  !Binary file result, quicker calculation
 
  irest=1,   !Continue from previous data
@@ -18,7 +18,7 @@
 
  ntt=3,     !Langevin thermostat model
  temp0=300.0,   !Stable temperature
- gamma_ln=5.0,  !Collision frequency
+ gamma_ln=2.0,  !Collision frequency
 
  ntpr=500,      !When to take energy measurements
  ntwx=1000,     !Trajectory

@@ -1,6 +1,6 @@
 #Input params
-source leaprc.gaff
-source leaprc.water.tip3p
+source leaprc.gaff2
+source leaprc.water.opc3
 
 #Load ligand parameters
 loadamberparams ${name}.frcmod
@@ -8,8 +8,8 @@ SYS = loadmol2 ${name}_charges_fix.mol2
 check SYS
 
 #Solvate the system
-solvatebox SYS TIP3PBOX 20.0 #20 angsterm
-addIonsRand SYS Na+ 0
+solvatebox SYS OPC3BOX 20.0 iso #20 angsterm
+addIons SYS Na+ 0
 
 #Export and close
 saveamberparm SYS ${name}.parm7 ${name}.rst7

@@ -127,7 +127,7 @@ run_sh_sim(){
     cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name, number and directory
     sed "s/\${name}/${name}/g; s/\${num}/${num}/g; s/\${dir}/${dir_esc}/g; s/\${comms}/${comms}/g; s/\${file}/${file}/g" $SCRIPTS/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
-    #echo $comms >> $path/$script_name.sh
+    echo $comms >> $path/$script_name.sh
     cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
     [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
@@ -676,9 +676,9 @@ cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main direct
 echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
 #Then convert each frame to .gjf format by running xyz_to_gfj.sh
 #cp $SCRIPTS/xyz_to_gfj.sh process/spectrum/gauss_prep/.
-(( limit += 3))
+#(( limit += 3))
 substitute_name_sh "xyz_to_gfj.sh" "spectrum/gauss_prep/"
-(( limit -= 3))
+#(( limit -= 3))
 mkdir -p process/spectrum/gauss_prep/gauss
 cd process/spectrum/gauss_prep/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
 bash xyz_to_gfj.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}"; exit 1; }
