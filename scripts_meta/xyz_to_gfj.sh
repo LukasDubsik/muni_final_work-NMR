@@ -7,7 +7,7 @@ for file in frames/frame.*.xyz; do
     echo "%chk=${bas}.chk" > ${base}.gjf
     #echo "%mem=15000MB" >> ${base}.gjf
     #echo "%nprocshared=4" >> ${base}.gjf
-    echo "#P B3LYP/6-31G(d) NMR=(GIAO,ReadAtoms) SCRF=COSMO SCF=(XQC,Tight) Integral=UltraFine CPHF=Grid=Ultrafine" >> ${base}.gjf
+    echo "#P B3LYP/6-31G(d) NMR=(GIAO,ReadAtoms) SCF=(XQC,Tight) Integral=UltraFine CPHF=Grid=Ultrafine" >> ${base}.gjf
     echo "" >> ${base}.gjf
     echo "${bas} — GIAO NMR (H only, COSMO)" >> ${base}.gjf
     echo "" >> ${base}.gjf
