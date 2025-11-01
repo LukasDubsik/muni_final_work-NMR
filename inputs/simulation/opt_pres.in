@@ -24,4 +24,6 @@
  ntwx=1000,     !Trajectory
  ntwr=1000,     !Restart
 
+ iwrap=1,
+
 &end
