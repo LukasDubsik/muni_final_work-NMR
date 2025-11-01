@@ -3,7 +3,7 @@
 
 #inputs
 parm ${name}.parm7
-trajin ${name}_md.mdcrd 1 last 100
+trajin ${name}_md.mdcrd 1 last 20000
 
 #Keep closest N solvents
 autoimage
