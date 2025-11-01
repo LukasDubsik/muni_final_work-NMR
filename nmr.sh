@@ -747,7 +747,7 @@ echo -e "\t\t\t[$CHECKMARK] Log file converted to plot data."
 gnuplot plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to run gnuplot for NMR spectrum!${NC}"; exit 1; }
 mv "${name}"_nmr.png "${save_as}".png
 cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after plotting!${NC}"; exit 1; }
-if [[ ! -f process/spectrum/plotting/${save_as}_nmr.png ]]; then
+if [[ ! -f process/spectrum/plotting/${save_as}.png ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Plotting the NMR spectrum failed, no file found!${NC}"
     exit 1
 else

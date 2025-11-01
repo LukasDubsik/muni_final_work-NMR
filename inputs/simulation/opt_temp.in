@@ -6,8 +6,8 @@
  
  ntb=1,
  cut=9.0,
- ntc=2,
- ntf=2,
+ ntc=1,
+ ntf=1,
  nmropt=1,
  ioutfm=0,
 
