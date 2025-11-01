@@ -676,7 +676,9 @@ cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main direct
 echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
 #Then convert each frame to .gjf format by running xyz_to_gfj.sh
 #cp $SCRIPTS/xyz_to_gfj.sh process/spectrum/gauss_prep/.
+(( limit += 3))
 substitute_name_sh "xyz_to_gfj.sh" "spectrum/gauss_prep/"
+(( limit -= 3))
 mkdir -p process/spectrum/gauss_prep/gauss
 cd process/spectrum/gauss_prep/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
 bash xyz_to_gfj.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}"; exit 1; }
@@ -743,8 +745,9 @@ bash log_to_plot.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to plot the NMR s
 echo -e "\t\t\t[$CHECKMARK] Log file converted to plot data."
 #Finally plot and check presence of the graphic file
 gnuplot plot_nmr.plt || { echo -e "\t\t\t[$CROSS] ${RED} Failed to run gnuplot for NMR spectrum!${NC}"; exit 1; }
+mv "${name}"_nmr.png "${save_as}".png
 cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after plotting!${NC}"; exit 1; }
-if [[ ! -f process/spectrum/plotting/${name}_nmr.png ]]; then
+if [[ ! -f process/spectrum/plotting/${save_as}_nmr.png ]]; then
     echo -e "\t\t\t[$CROSS] ${RED} Plotting the NMR spectrum failed, no file found!${NC}"
     exit 1
 else
