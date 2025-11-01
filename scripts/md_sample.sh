@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-module add pmemd-cuda.MPI
+module add pmemd-cuda
 
 mkdir -p rest2
 
