@@ -1,0 +1,44 @@
+&cntrl
+
+ imin=0,    !Runs the simulations, 1 means optimilization
+ nstlim=100000,     !Run for 100ps
+ dt=0.001,      !Units for nstlim
+ 
+ ntb=2,     !NTP system
+ cut=9.0,   !PME cutoff (for forces calculation cutoff)
+ ntc=1,     !Hydrogen bonds are flexible
+ ntf=1,     !Don't skip hydrogen bond computation
+ ioutfm=0,  !Binary file result, quicker calculation
+
+ irest=1,   !Continue from previous data
+ ntx=5,     !Take over the positions and speeds
+
+ ntp=1,     !Berendsen pressure
+ barostat=2,!Monte-Carlo barostat
+ taup=2.0,  !Pressure coupling constant - how long till prssure assumes final result
+
+ ntt=3,     !Langevin thermostat model
+ temp0=300.0,   !Stable temperature
+ gamma_ln=2.0,  !Collision frequency
+
+ ntpr=10,      !When to take energy measurements
+ ntwx=10,      !Trajectory
+ ntwr=5000,    !Restart
+ 
+ iwrap=1,      !Wrap molecules to primary box for cleaner trajs
+ ntr=0,
+
+ igamd=3,       !dual-boost (total + dihedral)
+
+ ntcmdprep=200000,  ntcmd=1000000,
+ ntebprep=200000,   nteb=1000000,
+
+ ntave=50000,
+
+ iE=2, iEP=2, iED=2,
+
+ sigma0P=6.0, sigma0D=6.0,
+
+ irest_gamd=0
+
+&end
