@@ -2,7 +2,7 @@
 
  imin=0,    !Runs the simulations, 1 means optimilization
  nstlim=100000,     !Run for 100ps
- dt=0.002,      !Units for nstlim
+ dt=0.001,      !Units for nstlim
  
  ntb=2,     !NTP system
  cut=9.0,   !PME cutoff (for forces calculation cutoff)
