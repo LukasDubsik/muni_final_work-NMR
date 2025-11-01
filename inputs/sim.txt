@@ -13,7 +13,7 @@ meta:=false
 
 ##Directory for metacentrum - where this directory is present (only if meta set to true)
 #directory:=/storage/brno2/home/lukasdubsik/NMR_meta
-
+ 
 ##Is the simulation QM/MM?
 qmmm:=false
 
