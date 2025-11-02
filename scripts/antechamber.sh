@@ -2,4 +2,4 @@
 
 module add amber
 
-antechamber -i ${name}.mol2 -fi mol2 -o ${name}_charges.mol2 -fo mol2 
+antechamber -i ${name}_crest.mol2 -fi mol2 -o ${name}_charges.mol2 -fo mol2 
