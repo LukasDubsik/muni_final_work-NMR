@@ -465,7 +465,7 @@ if [[ $input_type == "mol2" ]]; then
     obabel -imol2 inputs/structures/${name}.mol2 -oxyz -O process/preparations/crest/in/${name}.xyz > /dev/null 2>&1 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert mol2 to xyz format!${NC}"; exit 1; }
     echo -e "\t\t\t[$CHECKMARK] Conversion to xyz for crest succesfull."
     #Run the crest simulation
-    run_sh_sim "crest" "preparations/crest" "process/preparations/crest/in/${name}.xyz" "" "crest_best.xyz" 4 2
+    run_sh_sim "crest" "preparations/crest" "process/preparations/crest/in/${name}.xyz" "" "crest_best.xyz" 4 2 1
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
         exit 1
