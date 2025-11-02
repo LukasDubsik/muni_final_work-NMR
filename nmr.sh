@@ -462,7 +462,7 @@ if [[ $input_type == "mol2" ]]; then
     module add openbabel > /dev/null 2>&1
     #Start by converting the input mol into a xyz format -necessary for crest
     mkdir -p process/preparations/crest/
-    obabel -imol2 inputs/structures/${name}.mol2 -oxyz -O process/reparations/crest/${name}.xyz > /dev/null 2>&1 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert mol2 to xyz format!${NC}"; exit 1; }
+    obabel -imol2 inputs/structures/${name}.mol2 -oxyz -O process/preparations/crest/${name}.xyz > /dev/null 2>&1 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert mol2 to xyz format!${NC}"; exit 1; }
     echo -e "\t\t\t[$CHECKMARK] Conversion to xyz for crest succesfull."
     #Run the crest simulation
     run_sh_sim "crest" "preparations/crest" "preparations/crest/${name}.xyz" "" "crest_best.xyz" 4 2
