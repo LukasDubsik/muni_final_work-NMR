@@ -473,7 +473,7 @@ if [[ $input_type == "mol2" ]]; then
         echo -e "\t\t\t[$CHECKMARK] Antechamber finished successfully."
     fi
     #Convert back to mol2 format
-    obabel -ixyz preparations/crest/crest_best.xyz -omol2 -O preparations/crest/${name}_crest.mol2 > /dev/null 2>&1 || (echo -e "\t\t\t[$CROSS] ${RED} Failed to convert the resulting xyz to mol2 format!${NC}" && exit 1)
+    obabel -ixyz process/preparations/crest/crest_best.xyz -omol2 -O process/preparations/crest/${name}_crest.mol2 > /dev/null 2>&1 || (echo -e "\t\t\t[$CROSS] ${RED} Failed to convert the resulting xyz to mol2 format!${NC}" && exit 1)
     echo -e "\t\t\t[$CHECKMARK] Conversion from xyz in crest result to mol2 succesfull."
 
     #Firstly, run the antechamber program
