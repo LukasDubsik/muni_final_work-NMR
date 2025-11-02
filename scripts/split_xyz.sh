@@ -2,7 +2,7 @@
 
 reading=0
 file="frames/frame."
-num=0
+num=$1
 name=""
 str=0
 

@@ -538,6 +538,7 @@ mkdir -p process/spectrum/gauss_prep/frames
 #Start the equilibration process
 echo -e "\t Starting with optimizations..."
 i=$((0))
+file_counter=$((0))
 while (( i < 5 )); do
     echo -e "\t\t Running the ${i} iteration..."
     #Firstly, run the water optimization
@@ -678,15 +679,16 @@ while (( i < 5 )); do
     cp $SCRIPTS/split_xyz.sh process/simulation/cpptraj/.
     mkdir -p process/simulation/cpptraj/frames
     cd process/simulation/cpptraj || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
-    bash split_xyz.sh < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}"; exit 1; }
+    bash split_xyz.sh $file_counter < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}"; exit 1; }
     cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
     #And copy the resulting data into the gausspreparation stage
     mv process/simulation/cpptraj/frames/* process/spectrum/gauss_prep/frames/
 
     #Lastly create a save dir and mnove everything here there
-    mkdir -p process/simulation/run_${i}
-    mv process/simulation/* process/simulation/
+    mkdir -p process/run_${i}
+    mv process/simulation/* process/run_${i}
 
+    ((file_counter+=20))
     ((i++))
 done
 
@@ -699,15 +701,15 @@ echo -e "\t Starting with the NMR spectrum generation..."
 echo -e "\t\t Splitting the frames and converting to .gjf format..."
 mkdir -p "process/spectrum/gauss_prep/"
 #$Firstly copy the resulting .xyz file
-cp process/spectrum/cpptraj/${name}_frame.xyz process/spectrum/gauss_prep/.
-#Then split the file to individual frames by running split_xyz.sh
-cp $SCRIPTS/split_xyz.sh process/spectrum/gauss_prep/.
-mkdir -p process/spectrum/gauss_prep/frames
-#Enter the directory and split the frames
-cd process/spectrum/gauss_prep || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
-bash split_xyz.sh < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}"; exit 1; }
-cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
-echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
+# cp process/spectrum/cpptraj/${name}_frame.xyz process/spectrum/gauss_prep/.
+# #Then split the file to individual frames by running split_xyz.sh
+# cp $SCRIPTS/split_xyz.sh process/spectrum/gauss_prep/.
+# mkdir -p process/spectrum/gauss_prep/frames
+# #Enter the directory and split the frames
+# cd process/spectrum/gauss_prep || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
+# bash split_xyz.sh < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}"; exit 1; }
+# cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
+# echo -e "\t\t\t[$CHECKMARK] Frames split successfully."
 #Then convert each frame to .gjf format by running xyz_to_gfj.sh
 #cp $SCRIPTS/xyz_to_gfj.sh process/spectrum/gauss_prep/.
 #(( limit += 3))
