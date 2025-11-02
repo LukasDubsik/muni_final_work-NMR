@@ -457,10 +457,27 @@ mkdir -p data_results/${name}/logs #The directory to move all results to
 if [[ $input_type == "mol2" ]]; then
     echo -e "\t Starting with structure conversion from .mol2 to .rst7/.parm7 format."
 
+    #Start with finding the most stable conformation
+    echo -e "\t\t Running Crest..."
+    #Start by converting the input mol into a xyz format -necessary for crest
+    mkdir -p preparations/crest/
+    obabel -imol2 inputs/structures/${name}.mol2 -oxyz -O preparations/crest/${name}.xyz > /dev/null 2>&1 || (echo -e "\t\t\t[$CROSS] ${RED} Failed to convert mol2 to xyz format!${NC}" && exit 1)
+    echo -e "\t\t\t[$CHECKMARK] Conversion to xyz for crest succesfull."
+    #Run the crest simulation
+    run_sh_sim "crest" "preparations/crest" "preparations/crest/${name}.xyz" "" "crest_best.xyz" 4 2
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t[$CHECKMARK] Antechamber finished successfully."
+    fi
+    #Convert back to mol2 format
+    obabel -ixyz preparations/crest/crest_best.xyz -omol2 -O preparations/crest/${name}_crest.mol2 > /dev/null 2>&1 || (echo -e "\t\t\t[$CROSS] ${RED} Failed to convert the resulting xyz to mol2 format!${NC}" && exit 1)
+    echo -e "\t\t\t[$CHECKMARK] Conversion from xyz in crest result to mol2 succesfull."
+
     #Firstly, run the antechamber program
     echo -e "\t\t Running antechamber..."
-    script_type="antechamber"
-    run_sh_sim "antechamber" "preparations/antechamber" "inputs/structures/${name}.mol2" "${commands_antechamber}" "${name}_charges.mol2" 4 2
+    run_sh_sim "antechamber" "preparations/antechamber" "preparations/crest/${name}_crest.mol2" "${commands_antechamber}" "${name}_charges.mol2" 4 2
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
         exit 1
