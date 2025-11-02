@@ -532,6 +532,8 @@ if [[ $input_type == "mol2" ]]; then
     echo -e "\t\t[$CHECKMARK] Structure conversion finished successfully, proceeding to optimizations and MD simulations."
 fi
 
+#Before starting teh simulation process already create the starting directory for spectrum creation where to move the created frames
+mkdir -p process/spectrum/gauss_prep/frames
 
 #Start the equilibration process
 echo -e "\t Starting with optimizations..."
@@ -540,8 +542,8 @@ while (( i < 5 )); do
     echo -e "\t\t Running the ${i} iteration..."
     #Firstly, run the water optimization
     echo -e "\t\t\t Running water optimization..."
-    mkdir -p "process/equilibration/opt_water/"
-    substitute_name_in "opt_water.in" "equilibration/opt_water/"
+    mkdir -p "process/simulation/opt_water/"
+    substitute_name_in "opt_water.in" "simulation/opt_water/"
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_water.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
@@ -551,7 +553,7 @@ while (( i < 5 )); do
     file="$opt_water_file"
     #Prepare the files to copy
     files_to_copy="process/preparations/tleap/${name}.rst7;process/preparations/tleap/${name}.parm7"
-    run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 10 8
+    run_sh_sim "opt_water" "simulation/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 10 8
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Optimization of the water failed! Exiting...${NC}"
         exit 1
@@ -561,8 +563,8 @@ while (( i < 5 )); do
 
     #Then run the full optimization
     echo -e "\t\t\t Running full optimization..."
-    mkdir -p "process/equilibration/opt_all/"
-    substitute_name_in "opt_all.in" "equilibration/opt_all/"
+    mkdir -p "process/simulation/opt_all/"
+    substitute_name_in "opt_all.in" "simulation/opt_all/"
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_all.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
@@ -571,8 +573,8 @@ while (( i < 5 )); do
     fi
     file="$opt_all_file"
     #Prepare the files to copy
-    files_to_copy="process/equilibration/opt_water/${name}_opt_water.rst7;process/preparations/tleap/${name}.parm7"
-    run_sh_sim "opt_all" "equilibration/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 10 8
+    files_to_copy="process/simulation/opt_water/${name}_opt_water.rst7;process/preparations/tleap/${name}.parm7"
+    run_sh_sim "opt_all" "simulation/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 10 8
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Full optimization failed! Exiting...${NC}"
         exit 1
@@ -582,8 +584,8 @@ while (( i < 5 )); do
 
     #Then run the temperature equilibration
     echo -e "\t\t\t Running temperature equilibration..."
-    mkdir -p "process/equilibration/opt_temp/"
-    substitute_name_in "opt_temp.in" "equilibration/opt_temp/"
+    mkdir -p "process/simulation/opt_temp/"
+    substitute_name_in "opt_temp.in" "simulation/opt_temp/"
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_temp.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
@@ -592,8 +594,8 @@ while (( i < 5 )); do
     fi
     file="$opt_temp_file"
     #Prepare the files to copy
-    files_to_copy="process/equilibration/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
-    run_sh_sim "opt_temp" "equilibration/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
+    files_to_copy="process/simulation/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
+    run_sh_sim "opt_temp" "simulation/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
         exit 1
@@ -603,8 +605,8 @@ while (( i < 5 )); do
 
     #Then run the pressure equilibration
     echo -e "\t\t\t Running pressure equilibration..."
-    mkdir -p "process/equilibration/opt_pres/"
-    substitute_name_in "opt_pres.in" "equilibration/opt_pres/"
+    mkdir -p "process/simulation/opt_pres/"
+    substitute_name_in "opt_pres.in" "simulation/opt_pres/"
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_pres.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
@@ -613,8 +615,8 @@ while (( i < 5 )); do
     fi
     file="$opt_pres_file"
     #Prepare the files to copy
-    files_to_copy="process/equilibration/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
-    run_sh_sim "opt_pres" "equilibration/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
+    files_to_copy="process/simulation/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
+    run_sh_sim "opt_pres" "simulation/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
         exit 1
@@ -624,8 +626,8 @@ while (( i < 5 )); do
 
     #Start the final md simulation
     echo -e "\t\t\t Starting with the final MD simulation..."
-    mkdir -p "process/md/"
-    substitute_name_in "${md_file}" "md/"
+    mkdir -p "process/simulation/md"
+    substitute_name_in "${md_file}" "simulation/md/"
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
@@ -638,11 +640,11 @@ while (( i < 5 )); do
         cp "inputs/simulation/${tpl}" "process/md/."
     fi
     #Prepare the files to copy
-    files_to_copy="process/equilibration/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
+    files_to_copy="process/simulation/opt_pres/${name}_opt_pres.rst7;process/preparations/tleap/${name}.parm7"
     if [[ $qmmm == "true" ]]; then
         run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 16 16 0
     else
-        run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 16 1 1
+        run_sh_sim "md" "simulation/md" ${files_to_copy} "" "${name}_md.rst7" 16 1 1
     fi
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
@@ -651,6 +653,40 @@ while (( i < 5 )); do
         echo -e "\t\t\t\t[$CHECKMARK] MD simulation finished successfully."
     fi
 
+    #Run the cpptraj to sample and prepare the simulation results
+    echo -e "\t\t\t Running cpptraj to sample the MD simulation..."
+    mkdir -p "process/simulation/cpptraj/"
+    substitute_name_in "cpptraj.in" "simulation/cpptraj/"
+    #sed "s/\${limit}/${limit}/g" inputs/simulation/spectrum/cpptraj/cpptraj.in | sponge inputs/simulation/spectrum/cpptraj/cpptraj.in || return 0
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t\t[$CHECKMARK] cpptraj.in file correctly loaded."
+    fi
+    file="cpptraj.in"
+    #Prepare the files to copy
+    files_to_copy="process/simulation/md/${name}_md.mdcrd;process/preparations/tleap/${name}.parm7"
+    run_sh_sim "cpptraj" "simulation/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 1
+    if [[ $? -eq 0 ]]; then
+        echo -e "\t\t\t\t[$CROSS] ${RED} cpptraj failed! Exiting...${NC}"
+        exit 1
+    else
+        echo -e "\t\t\t\t[$CHECKMARK] cpptraj finished successfully."
+    fi
+    #Split the individual frames
+    cp $SCRIPTS/split_xyz.sh process/simulation/cpptraj/.
+    mkdir -p process/simulation/cpptraj/frames
+    cd process/simulation/cpptraj || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
+    bash split_xyz.sh < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}"; exit 1; }
+    cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
+    #And copy the resulting data into the gausspreparation stage
+    mv process/simulation/cpptraj/frames/* process/spectrum/gauss_prep/frames/
+
+    #Lastly create a save dir and mnove everything here there
+    mkdir -p process/simulation/run_${i}
+    mv process/simulation/* process/simulation/
+
     ((i++))
 done
 
@@ -658,28 +694,6 @@ done
 #Prepare the enviroment
 mkdir -p "process/spectrum/"
 echo -e "\t Starting with the NMR spectrum generation..."
-
-#Run the cpptraj to sample and prepare the simulation results
-echo -e "\t\t Running cpptraj to sample the MD simulation..."
-mkdir -p "process/spectrum/cpptraj/"
-substitute_name_in "cpptraj.in" "spectrum/cpptraj/"
-#sed "s/\${limit}/${limit}/g" inputs/simulation/spectrum/cpptraj/cpptraj.in | sponge inputs/simulation/spectrum/cpptraj/cpptraj.in || return 0
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] cpptraj.in file correctly loaded."
-fi
-file="cpptraj.in"
-#Prepare the files to copy
-files_to_copy="process/md/${name}_md.mdcrd;process/preparations/tleap/${name}.parm7"
-run_sh_sim "cpptraj" "spectrum/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 1
-if [[ $? -eq 0 ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} cpptraj failed! Exiting...${NC}"
-    exit 1
-else
-    echo -e "\t\t\t[$CHECKMARK] cpptraj finished successfully."
-fi
 
 #Split to individual images of the simulation and convert to gauss format
 echo -e "\t\t Splitting the frames and converting to .gjf format..."
