@@ -124,12 +124,12 @@ run_sh_sim(){
     curr_dir=$(pwd)
     #Create the enviroment for running 
     mkdir -p $path
-    cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
+    cp -r $hook $path/ || { echo -e "\t\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name, number and directory
     sed "s/\${name}/${name}/g; s/\${num}/${num}/g; s/\${dir}/${dir_esc}/g; s/\${comms}/${comms}/g; s/\${file}/${file}/g" $SCRIPTS/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
     echo $comms >> $path/$script_name.sh
-    cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
-    [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
+    cd $path || { echo -e "\t\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
+    [ $n -ne 0 ] && echo -e "\t\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
     #Depending where we are running it
     if [[ $META == true ]]; then
@@ -149,10 +149,10 @@ run_sh_sim(){
     #Check if the jobid is really a number
     re='^[0-9]+$'
     if ! [[ $jobid =~ $re ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Job was submitted incorrectly!${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Job was submitted incorrectly!${NC}"
         return 0
     else
-        [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
+        [ $n -ne 0 ] && echo -e "\t\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
     fi
 
     #Cycle till the job is finished (succesfully/unsuccesfully)
@@ -162,7 +162,7 @@ run_sh_sim(){
         res=$?
         #If we have returned "153" job has not been run
         if [[ $res -eq 153 ]]; then
-            echo -e "\t\t\t[$CROSS] ${RED} Job $jobid has not started (qstat says not listed)!${NC}"
+            echo -e "\t\t\t\t[$CROSS] ${RED} Job $jobid has not started (qstat says not listed)!${NC}"
             return 0
         fi
         #If we have 35 job has finished running (even if incorrectly)
@@ -174,7 +174,7 @@ run_sh_sim(){
 
     #Check if the final file is generated - if not, we have an error
     if [[ ! -f $fi && $wai -ne 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
         return 0
     else
         [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
