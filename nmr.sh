@@ -539,98 +539,98 @@ i=$((0))
 while (( i < 5 )); do
     echo -e "\t\t Running the ${i} iteration..."
     #Firstly, run the water optimization
-    echo -e "\t\t Running water optimization..."
+    echo -e "\t\t\t Running water optimization..."
     mkdir -p "process/equilibration/opt_water/"
     substitute_name_in "opt_water.in" "equilibration/opt_water/"
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_water.in file. The names of the resulting files need to have \${name}!${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_water.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] opt_water.in file correctly loaded."
+        echo -e "\t\t\t\t[$CHECKMARK] opt_water.in file correctly loaded."
     fi
     file="$opt_water_file"
     #Prepare the files to copy
     files_to_copy="process/preparations/tleap/${name}.rst7;process/preparations/tleap/${name}.parm7"
     run_sh_sim "opt_water" "equilibration/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 10 8
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Optimization of the water failed! Exiting...${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Optimization of the water failed! Exiting...${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] Optimization of water finished successfully."
+        echo -e "\t\t\t\t[$CHECKMARK] Optimization of water finished successfully."
     fi
 
     #Then run the full optimization
-    echo -e "\t\t Running full optimization..."
+    echo -e "\t\t\t Running full optimization..."
     mkdir -p "process/equilibration/opt_all/"
     substitute_name_in "opt_all.in" "equilibration/opt_all/"
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_all.in file. The names of the resulting files need to have \${name}!${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_all.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] opt_all.in file correctly loaded."
+        echo -e "\t\t\t\t[$CHECKMARK] opt_all.in file correctly loaded."
     fi
     file="$opt_all_file"
     #Prepare the files to copy
     files_to_copy="process/equilibration/opt_water/${name}_opt_water.rst7;process/preparations/tleap/${name}.parm7"
     run_sh_sim "opt_all" "equilibration/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 10 8
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Full optimization failed! Exiting...${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Full optimization failed! Exiting...${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] Full optimization finished successfully."
+        echo -e "\t\t\t\t[$CHECKMARK] Full optimization finished successfully."
     fi  
 
     #Then run the temperature equilibration
-    echo -e "\t\t Running temperature equilibration..."
+    echo -e "\t\t\t Running temperature equilibration..."
     mkdir -p "process/equilibration/opt_temp/"
     substitute_name_in "opt_temp.in" "equilibration/opt_temp/"
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_temp.in file. The names of the resulting files need to have \${name}!${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_temp.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] opt_temp.in file correctly loaded."
+        echo -e "\t\t\t\t[$CHECKMARK] opt_temp.in file correctly loaded."
     fi
     file="$opt_temp_file"
     #Prepare the files to copy
     files_to_copy="process/equilibration/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
     run_sh_sim "opt_temp" "equilibration/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] Temperature equilibration finished successfully."
+        echo -e "\t\t\t\t[$CHECKMARK] Temperature equilibration finished successfully."
     fi
 
     #Then run the pressure equilibration
-    echo -e "\t\t Running pressure equilibration..."
+    echo -e "\t\t\t Running pressure equilibration..."
     mkdir -p "process/equilibration/opt_pres/"
     substitute_name_in "opt_pres.in" "equilibration/opt_pres/"
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_pres.in file. The names of the resulting files need to have \${name}!${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in opt_pres.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] opt_pres.in file correctly loaded."
+        echo -e "\t\t\t\t[$CHECKMARK] opt_pres.in file correctly loaded."
     fi
     file="$opt_pres_file"
     #Prepare the files to copy
     files_to_copy="process/equilibration/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
     run_sh_sim "opt_pres" "equilibration/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] Pressure equilibration finished successfully."
+        echo -e "\t\t\t\t[$CHECKMARK] Pressure equilibration finished successfully."
     fi
 
     #Start the final md simulation
-    echo -e "\t Starting with the final MD simulation..."
+    echo -e "\t\t\t Starting with the final MD simulation..."
     mkdir -p "process/md/"
     substitute_name_in "${md_file}" "md/"
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in md.in file. The names of the resulting files need to have \${name}!${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] md.in file correctly loaded."
+        echo -e "\t\t\t\t[$CHECKMARK] md.in file correctly loaded."
     fi
     file="$md_file"
     #Copy tpl if qmmm enabled
@@ -645,10 +645,10 @@ while (( i < 5 )); do
         run_sh_sim "md" "md" ${files_to_copy} "" "${name}_md.rst7" 16 1 1
     fi
     if [[ $? -eq 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
         exit 1
     else
-        echo -e "\t\t\t[$CHECKMARK] MD simulation finished successfully."
+        echo -e "\t\t\t\t[$CHECKMARK] MD simulation finished successfully."
     fi
 
     ((i++))
