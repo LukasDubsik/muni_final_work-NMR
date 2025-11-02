@@ -459,6 +459,7 @@ if [[ $input_type == "mol2" ]]; then
 
     #Start with finding the most stable conformation
     echo -e "\t\t Running Crest..."
+    module add openbabel > /dev/null 2>&1
     #Start by converting the input mol into a xyz format -necessary for crest
     mkdir -p process/preparations/crest/
     obabel -imol2 inputs/structures/${name}.mol2 -oxyz -O process/cd prepapreparations/crest/${name}.xyz > /dev/null 2>&1 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert mol2 to xyz format!${NC}"; exit 1; }
@@ -497,7 +498,6 @@ if [[ $input_type == "mol2" ]]; then
 
     #Perform a nemesis fix (fix the format for mol2 from the antechamber, may be necessary for other programs to understand)
     echo -e "\t\t Fixing using nemesis(obabel)..."
-    module add openbabel > /dev/null 2>&1
     #Prepare and copy the enviroment
     mkdir -p process/preparations/n_fix
     cp process/preparations/antechamber/${name}_charges.mol2 process/preparations/n_fix/.
