@@ -3,7 +3,7 @@
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
 name:=cys
-save_as:=cys_md_long_explicit_oniom_cosmo
+save_as:=cys_crest_md_split_explicit_oniom_cosmo
 
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
@@ -23,7 +23,7 @@ opt_water:=opt_water.in
 opt_all:=opt_all.in
 opt_temp:=opt_temp.in
 opt_pres:=opt_pres.in
-md:=md_long.in
+md:=md.in
 
 ##Name of the tpl file (only if qmmm true)
 #tpl:=gau_job.tpl
