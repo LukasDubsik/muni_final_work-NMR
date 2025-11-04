@@ -177,7 +177,7 @@ run_sh_sim(){
         echo -e "\t\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
         return 0
     else
-        [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
+        [ $n -ne 0 ] && echo -e "\t\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
     fi
 
     #Before deleting files, save the files ending with .stdout in current dir to logs
