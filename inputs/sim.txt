@@ -8,6 +8,9 @@ save_as:=cys_crest_md_long_cosmo_cosmo
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
 
+##Do we want to leave out gpu speed increase?
+gpu:=false
+
 ##If we are running in metacentrum
 meta:=false
 

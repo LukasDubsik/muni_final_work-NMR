@@ -333,6 +333,17 @@ fi
 limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
 
 
+#Check if we want to use gpu
+file_iterate "gpu"
+ret=$?
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} If running in metacentrum not specified $filename!${NC}"
+    exit 1
+else
+    GPU=$res
+    echo -e "\t\t[$CHECKMARK] It is going to be run in metacentrum: '$META'."
+fi
+
 #Check if the simulation is in metacentrum mode
 file_iterate "meta"
 ret=$?
@@ -605,7 +616,11 @@ while (( i < md_iter )); do
     file="$opt_temp_file"
     #Prepare the files to copy
     files_to_copy="process/simulation/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
-    run_sh_sim "opt_temp" "simulation/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
+    if [[ $GPU == "true" ]]; then
+        run_sh_sim "opt_temp" "simulation/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
+    else
+        run_sh_sim "opt_temp_cpu" "simulation/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 16 0
+    fi
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
         exit 1
@@ -626,7 +641,11 @@ while (( i < md_iter )); do
     file="$opt_pres_file"
     #Prepare the files to copy
     files_to_copy="process/simulation/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
-    run_sh_sim "opt_pres" "simulation/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
+    if [[ $GPU == "true" ]]; then
+        run_sh_sim "opt_pres" "simulation/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
+    else
+        run_sh_sim "opt_pres_cpu" "simulation/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 16 0
+    fi
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
         exit 1
@@ -654,7 +673,11 @@ while (( i < md_iter )); do
     if [[ $qmmm == "true" ]]; then
         run_sh_sim "md_qmmm" "md" ${files_to_copy} "" "${name}_md.rst7" 16 16 0
     else
-        run_sh_sim "md" "simulation/md" ${files_to_copy} "" "${name}_md.rst7" 16 1 1
+        if [[ $GPU == "true" ]]; then
+            run_sh_sim "md" "simulation/md" ${files_to_copy} "" "${name}_md.rst7" 16 1 1
+        else
+            run_sh_sim "md_cpu" "simulation/md" ${files_to_copy} "" "${name}_md.rst7" 16 16 0
+        fi
     fi
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} MD simulation failed! Exiting...${NC}"
