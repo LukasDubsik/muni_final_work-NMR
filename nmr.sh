@@ -371,7 +371,7 @@ if [[ $ret -eq 0 ]]; then
     exit 1
 else
     qmmm=$res
-    echo -e "\t\t[$CHECKMARK] QM?MM is set to: '$qmmm'."
+    echo -e "\t\t[$CHECKMARK] QM/MM is set to: '$qmmm'."
 fi
 
 #Checking that all .in files are present
@@ -390,6 +390,15 @@ check_in_file "opt_pres"
 opt_pres_file=$res
 check_in_file "md"
 md_file=$res
+
+file_iterate "md_iterations"
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} Not found number of md simulations in the $filename!${NC}"
+    exit 1
+else
+    md_iter=$res
+    echo -e "\t\t[$CHECKMARK] Number of md simulations: '$qmmm'."
+fi
 
 #Check if tpl is present - only if qmmm set already
 if [[ $qmmm == true ]]; then
@@ -465,7 +474,7 @@ if [[ $input_type == "mol2" ]]; then
     obabel -imol2 inputs/structures/${name}.mol2 -oxyz -O process/preparations/crest/in/${name}.xyz > /dev/null 2>&1 || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert mol2 to xyz format!${NC}"; exit 1; }
     echo -e "\t\t\t[$CHECKMARK] Conversion to xyz for crest succesfull."
     #Run the crest simulation
-    run_sh_sim "crest" "preparations/crest" "process/preparations/crest/in/${name}.xyz" "" "crest_best.xyz" 4 8 1
+    run_sh_sim "crest" "preparations/crest" "process/preparations/crest/in/${name}.xyz" "" "crest_best.xyz" 4 16 0
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} Antechamber failed! Exiting...${NC}"
         exit 1
@@ -539,7 +548,7 @@ mkdir -p process/spectrum/gauss_prep/frames
 echo -e "\t Starting with optimizations..."
 i=$((0))
 file_counter=$((0))
-while (( i < 5 )); do
+while (( i < md_iter )); do
     echo -e "\t\t Running the ${i} iteration..."
     #Firstly, run the water optimization
     echo -e "\t\t\t Running water optimization..."
