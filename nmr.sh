@@ -337,11 +337,11 @@ limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 
 file_iterate "gpu"
 ret=$?
 if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} If running in metacentrum not specified $filename!${NC}"
+    echo -e "\t\t[$CROSS] ${RED} Not specified if running on gpu $filename!${NC}"
     exit 1
 else
     GPU=$res
-    echo -e "\t\t[$CHECKMARK] It is going to be run in metacentrum: '$META'."
+    echo -e "\t\t[$CHECKMARK] Run on gpu: '$GPU'."
 fi
 
 #Check if the simulation is in metacentrum mode
