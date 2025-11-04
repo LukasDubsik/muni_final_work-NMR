@@ -408,7 +408,7 @@ if [[ $ret -eq 0 ]]; then
     exit 1
 else
     md_iter=$res
-    echo -e "\t\t[$CHECKMARK] Number of md simulations: '$qmmm'."
+    echo -e "\t\t[$CHECKMARK] Number of md simulations: '$md_iter'."
 fi
 
 #Check if tpl is present - only if qmmm set already
@@ -422,12 +422,12 @@ if [[ $qmmm == true ]]; then
         tpl=$res
         echo -e "\t\t[$CHECKMARK] Name of the tpl file is: '$tpl'."
     fi
-fi
 
-#Check if the file exists
-if [[ ! -f inputs/simulation/${res} ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
-    exit 1
+    #Check if the file exists
+    if [[ ! -f inputs/simulation/${res} ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
+        exit 1
+    fi
 fi
 
 #Check that all necessary .sh files are meantioned and present
