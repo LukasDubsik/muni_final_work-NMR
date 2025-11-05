@@ -9,7 +9,7 @@ save_as:=cys_crest_md_long_explicit_cosmo_try2_longer
 input_type:=mol2
 
 ##Do we want to leave out gpu speed increase?
-gpu:=true
+gpu:=false
 
 ##If we are running in metacentrum
 meta:=false
