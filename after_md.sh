@@ -473,7 +473,7 @@ mkdir -p "process/spectrum/gauss_prep/frames"
 #Run the cpptraj to sample and prepare the simulation results
 echo -e "\t\t\t Running cpptraj to sample the MD simulation..."
 mkdir -p "process/spectrum/cpptraj/"
-substitute_name_in "cpptraj.in" "simulation/cpptraj/"
+substitute_name_in "cpptraj.in" "spectrum/cpptraj/"
 #sed "s/\${limit}/${limit}/g" inputs/simulation/spectrum/cpptraj/cpptraj.in | sponge inputs/simulation/spectrum/cpptraj/cpptraj.in || return 0
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"
@@ -484,7 +484,7 @@ fi
 file="cpptraj.in"
 #Prepare the files to copy
 files_to_copy="process/md/${name}_md.mdcrd;process/md/${name}.parm7"
-run_sh_sim "cpptraj" "simulation/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 1
+run_sh_sim "cpptraj" "spectrum/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 1
 if [[ $? -eq 0 ]]; then
     echo -e "\t\t\t\t[$CROSS] ${RED} cpptraj failed! Exiting...${NC}"
     exit 1
