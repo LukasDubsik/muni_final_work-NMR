@@ -824,16 +824,16 @@ fi
 
 #Start moving the results to data_results - separate by main directories (preparations, equlibration...)
 #Don't duplicate files
-#echo -e "\t Moving the results to data_results/${save_as}/"
+echo -e "\t Moving the results to data_results/${save_as}/"
 #delete the file for save if already present
-#rm -rf data_results/${save_as}/
-#mkdir -p data_results/${save_as}/
+rm -rf data_results/${save_as}/
+mkdir -p data_results/${save_as}/
 #Move the logs in there
-#mv logs/ data_results/${save_as}/ 2>/dev/null
+mv logs/ data_results/${save_as}/ 2>/dev/null
 #Copy everything for posterity
-#cp -r process/ data_results/${save_as}/
+cp -r process/ data_results/${save_as}/
 #Define the name of the partial save
-#save="$save_as""_partial"
+save="$save_as""_partial"
 #Start with preparations
 # prep=data_results/${save}/preparations
 # mkdir -p $prep
@@ -856,7 +856,7 @@ fi
 # move_for_presentation process/spectrum/plotting/ data_results/${save}/spectrum/ 2>/dev/null
 
 #Delete the process directory
-#rm -rf process/*
+rm -rf process/*
 
 #Zip the results for better movement
 #zip -r data_results/${save_as}.zip data_results/${save_as}/

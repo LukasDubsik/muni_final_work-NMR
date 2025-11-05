@@ -513,40 +513,40 @@ else
     echo -e "\t\t\t[$CHECKMARK] Plotting the NMR spectrum successful."
 fi
 
-#Start moving the results to data_results - separate by main directories (preparations, equlibration...)
-#Don't duplicate files
-echo -e "\t Moving the results to data_results/${name}/"
-#delete the file for save if already present
-rm -rf data_results/${save_as}/
-mkdir -p data_results/${save_as}/
-#Move the logs in there
-mv logs/ data_results/${save_as}/ 2>/dev/null
-#Copy everything for posterity
-cp -r process/ data_results/${save_as}/
-#Start with preparations
-prep=data_results/${name}/preparations
-mkdir -p $prep
-move_for_presentation process/preparations/antechamber/ data_results/${name}/preparations/ 2>/dev/null
-move_for_presentation process/preparations/parmchk2/ data_results/${name}/preparations/ 2>/dev/null
-move_for_presentation process/preparations/tleap/ data_results/${name}/preparations/ 2>/dev/null
-#Then equilibration
-mkdir -p data_results/${name}/equilibration
-move_for_presentation process/equilibration/opt_water/ data_results/${name}/equilibration/ 2>/dev/null
-move_for_presentation process/equilibration/opt_all/ data_results/${name}/equilibration/ 2>/dev/null
-move_for_presentation process/equilibration/opt_temp/ data_results/${name}/equilibration/ 2>/dev/null
-move_for_presentation process/equilibration/opt_pres/ data_results/${name}/equilibration/ 2>/dev/null
-#Then md
-mkdir -p data_results/${name}/md
-move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
-move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
-#Then spectrum
-mkdir -p data_results/${name}/spectrum
-move_for_presentation process/spectrum/cpptraj/ data_results/${name}/spectrum/ 2>/dev/null
-move_for_presentation process/spectrum/plotting/ data_results/${name}/spectrum/ 2>/dev/null
+# #Start moving the results to data_results - separate by main directories (preparations, equlibration...)
+# #Don't duplicate files
+# echo -e "\t Moving the results to data_results/${name}/"
+# #delete the file for save if already present
+# rm -rf data_results/${save_as}/
+# mkdir -p data_results/${save_as}/
+# #Move the logs in there
+# mv logs/ data_results/${save_as}/ 2>/dev/null
+# #Copy everything for posterity
+# cp -r process/ data_results/${save_as}/
+# #Start with preparations
+# prep=data_results/${name}/preparations
+# mkdir -p $prep
+# move_for_presentation process/preparations/antechamber/ data_results/${name}/preparations/ 2>/dev/null
+# move_for_presentation process/preparations/parmchk2/ data_results/${name}/preparations/ 2>/dev/null
+# move_for_presentation process/preparations/tleap/ data_results/${name}/preparations/ 2>/dev/null
+# #Then equilibration
+# mkdir -p data_results/${name}/equilibration
+# move_for_presentation process/equilibration/opt_water/ data_results/${name}/equilibration/ 2>/dev/null
+# move_for_presentation process/equilibration/opt_all/ data_results/${name}/equilibration/ 2>/dev/null
+# move_for_presentation process/equilibration/opt_temp/ data_results/${name}/equilibration/ 2>/dev/null
+# move_for_presentation process/equilibration/opt_pres/ data_results/${name}/equilibration/ 2>/dev/null
+# #Then md
+# mkdir -p data_results/${name}/md
+# move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
+# move_for_presentation process/md/ data_results/${name}/md/ 2>/dev/null
+# #Then spectrum
+# mkdir -p data_results/${name}/spectrum
+# move_for_presentation process/spectrum/cpptraj/ data_results/${name}/spectrum/ 2>/dev/null
+# move_for_presentation process/spectrum/plotting/ data_results/${name}/spectrum/ 2>/dev/null
 
-#Delete the process directory
-#rm -rf process/*
+# #Delete the process directory
+# #rm -rf process/*
 
-#Zip the results for better movement
-zip -r data_results/${name}.zip data_results/${name}/
-rm -rf data_results/${name}
+# #Zip the results for better movement
+# zip -r data_results/${name}.zip data_results/${name}/
+# rm -rf data_results/${name}
