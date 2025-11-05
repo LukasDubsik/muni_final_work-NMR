@@ -541,7 +541,7 @@ if [[ $input_type == "mol2" ]]; then
     file="$tleap_file"
     #Prepare the files to copy
     files_to_copy="process/preparations/n_fix/${name}_charges_fix.mol2;process/preparations/parmchk2/${name}.frcmod"
-    run_sh_sim "tleap" "preparations/tleap" ${files_to_copy} "" "${name}.rst7" 10 12
+    run_sh_sim "tleap" "preparations/tleap" ${files_to_copy} "" "${name}.rst7" 8 8
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t[$CROSS] ${RED} TLeap failed! Exiting...${NC}"
         exit 1
@@ -574,7 +574,7 @@ while (( i < md_iter )); do
     file="$opt_water_file"
     #Prepare the files to copy
     files_to_copy="process/preparations/tleap/${name}.rst7;process/preparations/tleap/${name}.parm7"
-    run_sh_sim "opt_water" "simulation/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 10 8
+    run_sh_sim "opt_water" "simulation/opt_water" ${files_to_copy} "" "${name}_opt_water.rst7" 8 8
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Optimization of the water failed! Exiting...${NC}"
         exit 1
@@ -595,7 +595,7 @@ while (( i < md_iter )); do
     file="$opt_all_file"
     #Prepare the files to copy
     files_to_copy="process/simulation/opt_water/${name}_opt_water.rst7;process/preparations/tleap/${name}.parm7"
-    run_sh_sim "opt_all" "simulation/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 10 8
+    run_sh_sim "opt_all" "simulation/opt_all" ${files_to_copy} "" "${name}_opt_all.rst7" 8 8
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Full optimization failed! Exiting...${NC}"
         exit 1
@@ -616,11 +616,7 @@ while (( i < md_iter )); do
     file="$opt_temp_file"
     #Prepare the files to copy
     files_to_copy="process/simulation/opt_all/${name}_opt_all.rst7;process/preparations/tleap/${name}.parm7"
-    if [[ $GPU == "true" ]]; then
-        run_sh_sim "opt_temp" "simulation/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 1 1
-    else
-        run_sh_sim "opt_temp_cpu" "simulation/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 10 16 0
-    fi
+    run_sh_sim "opt_temp_cpu" "simulation/opt_temp" ${files_to_copy} "" "${name}_opt_temp.rst7" 8 16 0
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Temperature equilibration failed! Exiting...${NC}"
         exit 1
@@ -641,11 +637,7 @@ while (( i < md_iter )); do
     file="$opt_pres_file"
     #Prepare the files to copy
     files_to_copy="process/simulation/opt_temp/${name}_opt_temp.rst7;process/preparations/tleap/${name}.parm7"
-    if [[ $GPU == "true" ]]; then
-        run_sh_sim "opt_pres" "simulation/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 1 1
-    else
-        run_sh_sim "opt_pres_cpu" "simulation/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 10 16 0
-    fi
+    run_sh_sim "opt_pres_cpu" "simulation/opt_pres" ${files_to_copy} "" "${name}_opt_pres.rst7" 8 16 0
     if [[ $? -eq 0 ]]; then
         echo -e "\t\t\t\t[$CROSS] ${RED} Pressure equilibration failed! Exiting...${NC}"
         exit 1
