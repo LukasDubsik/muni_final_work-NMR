@@ -473,6 +473,8 @@ echo -e "\t\t Splitting the frames and converting to .gjf format..."
 mkdir -p "process/spectrum/gauss_prep/"
 #Then convert each frame to .gjf format by running xyz_to_gfj.sh
 cp $SCRIPTS/xyz_to_gfj.sh process/spectrum/gauss_prep/.
+substitute_name_sh "xyz_to_gfj.sh" "spectrum/gauss_prep/"
+#(( limit -= 3))
 mkdir -p process/spectrum/gauss_prep/gauss
 cd process/spectrum/gauss_prep/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
 bash xyz_to_gfj.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to convert to .gjf format!${NC}"; exit 1; }
