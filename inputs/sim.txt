@@ -3,7 +3,7 @@
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
 name:=cys
-save_as:=cys_crest_md_long_explicit_cosmo_try2_longer
+save_as:=cys_crest_md_long_only_cosmo_100ns_1
 
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
