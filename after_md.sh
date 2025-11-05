@@ -124,12 +124,12 @@ run_sh_sim(){
     curr_dir=$(pwd)
     #Create the enviroment for running 
     mkdir -p $path
-    cp -r $hook $path/ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
+    cp -r $hook $path/ || { echo -e "\t\t\t\t[$CROSS] ${RED} Failed to copy the hook files to $path!${NC}"; return 0; }
     #Modify the .sh file - substitute the file name, number and directory
     sed "s/\${name}/${name}/g; s/\${num}/${num}/g; s/\${dir}/${dir_esc}/g; s/\${comms}/${comms}/g; s/\${file}/${file}/g" $SCRIPTS/$script_name.sh > $path/$script_name.sh || { echo -e "\t\t\t[$CROSS] ${RED} Failed to modify the $script_name.sh file!${NC}"; return 0; }
-    #echo $comms >> $path/$script_name.sh
-    cd $path || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
-    [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
+    echo $comms >> $path/$script_name.sh
+    cd $path || { echo -e "\t\t\t\t[$CROSS] ${RED} Failed to enter the $path directory!${NC}"; return 0; }
+    [ $n -ne 0 ] && echo -e "\t\t\t\t[$CHECKMARK] Starting enviroment created succesfully"
 
     #Depending where we are running it
     if [[ $META == true ]]; then
@@ -149,10 +149,10 @@ run_sh_sim(){
     #Check if the jobid is really a number
     re='^[0-9]+$'
     if ! [[ $jobid =~ $re ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} Job was submitted incorrectly!${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} Job was submitted incorrectly!${NC}"
         return 0
     else
-        [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
+        [ $n -ne 0 ] && echo -e "\t\t\t\t[$CHECKMARK] Job ${jobid} submitted succesfully, waiting for it to finish."
     fi
 
     #Cycle till the job is finished (succesfully/unsuccesfully)
@@ -162,7 +162,7 @@ run_sh_sim(){
         res=$?
         #If we have returned "153" job has not been run
         if [[ $res -eq 153 ]]; then
-            echo -e "\t\t\t[$CROSS] ${RED} Job $jobid has not started (qstat says not listed)!${NC}"
+            echo -e "\t\t\t\t[$CROSS] ${RED} Job $jobid has not started (qstat says not listed)!${NC}"
             return 0
         fi
         #If we have 35 job has finished running (even if incorrectly)
@@ -174,10 +174,10 @@ run_sh_sim(){
 
     #Check if the final file is generated - if not, we have an error
     if [[ ! -f $fi && $wai -ne 0 ]]; then
-        echo -e "\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
+        echo -e "\t\t\t\t[$CROSS] ${RED} ${script_name}.sh failed, the expected files failed to be found!${NC}"
         return 0
     else
-        [ $n -ne 0 ] && echo -e "\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
+        [ $n -ne 0 ] && echo -e "\t\t\t\t[$CHECKMARK] ${script_name}.sh finished successfully, ${fi} found."
     fi
 
     #Before deleting files, save the files ending with .stdout in current dir to logs
@@ -219,7 +219,14 @@ run_sh_sim(){
 substitute_name_in(){
     script_name=$1
     path=process/$2
-    sed "s/\${name}/${name}/g; s/\${num}/${limit}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
+    sed "s/\${name}/${name}/g; s/\${num}/${limit}/g; s/\${limit}/${limit}/g" inputs/simulation/${script_name} > $path/$script_name || return 0
+    return 1
+}
+
+substitute_name_sh(){
+    script_name=$1
+    path=process/$2
+    sed "s/\${name}/${name}/g; s/\${num}/${limit}/g; s/\${limit}/${limit}/g" scripts/${script_name} > $path/$script_name || return 0
     return 1
 }
 
@@ -259,6 +266,10 @@ move_for_presentation(){
         cp -r $input_dir $destination_dir
     done
 }
+
+
+#Clean everything created by previous runs or cluttering the process directory
+rm -rf process/*
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
@@ -322,6 +333,17 @@ fi
 limit=$(grep -A 2 "^@<TRIPOS>MOLECULE" inputs/structures/${name}.mol2 | tail -n 1 | awk '{print $1}')
 
 
+#Check if we want to use gpu
+file_iterate "gpu"
+ret=$?
+if [[ $ret -eq 0 ]]; then
+    echo -e "\t\t[$CROSS] ${RED} Not specified if running on gpu $filename!${NC}"
+    exit 1
+else
+    GPU=$res
+    echo -e "\t\t[$CHECKMARK] Run on gpu: '$GPU'."
+fi
+
 #Check if the simulation is in metacentrum mode
 file_iterate "meta"
 ret=$?
@@ -360,7 +382,7 @@ if [[ $ret -eq 0 ]]; then
     exit 1
 else
     qmmm=$res
-    echo -e "\t\t[$CHECKMARK] QM?MM is set to: '$qmmm'."
+    echo -e "\t\t[$CHECKMARK] QM/MM is set to: '$qmmm'."
 fi
 
 #Checking that all .in files are present
@@ -380,20 +402,32 @@ opt_pres_file=$res
 check_in_file "md"
 md_file=$res
 
-#Check if tpl is present - only if qmmm set already
-file_iterate "tpl"
-ret=$?
+file_iterate "md_iterations"
 if [[ $ret -eq 0 ]]; then
-    echo -e "\t\t[$CROSS] ${RED} Tpl not specified even if tpl set!${NC}"
+    echo -e "\t\t[$CROSS] ${RED} Not found number of md simulations in the $filename!${NC}"
     exit 1
 else
-    tpl=$res
-    echo -e "\t\t[$CHECKMARK] Name of the tpl file is: '$tpl'."
+    md_iter=$res
+    echo -e "\t\t[$CHECKMARK] Number of md simulations: '$md_iter'."
 fi
-#Check if the file exists
-if [[ ! -f inputs/simulation/${res} ]]; then
-    echo -e "\t\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
-    exit 1
+
+#Check if tpl is present - only if qmmm set already
+if [[ $qmmm == true ]]; then
+    file_iterate "tpl"
+    ret=$?
+    if [[ $ret -eq 0 ]]; then
+        echo -e "\t\t[$CROSS] ${RED} Tpl not specified even if tpl set!${NC}"
+        exit 1
+    else
+        tpl=$res
+        echo -e "\t\t[$CHECKMARK] Name of the tpl file is: '$tpl'."
+    fi
+
+    #Check if the file exists
+    if [[ ! -f inputs/simulation/${res} ]]; then
+        echo -e "\t\t\t[$CROSS] ${RED} Input file ${res} not found in inputs/simulation/!${NC}"
+        exit 1
+    fi
 fi
 
 #Check that all necessary .sh files are meantioned and present
@@ -434,9 +468,40 @@ else
     echo -e "\t\t[$CHECKMARK] Files to be saved are set to '$files'."
 fi
 
+mkdir -p "process/spectrum/gauss_prep/frames"
+
+#Run the cpptraj to sample and prepare the simulation results
+echo -e "\t\t\t Running cpptraj to sample the MD simulation..."
+mkdir -p "process/spectrum/cpptraj/"
+substitute_name_in "cpptraj.in" "simulation/cpptraj/"
+#sed "s/\${limit}/${limit}/g" inputs/simulation/spectrum/cpptraj/cpptraj.in | sponge inputs/simulation/spectrum/cpptraj/cpptraj.in || return 0
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t\t[$CROSS] ${RED} Couldn't substitute for \${name} in cpptraj.in file. The names of the resulting files need to have \${name}!${NC}"
+    exit 1
+else
+    echo -e "\t\t\t\t[$CHECKMARK] cpptraj.in file correctly loaded."
+fi
+file="cpptraj.in"
+#Prepare the files to copy
+files_to_copy="process/md/${name}_md.mdcrd;process/md/${name}.parm7"
+run_sh_sim "cpptraj" "simulation/cpptraj" ${files_to_copy} "" "${name}_frame.xyz" 10 1
+if [[ $? -eq 0 ]]; then
+    echo -e "\t\t\t\t[$CROSS] ${RED} cpptraj failed! Exiting...${NC}"
+    exit 1
+else
+    echo -e "\t\t\t\t[$CHECKMARK] cpptraj finished successfully."
+fi
+#Split the individual frames
+cp $SCRIPTS/split_xyz.sh process/spectrum/cpptraj/.
+mkdir -p process/spectrum/cpptraj/frames
+cd process/spectrum/cpptraj || { echo -e "\t\t\t[$CROSS] ${RED} Failed to enter the gauss_prep directory!${NC}"; exit 1; }
+bash split_xyz.sh $file_counter < ${name}_frame.xyz || { echo -e "\t\t\t[$CROSS] ${RED} Failed to split XYZ frames!${NC}"; exit 1; }
+cd ../../../ || { echo -e "\t\t\t[$CROSS] ${RED} Failed to return to main directory after splitting!${NC}"; exit 1; }
+#And copy the resulting data into the gausspreparation stage
+mv process/spectrum/cpptraj/frames/* process/spectrum/gauss_prep/frames/
+
 #Split to individual images of the simulation and convert to gauss format
 echo -e "\t\t Splitting the frames and converting to .gjf format..."
-mkdir -p "process/spectrum/gauss_prep/"
 #$Firstly copy the resulting .xyz file
 cp process/spectrum/cpptraj/${name}_frame.xyz process/spectrum/gauss_prep/.
 #Then split the file to individual frames by running split_xyz.sh
