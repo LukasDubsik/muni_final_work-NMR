@@ -269,7 +269,7 @@ move_for_presentation(){
 
 
 #Clean everything created by previous runs or cluttering the process directory
-#rm -rf process/*
+rm -rf process/*
 
 #Starting to write the log
 echo -e "Starting the simulation process..."
