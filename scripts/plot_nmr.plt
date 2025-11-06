@@ -8,7 +8,7 @@ set output "${name}_nmr.png"
 
 set title  "Simulated 1H NMR Gaussian averaged for 100ps (image per ps)"
 set xlabel "ppm"
-set ylabel "Instensity"
+set ylabel "Intensity"
 set key off
 set grid
 

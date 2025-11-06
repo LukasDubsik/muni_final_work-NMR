@@ -1,7 +1,7 @@
 &cntrl
 
  imin=0,    !Runs the simulations, 1 means optimilization
- nstlim=100000000,     !Run for 100ns
+ nstlim=20000000,     !Run for 100ns
  dt=0.001,      !Units for nstlim
  
  ntb=2,     !NTP system

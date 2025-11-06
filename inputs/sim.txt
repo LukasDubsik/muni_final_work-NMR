@@ -3,7 +3,7 @@
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
 name:=cys
-save_as:=cys_crest_md_long_only_cosmo_100ns_3
+save_as:=cys_crest_md_long_only_cosmo_split_5_20ns_averaged
 
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
@@ -29,7 +29,7 @@ opt_pres:=opt_pres.in
 md:=md_long.in
 
 ##Number of iterations for the md (please set the cpptraj so that correct number of sampling is done)
-md_iterations:=1
+md_iterations:=5
 
 ##Name of the tpl file (only if qmmm true)
 #tpl:=gau_job.tpl
