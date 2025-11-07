@@ -17,8 +17,8 @@ shopt -s lastpipe
 # Globals: none
 # Returns: The error code returned by the given line
 on_error() {
-	rc=$1
-	lineno=$2
+	local rc=$1
+	local lineno=$2
 	printf "[FATAL] %s:%s: command failed (rc=%d)\n" "${BASH_SOURCE[0]}" "$lineno" "$rc" 1>&2
 	exit "$rc"
 }
@@ -36,6 +36,9 @@ if [[ -t 1 ]]; then
 	ORANGE="\033[38;5;208m\xE2\x9C\x94"
 	RED="\033[0;31m\xE2\x9C\x98"
 fi
+
+log() { printf "[%%s] %%s\n" "$1" "$2"; }
+info() { log INFO "$1"; }
 
 # success
 # Print that given program section executed correctly
@@ -92,8 +95,99 @@ require() { command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1
 ensure_dir() { mkdir -p -- "$1"; }
 
 
+# ----- Input File -----
+# Functions for extracting data from the sim.txt file and analyzing their correctness
+declare -A Params
+
+read_config() {
+	#Hardwired location of the input file
+	local file="inputs/sim.txt"
+	[[ -f "$file" ]] || die "Config file not found: $file"
+
+	#Iterate the file to get all its values
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		#Skip empty lines and lines starting with # (comments)
+		[[ -z "$line" || ${line:0:1} == '#' ]] && continue
+		#Extract all lines containing assign
+		if [[ "$line" == *":="* ]]; then
+			local key=${line%%:=*}
+			local val=${line#*:=}
+			#Strip all whitespaces from the key
+			key=${key//[[:space:]]/}
+			Params["$key"]=$val
+		fi
+	done <"$file"
+}
+
+get_cfg() {
+	local key=$1
+	if [[ -n "${Params[$key]}" ]]; then 
+		die 'Expected: ${Params[$key]}. But it was not present!'; 
+	else 
+		return 1; 
+	fi
+}
+
+check_in_file() {
+	# Check that given in file truly present
+	local name=$1 dir=$2
+	local file="$dir/${name}.in"
+	[[ -f "$file" ]] || die "Missing input template: $file"
+	succ ".in present: $file"
+}
+
+check_sh_file() {
+	# Check that given sh script truly present
+	local name=$1 dir=$2
+	local f="$dir/${stem}.sh"
+	[[ -f "$file" ]] || die "Missing script: $file"
+	succ ".sh present: $file"
+}
+
+analyze_parameters() {
+	#See if we have the name for the molecule
+	name
+}
+
+
 # ----- Job Submission -----
 # Functions for submitting a job
+
+submit_job() {
+	# Get the parameters into local variables
+	local name=$1 job_dir=$2 script_avar=$3 mem_gb=$5 ncpus=$4 ngpus=$6 walltime=$7
+	ensure_dir "$job_dir"
+	local script="$job_dir/${name}.sh"
+
+	# build script from array referenced by name
+	local -n _LINES_REF="$script_avar"
+	printf '#!/bin/bash\nset -Eeuo pipefail\n' >"$script"
+	printf '%s\n' "${_LINES_REF[@]}" >>"$script"
+	chmod +x "$script"
+
+	local jobid out
+	if command -v psubmit >/dev/null 2>&1; then
+	out=$(psubmit -ys "${queue}" "$script" ncpus="${ncpus}" mem="${mem_gb}gb" walltime="${walltime}" || true)
+	else
+	# PBS select spec; add ngpus if present via env NGPU (optional)
+	local select="select=1:ncpus=${ncpus}:mem=${mem_gb}gb"
+	if [[ ${NGPU:-0} -gt 0 ]]; then select+="\:ngpus=${NGPU}"; fi
+	out=$(qsub -q "${queue}" -l "${select}" -l "walltime=${walltime}" "$script" || true)
+	fi
+
+	# extract numeric job id
+	jobid=$(printf '%s\n' "$out" | awk '/[0-9]+/{print $1}' | sed 's/[^0-9].*$//' | tail -n1)
+	[[ -n "$jobid" ]] || die "Failed to submit job '${name}': $out"
+	printf '%s\n' "$jobid"
+}
+
+
+# wait for job to finish (simple polling)
+wait_job() {
+	local jobid=$1
+	require qstat || { info "qstat not found; skipping wait"; return 0; }
+	while qstat "$jobid" >/dev/null 2>&1; do sleep 10; done
+}
 
 
 # ----- Parameters -----
@@ -111,3 +205,19 @@ while getopts ":n:s:h" opt; do
 done
 #Drop all the shifted through arguments
 shift $((OPTIND-1))
+
+
+# ----- Main -----
+# ...
+
+main() {
+	
+}
+
+
+# ----- Input -----
+# Read the user input file and extract its data
+
+
+# ----- Modules/Functions -----
+# Make sure all the necessary modules and their functions are available
