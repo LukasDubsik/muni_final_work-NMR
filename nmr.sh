@@ -144,6 +144,58 @@ check_sh_file() {
 	succ ".sh present: $file"
 }
 
+load_cfg() {
+	#Declare the values as explicitly global
+	declare -g \
+    name save_as input_type gpu meta directory amber \
+    tleap opt_water opt_all opt_temp opt_pres md cpptraj \
+    md_iterations antechamber_cmd parmchk2_cmd
+
+	#See if we have the name for the molecule
+	name=${OVR_NAME:-$(get_cfg 'name')}
+
+	#See if we have the save for the molecule
+	save_as=${OVR_SAVE:-$(get_cfg 'save_as')}
+
+	#Get the input type and check it is valid type
+	input_type=$(get_cfg 'input_type')
+	#Check that it is allowed
+	if [[ ! $input_type == 'mol2' && ! $input_type == '7' ]]; then
+		exit_program "Only allowed input file types are mol2 and rst/parm7!"
+	fi
+
+	#See if we have gpu specified
+	gpu=$(get_cfg 'gpu')
+
+	#If we want to run the code in metacentrum
+	meta=$(get_cfg 'meta')
+
+	#If so also see that other important values given
+	if [[ $meta == 'true' ]]; then
+		#What is our directoryt in which we are running the script
+		directory=$(get_cfg 'directory')
+
+		#What version of amber are we using
+		amber=$(get_cfg 'amber')
+	fi
+
+	#Load the names of the .in files (all need to be under inputs/simulation/)
+	tleap=$(get_cfg 'tleap')
+	opt_water=$(get_cfg 'opt_water')
+	opt_all=$(get_cfg 'opt_all')
+	opt_temp=$(get_cfg 'opt_temp')
+	opt_pres=$(get_cfg 'opt_pres')
+	md=$(get_cfg 'md')
+	cpptraj=$(get_cfg 'cpptraj')
+
+	#Number of iterations of the md
+	md_iterations=$(get_cfg 'md_iterations')
+
+	#Additional parametrs for specfic programs
+	antechamber_cmd=$(get_cfg 'antechamber')
+	parmchk2_cmd=$(get_cfg 'parmchk2')
+}
+
 
 # ----- Job Submission -----
 # Functions for submitting a job
@@ -208,50 +260,11 @@ shift $((OPTIND-1))
 main() {
 	# ----- Input -----
 	# Read the user input file and extract its data
+	load_cfg
 
-	#See if we have the name for the molecule
-	name=${OVR_NAME:-$(get_cfg 'name')}
 
-	#See if we have the save for the molecule
-	save_as=${OVR_SAVE:-$(get_cfg 'save_as')}
-
-	#Get the input type and check it is valid type
-	input_type=$(get_cfg 'input_type')
-	#Check that it is allowed
-	if [[ ! $input_type == 'mol2' && ! $input_type == '7' ]]; then
-		exit_program "Only allowed input file types are mol2 and rst/parm7!"
-	fi
-
-	#See if we have gpu specified
-	gpu=$(get_cfg 'gpu')
-
-	#If we want to run the code in metacentrum
-	meta=$(get_cfg 'meta')
-
-	#If so also see that other important values given
-	if [[ $meta == 'true' ]]; then
-		#What is our directoryt in which we are running the script
-		directory=$(get_cfg 'directory')
-
-		#What version of amber are we using
-		amber=$(get_cfg 'amber')
-	fi
-
-	#Load the names of the .in files (all need to be under inputs/simulation/)
-	tleap=$(get_cfg 'tleap')
-	opt_water=$(get_cfg 'opt_water')
-	opt_all=$(get_cfg 'opt_all')
-	opt_temp=$(get_cfg 'opt_temp')
-	opt_pres=$(get_cfg 'opt_pres')
-	md=$(get_cfg 'md')
-	cpptraj=$(get_cfg 'cpptraj')
-
-	#Number of iterations of the md
-	md_iterations=$(get_cfg 'md_iterations')
-
-	#Additional parametrs for specfic programs
-	antechamber_cmd=$(get_cfg 'antechamber')
-	parmchk2_cmd=$(get_cfg 'parmchk2')
+	# ----- Input Check -----
+	# Validate that all the input files given by the suer are explicitly present
 
 	# ----- Modules/Functions -----
 	# Make sure all the necessary modules and their functions are available
