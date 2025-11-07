@@ -1,0 +1,4 @@
+module add amber${version}
+
+cpptraj -p ${name}.parm7 -i ${file}
+

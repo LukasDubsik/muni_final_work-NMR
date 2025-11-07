@@ -1,7 +1,6 @@
-#!/usr/bin/env infinity-env
-
-module add gaussian
+module add ${gauss}
 
 psanitaze frame.${num}.gjf
 
 g16 < frame.${num}.gjf > frame.${num}.log
+
