@@ -16,9 +16,9 @@ meta:=false
 
 ##Directory for metacentrum - where this directory is present (only if meta set to true)
 #directory:=/storage/brno2/home/lukasdubsik/NMR_meta
- 
-##Is the simulation QM/MM?
-qmmm:=false
+
+##The Amber version we are using (metacentrum has may and not all are available to all)
+#amber=/22.1.3-gcc-10.2.1-man1
 
 ##Names for the expected *.in files for individual optimizations
 tleap:=tleap.in
@@ -27,12 +27,10 @@ opt_all:=opt_all.in
 opt_temp:=opt_temp.in
 opt_pres:=opt_pres.in
 md:=md_long.in
+cpptraj:=cpptraj.in
 
 ##Number of iterations for the md (please set the cpptraj so that correct number of sampling is done)
 md_iterations:=5
-
-##Name of the tpl file (only if qmmm true)
-#tpl:=gau_job.tpl
 
 ##Additional parameters to be added when running specific programs (Some can be left if not run, otherwise error, eg. no antechamber when 7 specified in 'input_type')
 ##The parameters must be enclosed in "..." brackets
@@ -40,8 +38,3 @@ md_iterations:=5
 antechamber:="-c bcc -nc 0 -at gaff" 
 #Standart values :- parmchk2 -i $NAME.mol2 -f mol2 -o $NAME.frcmod
 parmchk2:=""
-
-##What file extensions, names should be saved and not deleted (any file and extensions bearing this name will be moved to the data_results)
-#Files/extensions should be separated by ';'
-extensions:=nc;mol2;rst7;parm7;frcmod;mdcrd;xyz;gjf;log;png
-files:=
