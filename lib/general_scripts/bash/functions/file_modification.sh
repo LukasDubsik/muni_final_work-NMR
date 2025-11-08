@@ -13,7 +13,7 @@ substitute_name_sh_meta_start() {
 	local src="lib/job_scripts/metacentrum_start.txt"
 	local dst_full="${dst}/start.txt"
 	[[ -f "$src" ]] || die "Missing template: $src"
-	sed "s/\${copy}/${copy}/g; s/\${dir}/${dir}/g; s/\${job}/${job}/g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	sed "s#\${copy}#${copy}#g; s#\${dir}#${dir}#g; s#\${job}#${job}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # substitute_name_sh_meta_end DST COPY_END
