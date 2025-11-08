@@ -24,7 +24,7 @@ submit_job() {
 	fi
 
 	#Extract numeric job id
-	IFS='.' read -r -a jobid_arr <<< "$jobid"
+	IFS='.' read -r -a jobid_arr <<< "$out"
     IFS=' ' read -r -a jobid_arr2 <<< "${jobid_arr[0]}"
 	jobid=${jobid_arr2[-1]}
 
