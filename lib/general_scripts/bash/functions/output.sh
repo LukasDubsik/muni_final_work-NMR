@@ -19,17 +19,17 @@ info() { log INFO "$1"; }
 # Print that given program section executed correctly
 # Globals: none
 # Returns: Nothing
-succes() { printf "[%bOK%b] %s\n" "${GREEN}" "${NC}" "$1"; }
+success() { printf "[%bOK%b] %s\n" "${GREEN}" "${NC}" "$1"; }
 # warning
 # Print a warning to the user
 # Globals: none
 # Returns: Nothing
 warning() { printf "[%bWARN%b] %s\n" "${ORANGE}" "${NC}" "$1"; }
-# success
+# die
 # Exits the program upon a fatal error
 # Globals: none
 # Returns: Nothing
-exit_program() { printf "[%bERR%b] %s\n" "${RED}" "${NC}" "$1" 1>&2; exit 1; }
+die() { printf "[%bERR%b] %s\n" "${RED}" "${NC}" "$1" 1>&2; exit 1; }
 
 # usage
 # Exits the program upon a fatal error

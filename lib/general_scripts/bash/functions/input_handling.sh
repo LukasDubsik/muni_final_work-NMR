@@ -3,8 +3,6 @@
 [[ ${_INPUT_HANDLING_SH_LOADED:-0} -eq 1 ]] && return
 _INPUT_HANDLING_SH_LOADED=1
 
-declare -A Params
-
 read_config() {
 	#Hardwired location of the input file
 	local file="inputs/sim.txt"
@@ -23,14 +21,16 @@ read_config() {
 			Params["$key"]=$val
 		fi
 	done <"$file"
+
+	success "${Params["name"]}";
 }
 
 get_cfg() {
 	local key=$1
-	if [[ -n "${Params[$key]:-}" ]]; then 
-		die "Expected: ${Params["$key"]}. But it was not present!"; 
+	if [[ -v "Params[$key]" ]]; then 
+		printf '%s\n' "${Params[$key]}"; 
 	else 
-		return 1; 
+		die "Expected: $key in the sim.txt. It was not present!"; 
 	fi
 }
 
@@ -39,7 +39,7 @@ check_in_file() {
 	local name=$1 dir=$2
 	local file="$dir/${name}.in"
 	[[ -f "$file" ]] || die "Missing input template: $file"
-	succ ".in present: $file"
+	success ".in present: $file"
 }
 
 check_sh_file() {
@@ -47,15 +47,15 @@ check_sh_file() {
 	local name=$1 dir=$2
 	local file="$dir/${name}.sh"
 	[[ -f "$file" ]] || die "Missing script: $file"
-	succ ".sh present: $file"
+	success ".sh present: $file"
 }
 
 load_cfg() {
 	#Declare the values as explicitly global
-	declare -g \
-    name save_as input_type gpu meta directory amber_ext \
-    tleap opt_water opt_all opt_temp opt_pres md cpptraj \
-    md_iterations antechamber_cmd parmchk2_cmd
+	# declare -g \
+    # name save_as input_type gpu meta directory amber_ext \
+    # tleap opt_water opt_all opt_temp opt_pres md cpptraj \
+    # md_iterations antechamber_cmd parmchk2_cmd
 
 	OVR_NAME=$1
 	OVR_SAVE=$2
@@ -104,6 +104,8 @@ load_cfg() {
 		parmchk2_cmd=$(get_cfg 'parmchk2')
 
 		info "All the additional parametrs for mol2 loaded correctly"
+		info "$antechamber_cmd"
+		info "$parmchk2_cmd"
 	fi
 
 	#Load the names of the .in files (all need to be under inputs/simulation/)
@@ -129,5 +131,5 @@ check_cfg() {
 	check_in_file "$md" "$PATH_TO_INPUTS"
 	check_in_file "$cpptraj" "$PATH_TO_INPUTS"
 
-	succes "All .in files are present and loaded."
+	success "All .in files are present and loaded."
 }

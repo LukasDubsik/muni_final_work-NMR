@@ -23,6 +23,8 @@ source "${LIB_PATH}/modules.sh"
 source "${LIB_PATH}/input_handling.sh"
 # shellcheck source=/dev/null
 source "${LIB_PATH}/output.sh"
+# shellcheck source=/dev/null
+source "${LIB_PATH}/logging.sh"
 
 # on_error
 # Inform the user about what happened upon an error occuring
@@ -39,6 +41,8 @@ trap 'on_error $? $LINENO' ERR
 
 # ----- Set Basic Variables -----
 # Set the basic values for the script
+
+declare -A Params
 
 #Give global variables given in external functions default value here
 name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
@@ -113,6 +117,7 @@ shift $((OPTIND-1))
 main() {
 	# ----- Input -----
 	# Read the user input file and extract its data
+	read_config
 	load_cfg "$OVR_NAME" "$OVR_SAVE"
 
 
@@ -126,10 +131,14 @@ main() {
 
 	#The names of the modules based on the running enviroment
 	amber_mod="amber${amber_ext}"
-	gauss_mod=$(( meta == "true" ? "g16" : "gaussian" ))
+	if [[ $meta == "false" ]]; then
+		gauss_mod="gaussian"
+	else
+		gauss_mod="g16"
+	fi
 
 	check_modules "$amber_mod" "$gauss_mod"
-
+	check_requires
 
 	# ----- Load Log -----
 	# Load the log of the previous run - start from the last succesfull operation
