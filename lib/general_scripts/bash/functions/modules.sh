@@ -66,7 +66,7 @@ check_requires() {
 	check_require "pmemd"
 	check_require "pmemd.cuda"
 	check_require "cpptraj"
-	check_require "gaussian"
+	check_require "g16"
 
 	success "All functions within the modules are present"
 }
