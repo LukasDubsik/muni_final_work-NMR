@@ -26,6 +26,8 @@ source "${LIB_PATH}/input_handling.sh"
 source "${LIB_PATH}/output.sh"
 # shellcheck source=/dev/null
 source "${LIB_PATH}/logging.sh"
+# shellcheck source=/dev/null
+source "${LIB_PATH}/file_modification.sh"
 
 #Load the job submissions
 SUB_PATH="lib/general_scripts/bash/job_creation"
