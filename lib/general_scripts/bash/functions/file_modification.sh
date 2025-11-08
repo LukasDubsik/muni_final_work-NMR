@@ -62,7 +62,14 @@ substitute_name_sh() {
 # Returns: Nothing
 construct_sh_wolf() {
 	local dir=$1 name=$2
+	local full_name="${dir}/${name}.sh"
 
 	#Create the resulting file
-	touch "${dir}/${name}"
+	touch "$full_name"
+
+	#Add the start
+	echo -n "${dir}/start.txt" >> "$full_name"
+
+	#And add the script itself
+	echo -n "${dir}/job.txt" >> "$full_name"
 }
