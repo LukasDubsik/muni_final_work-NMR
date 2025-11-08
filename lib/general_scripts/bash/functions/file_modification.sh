@@ -71,7 +71,7 @@ construct_sh_wolf() {
 	cat "${dir}/start.txt" >> "$full_name"
 
 	#And add the script itself
-	cat "${dir}/job.txt" >> "$full_name"
+	cat "${dir}/job_file.txt" >> "$full_name"
 }
 
 # construct_sh_meta DIR NAME
@@ -91,7 +91,7 @@ construct_sh_meta() {
 		cat "${dir}/start.txt"
 
 		#And add the script itself
-		cat "${dir}/job.txt"
+		cat "${dir}/job_file.txt"
 
 		#Lastly add the end of the script
 		cat "${dir}/end.txt" 
