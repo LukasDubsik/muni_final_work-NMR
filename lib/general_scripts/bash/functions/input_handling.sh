@@ -27,8 +27,8 @@ read_config() {
 
 get_cfg() {
 	local key=$1
-	if [[ -n "${Params[$key]}" ]]; then 
-		die "Expected: ${Params[$key]}. But it was not present!"; 
+	if [[ -n "${Params[$key]:-}" ]]; then 
+		die "Expected: ${Params["$key"]}. But it was not present!"; 
 	else 
 		return 1; 
 	fi
@@ -56,6 +56,9 @@ load_cfg() {
     name save_as input_type gpu meta directory amber_ext \
     tleap opt_water opt_all opt_temp opt_pres md cpptraj \
     md_iterations antechamber_cmd parmchk2_cmd
+
+	OVR_NAME=$1
+	OVR_SAVE=$2
 
 	#See if we have the name for the molecule
 	name=${OVR_NAME:-$(get_cfg 'name')}
