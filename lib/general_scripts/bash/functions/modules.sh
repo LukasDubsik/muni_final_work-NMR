@@ -33,6 +33,9 @@ check_modules() {
 		check_module "pmemd-cuda"
 	fi
 
+	#That Obabel is available (file conversion)
+	check_module "obabel"
+
 	#That Amber is available
 	check_module "$amber_mod"
 

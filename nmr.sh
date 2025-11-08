@@ -15,6 +15,7 @@ shopt -s lastpipe
 #Load the libraries
 LIB_PATH="lib/general_scripts/bash/functions"
 
+#Load the basic functions
 # shellcheck source=/dev/null
 source "${LIB_PATH}/utilities.sh"
 # shellcheck source=/dev/null
@@ -25,6 +26,13 @@ source "${LIB_PATH}/input_handling.sh"
 source "${LIB_PATH}/output.sh"
 # shellcheck source=/dev/null
 source "${LIB_PATH}/logging.sh"
+
+#Load the job submissions
+SUB_PATH="lib/general_scripts/bash/job_creation"
+
+#Load the libraries with job submission
+# shellcheck source=/dev/null
+source "${SUB_PATH}/preparation.sh"
 
 # on_error
 # Inform the user about what happened upon an error occuring
@@ -109,6 +117,9 @@ main() {
 
 	# ----- Modules/Functions -----
 	# Make sure all the necessary modules and their functions are available
+	if [[ 1 -gt $LOG_POSITION ]]; then
+		run_crest "$name" "$directory" "$meta"
+	fi
 }
 
 main "$@"

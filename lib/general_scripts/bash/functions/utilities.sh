@@ -7,4 +7,4 @@ _UTILITIES_SH_LOADED=1
 # Makes sure the dir exists by creating it
 # Globals: none
 # Returns: Nothing
-ensure_dir() { mkdir -p -- "$1"; }
+ensure_dir() { mkdir -p "$1"; }
