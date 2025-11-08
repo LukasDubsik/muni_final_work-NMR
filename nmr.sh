@@ -81,12 +81,29 @@ EOF
 # Tries to add the module.
 # Globals: none
 # Returns: Exits the program if module can't be added, otherwise nothing
-check_module() { module add "$1" > /dev/null 2>&1 || die "Couldn't add th module: $1"; }
+check_module() { module add "$1" > /dev/null 2>&1 || die "Couldn't add the module: $1"; }
+check_module_conda() {
+	conda activate "$1" > /dev/null 2>&1 || die "Couldn't activate conda enviroment";
+	module add "$1" > /dev/null 2>&1 || die "Couldn't add the module: $1"; 
+	conda deactivate > /dev/null 2>&1 || die "Couldn't exit conda enviroment";
+}
 # require FUNCTION_NAME
 # Tries to find the path to the function.
 # Globals: none
 # Returns: Exits if the function can't be run, otherwise nothing.
 require() { command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"; }
+check_modules() {
+	#That crest is available
+	if [[ $meta == "true" ]]; then
+		#On metacentrum crest needs conda additionaly to be run
+		check_module_conda "crest"
+	else
+		check_module "crest"
+	fi
+
+	#That Amber is available
+	check_module
+}
 
 # ensure_dir DIR_NAME
 # Makes sure the dir exists by creating it
@@ -139,7 +156,7 @@ check_in_file() {
 check_sh_file() {
 	# Check that given sh script truly present
 	local name=$1 dir=$2
-	local f="$dir/${stem}.sh"
+	local file="$dir/${name}.sh"
 	[[ -f "$file" ]] || die "Missing script: $file"
 	succ ".sh present: $file"
 }
@@ -170,13 +187,28 @@ load_cfg() {
 	#If we want to run the code in metacentrum
 	meta=$(get_cfg 'meta')
 
+	#Number of iterations of the md
+	md_iterations=$(get_cfg 'md_iterations')
+
+	info "Config loaded: name=$name, save_as=$save_as, input_type=$input_type, gpu=$gpu, meta=$meta, md iterations=$md_iterations"
+
 	#If so also see that other important values given
 	if [[ $meta == 'true' ]]; then
 		#What is our directoryt in which we are running the script
 		directory=$(get_cfg 'directory')
 
 		#What version of amber are we using
-		amber=$(get_cfg 'amber')
+		amber_ext=$(get_cfg 'amber')
+
+		info "All the informations for metacentrum loaded correctly: directory=$directory, amber=$amber_ext"
+	fi
+
+	#Additional parametrs for specfic programs - only for mol2
+	if [[ $input_type == "mol2" ]]; then
+		antechamber_cmd=$(get_cfg 'antechamber')
+		parmchk2_cmd=$(get_cfg 'parmchk2')
+
+		info "All the additional parametrs for mol2 loaded correctly"
 	fi
 
 	#Load the names of the .in files (all need to be under inputs/simulation/)
@@ -187,13 +219,22 @@ load_cfg() {
 	opt_pres=$(get_cfg 'opt_pres')
 	md=$(get_cfg 'md')
 	cpptraj=$(get_cfg 'cpptraj')
+}
 
-	#Number of iterations of the md
-	md_iterations=$(get_cfg 'md_iterations')
+check_cfg() {
+	#Directory, where the .in fils must be stored
+	PATH_TO_INPUTS="inputs/simulation"
 
-	#Additional parametrs for specfic programs
-	antechamber_cmd=$(get_cfg 'antechamber')
-	parmchk2_cmd=$(get_cfg 'parmchk2')
+	#Go file by file and check if they are present
+	check_in_file "$tleap" "$PATH_TO_INPUTS"
+	check_in_file "$opt_water" "$PATH_TO_INPUTS"
+	check_in_file "$opt_all" "$PATH_TO_INPUTS"
+	check_in_file "$opt_temp" "$PATH_TO_INPUTS"
+	check_in_file "$opt_pres" "$PATH_TO_INPUTS"
+	check_in_file "$md" "$PATH_TO_INPUTS"
+	check_in_file "$cpptraj" "$PATH_TO_INPUTS"
+
+	succes "All .in files are present and loaded."
 }
 
 
@@ -265,6 +306,13 @@ main() {
 
 	# ----- Input Check -----
 	# Validate that all the input files given by the suer are explicitly present
+	check_cfg
+
+
+	# ----- Module Check -----
+	# Check that all the modules and their functions are present
+	check_modules
+
 
 	# ----- Modules/Functions -----
 	# Make sure all the necessary modules and their functions are available

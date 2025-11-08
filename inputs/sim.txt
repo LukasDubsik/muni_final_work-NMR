@@ -21,13 +21,13 @@ meta:=false
 #amber=/22.1.3-gcc-10.2.1-man1
 
 ##Names for the expected *.in files for individual optimizations
-tleap:=tleap.in
-opt_water:=opt_water.in
-opt_all:=opt_all.in
-opt_temp:=opt_temp.in
-opt_pres:=opt_pres.in
-md:=md_long.in
-cpptraj:=cpptraj.in
+tleap:=tleap
+opt_water:=opt_water
+opt_all:=opt_all
+opt_temp:=opt_temp
+opt_pres:=opt_pres
+md:=md_long
+cpptraj:=cpptraj
 
 ##Number of iterations for the md (please set the cpptraj so that correct number of sampling is done)
 md_iterations:=5
