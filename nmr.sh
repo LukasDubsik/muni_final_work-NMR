@@ -17,8 +17,6 @@ LIB_PATH="lib/general_scripts/bash/functions"
 
 #Load the basic functions
 # shellcheck source=/dev/null
-source "${LIB_PATH}/utilities.sh"
-# shellcheck source=/dev/null
 source "${LIB_PATH}/modules.sh"
 # shellcheck source=/dev/null
 source "${LIB_PATH}/input_handling.sh"
@@ -30,6 +28,8 @@ source "${LIB_PATH}/logging.sh"
 source "${LIB_PATH}/file_modification.sh"
 # shellcheck source=/dev/null
 source "${LIB_PATH}/jobs.sh"
+# shellcheck source=/dev/null
+source "${LIB_PATH}/utilities.sh"
 
 #Load the job submissions
 SUB_PATH="lib/general_scripts/bash/job_creation"
