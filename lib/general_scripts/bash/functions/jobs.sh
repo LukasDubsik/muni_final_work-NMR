@@ -13,8 +13,6 @@ submit_job() {
 	ensure_dir "$job_dir"
 	local script="$job_dir/${name}.sh"
 
-	success "Job0"
-
 	#Submit the job based on meta/wolf
 	local jobid out
 	if [[ $meta == "false" ]]; then

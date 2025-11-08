@@ -14,6 +14,7 @@ clean_process() {
 	local curr_sys=""
 
 	for file in "${LOG_MAP[@]}"; do
+	echo $file
 		if [[ $file -gt $last_command ]]; then
 			if [[ $file -ge 0 && $file -le 4 ]]; then
 				curr_sys="preparations"
