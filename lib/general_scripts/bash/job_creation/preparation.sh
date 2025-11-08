@@ -15,6 +15,8 @@ run_crest() {
 	local directory=$2
 	local meta=$3
 
+	info "Started running crest"
+
 	#Start with finding the most stable conformation
     module add openbabel > /dev/null 2>&1
 

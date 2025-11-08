@@ -1,6 +1,6 @@
 echo "The files in the directory at the end" >> "$DATADIR/jobs_info.txt"
 ls >> "$DATADIR/jobs_info.txt"
 
-cp ${copy_end} $DATADIR/ || { echo >&2 "Result file(s) copying failed (with a code $?) !!"; exit 4; }
+cp * $DATADIR/ || { echo >&2 "Result file(s) copying failed (with a code $?) !!"; exit 4; }
 
 clean_scratch

@@ -25,19 +25,13 @@ submit_job() {
 		out=$(qsub -q default -l "${select}" -l "walltime=${walltime}" "$script" || true)
 	fi
 
-	success "Job1"
-
 	#Extract numeric job id
 	IFS='.' read -r -a jobid_arr <<< "$out"
     IFS=' ' read -r -a jobid_arr2 <<< "${jobid_arr[0]}"
 	jobid=${jobid_arr2[-1]}
 
-	success "Job2"
-
 	#Check that the job was succesfully submitted and exit
 	[[ -n "$jobid" ]] || die "Failed to submit job '${name}': $out"
-
-	success "Job3"
 
 	wait_job "$jobid"
 }
