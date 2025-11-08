@@ -1,4 +1,4 @@
-module add ${gauss}
+module add ${module}
 
 psanitaze frame.${num}.gjf
 

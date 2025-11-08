@@ -87,12 +87,11 @@ check_module_conda() {
 	module add "$1" > /dev/null 2>&1 || die "Couldn't add the module: $1"; 
 	conda deactivate > /dev/null 2>&1 || die "Couldn't exit conda enviroment";
 }
-# require FUNCTION_NAME
-# Tries to find the path to the function.
-# Globals: none
-# Returns: Exits if the function can't be run, otherwise nothing.
-require() { command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"; }
 check_modules() {
+	#Load the parametrs
+	local amber_mod=$1
+	local gauss_mod=$2
+
 	#That crest is available
 	if [[ $meta == "true" ]]; then
 		#On metacentrum crest needs conda additionaly to be run
@@ -102,8 +101,18 @@ check_modules() {
 	fi
 
 	#That Amber is available
-	check_module
+	check_module "$amber_mod"
+
+	#That gaussian is available
+	check_module "$gauss_mod"
+
+	succes "All the modules (crest, amber, gaussian) are present"
 }
+# require FUNCTION_NAME
+# Tries to find the path to the function.
+# Globals: none
+# Returns: Exits if the function can't be run, otherwise nothing.
+require() { command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"; }
 
 # ensure_dir DIR_NAME
 # Makes sure the dir exists by creating it
@@ -164,7 +173,7 @@ check_sh_file() {
 load_cfg() {
 	#Declare the values as explicitly global
 	declare -g \
-    name save_as input_type gpu meta directory amber \
+    name save_as input_type gpu meta directory amber_ext \
     tleap opt_water opt_all opt_temp opt_pres md cpptraj \
     md_iterations antechamber_cmd parmchk2_cmd
 
@@ -191,6 +200,9 @@ load_cfg() {
 	md_iterations=$(get_cfg 'md_iterations')
 
 	info "Config loaded: name=$name, save_as=$save_as, input_type=$input_type, gpu=$gpu, meta=$meta, md iterations=$md_iterations"
+
+	#By default amber extension is empty
+	amber_ext=""
 
 	#If so also see that other important values given
 	if [[ $meta == 'true' ]]; then
@@ -311,7 +323,12 @@ main() {
 
 	# ----- Module Check -----
 	# Check that all the modules and their functions are present
-	check_modules
+
+	#The names of the modules based on the running enviroment
+	amber_mod="amber${amber_ext}"
+	gauss_mod=$(( meta == "true" ? "g16" : "gaussian" ))
+
+	check_modules "$amber_mod" "$gauss_mod"
 
 
 	# ----- Modules/Functions -----

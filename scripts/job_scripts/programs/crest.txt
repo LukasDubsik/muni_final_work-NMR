@@ -1,4 +1,4 @@
-module add crest
+module add ${module}
 
 crest ${name}.xyz --gfn2 --alpb water --T 8  > ${name}.out
 

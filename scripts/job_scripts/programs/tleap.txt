@@ -1,4 +1,4 @@
-module add amber${version}
+module add ${module}
 
 tleap -f ${file}
 
