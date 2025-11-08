@@ -21,8 +21,6 @@ read_config() {
 			Params["$key"]=$val
 		fi
 	done <"$file"
-
-	success "${Params["name"]}";
 }
 
 get_cfg() {
