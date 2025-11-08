@@ -68,5 +68,5 @@ check_requires() {
 	check_require "cpptraj"
 	check_require "gaussian"
 
-	succes "All functions within the modules are present"
+	success "All functions within the modules are present"
 }
