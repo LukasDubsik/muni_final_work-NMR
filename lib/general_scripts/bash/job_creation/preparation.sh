@@ -25,6 +25,13 @@ run_crest() {
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${name}.xyz" "${directory}" "crest"
+		substitute_name_sh_meta_end "$JOB_DIR" "crest_best.xyz"
+		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}"
+		construct_sh_meta "$JOB_DIR" "crest"
+	else
+		substitute_name_sh_wolf_start "$JOB_DIR"
+		substitute_name_sh "crest" "$JOB_DIR" "crest" "${name}"
+		construct_sh_wolf "$JOB_DIR" "crest"
 	fi
 
     obabel -imol2 "${INPUTS}/structures/${name}.mol2" -oxyz -O "${JOB_DIR}/${name}.xyz" > /dev/null 2>&1
