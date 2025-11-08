@@ -26,7 +26,7 @@ substitute_name_sh_meta_end() {
 	local src="lib/job_scripts/metacentrum_end.txt"
 	local dst_full="${dst}/end.txt"
 	[[ -f "$src" ]] || die "Missing template: $src"
-	sed "s/\${copy_end}/${cp_end}/g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	sed "s#\${copy_end}#${cp_end}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # substitute_name_sh_wolf_start DST
@@ -52,7 +52,7 @@ substitute_name_sh() {
 	local src="lib/job_scripts/programs/${fil}"
 	local dst_full="${dst}/job_file.txt"
 	[[ -f "$src" ]] || die "Missing template: $src"
-	sed "s/\${module}/${module}/g; s/\${name}/${name}/g; s/\${file}/${file}/g; s/\${num}/${num}/g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	sed "s#\${module}#${module}#g; s#\${name}#${name}#g; s#\${file}#${file}#g; s#\${num}#${num}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # construct_sh_wolf DIR NAME
