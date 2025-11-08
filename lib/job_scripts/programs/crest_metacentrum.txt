@@ -1,2 +1,8 @@
+mamba create -n crest -c conda-forge crest xtb
+
+conda activate crest
+
 crest ${name}.xyz --gfn2 --alpb water --T 8  > ${name}.out
+
+conda deactivate
 
