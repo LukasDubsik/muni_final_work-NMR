@@ -13,17 +13,18 @@ clean_process() {
 	local last_command=$1
 	local curr_sys=""
 
-	for file in "${LOG_MAP[@]}"; do
-		if [[ $file -gt $last_command ]]; then
-			if [[ $file -ge 0 && $file -le 4 ]]; then
+	for key in "${!LOG_MAP[@]}"; do
+		num=${LOG_MAP[$key]}
+		if [[ $num -gt $last_command ]]; then
+			if [[ $num -ge 0 && $num -le 4 ]]; then
 				curr_sys="preparations"
-			elif [[ $file -ge 5 && $file -le 10 ]]; then
+			elif [[ $num -ge 5 && $num -le 10 ]]; then
 				curr_sys="simulation"
 			else
 				curr_sys="spectrum"
 			fi
-			echo "process/${curr_sys}/${file}/"
-			rm -rf "process/${curr_sys}/${file}/"
+			echo "process/${curr_sys}/${key}/"
+			rm -rf "process/${curr_sys}/${key}/"
 		fi
 	done
 }
