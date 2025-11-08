@@ -73,3 +73,27 @@ construct_sh_wolf() {
 	#And add the script itself
 	echo -n "${dir}/job.txt" >> "$full_name"
 }
+
+# construct_sh_meta DIR NAME
+# Combines the starting file for Metacentrum with the already substituted file for the job itself
+# 	Thus creating a fully working .sh script ready to be submitted to the cluster.
+# Globals: none
+# Returns: Nothing
+construct_sh_meta() {
+	local dir=$1 name=$2
+	local full_name="${dir}/${name}.sh"
+
+	#Create the resulting file
+	touch "$full_name"
+
+	{
+		#Add the start
+		echo -n "${dir}/start.txt"
+
+		#And add the script itself
+		echo -n "${dir}/job.txt"
+
+		#Lastly add the end of the script
+		echo -n "${dir}/end.txt" 
+	} >> "$full_name"
+}
