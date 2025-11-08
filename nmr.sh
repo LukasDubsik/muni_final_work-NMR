@@ -106,7 +106,7 @@ main() {
 		gauss_mod="g16"
 	fi
 
-	check_modules "$amber_mod" "$gauss_mod"
+	check_modules "$amber_mod" "$gauss_mod" "$meta"
 	check_requires
 
 	# ----- Load Log -----

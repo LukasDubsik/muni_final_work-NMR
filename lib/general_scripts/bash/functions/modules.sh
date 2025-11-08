@@ -11,7 +11,7 @@ check_module() { module add "$1" > /dev/null 2>&1 || die "Couldn't add the modul
 
 check_module_conda() {
 	conda activate "$1" > /dev/null 2>&1 || die "Couldn't activate conda enviroment";
-	module add "$1" > /dev/null 2>&1 || die "Couldn't add the module: $1"; 
+	crest --help > /dev/null 2>&1 || die "Couldn't add the module: $1"; 
 	conda deactivate > /dev/null 2>&1 || die "Couldn't exit conda enviroment";
 }
 
@@ -19,9 +19,10 @@ check_modules() {
 	#Load the parametrs
 	local amber_mod=$1
 	local gauss_mod=$2
+	local meta=$3
 
 	#That crest is available
-	if [[ $meta == "true" ]]; then
+	if [[ "$meta" == "true" ]]; then
 		#On metacentrum crest needs conda additionaly to be run
 		check_module_conda "crest"
 	else
