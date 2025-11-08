@@ -36,9 +36,8 @@ run_crest() {
 
     obabel -imol2 "${INPUTS}/structures/${name}.mol2" -oxyz -O "${JOB_DIR}/${name}.xyz" > /dev/null 2>&1
     #Run the crest simulation
-    submit_job "$meta" "crest" "$JOB_DIR" 4 16 0 "01:00:00"
-	success "Job"
-    wait_job $?
+    jobid=$( submit_job "$meta" "crest" "$JOB_DIR" 4 16 0 "01:00:00" )
+    wait_job "$jobid"
     #Convert back to mol2 format
     obabel -ixyz "${JOB_DIR}/crest_best.xyz" -omol2 -O "${JOB_DIR}/${name}_crest.mol2" > /dev/null 2>&1
     
