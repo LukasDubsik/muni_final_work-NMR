@@ -100,6 +100,11 @@ check_modules() {
 		check_module "crest"
 	fi
 
+	#That pmemd.cuda is available - only for Wolf side of things
+	if [[ $meta == "false" ]]; then
+		check_module "pmemd-cuda"
+	fi
+
 	#That Amber is available
 	check_module "$amber_mod"
 
@@ -108,11 +113,25 @@ check_modules() {
 
 	succes "All the modules (crest, amber, gaussian) are present"
 }
-# require FUNCTION_NAME
+
+# check_require FUNCTION_NAME
 # Tries to find the path to the function.
 # Globals: none
 # Returns: Exits if the function can't be run, otherwise nothing.
-require() { command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"; }
+check_require() { command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"; }
+check_requires() {
+	#That antechamber is running
+	check_require "antechamber"
+
+	#And so on
+	check_require "parmchk2"
+	check_require "pmemd"
+	check_require "pmemd.cuda"
+	check_require "cpptraj"
+	check_require "gaussian"
+
+	succes "All functions within the modules are present"
+}
 
 # ensure_dir DIR_NAME
 # Makes sure the dir exists by creating it
