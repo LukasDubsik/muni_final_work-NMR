@@ -12,6 +12,17 @@
 set -Eeuo pipefail
 shopt -s lastpipe
 
+#Load the libraries
+SCRIPT_DIR=${BASH_SOURCE[0]%/*}
+LIB_PATH="lib/general_scripts/bash/functions"
+
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/${LIB_PATH}/utilities.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/${LIB_PATH}/modules.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/${LIB_PATH}/input_handling.sh"
+
 # on_error
 # Inform the user about what happened upon an error occuring
 # Globals: none
@@ -72,16 +83,6 @@ Options:
 This scripts is a pipeline for getting NMr spectra data by using crest/amber/gaussian.
 EOF
 }
-
-
-# ----- Utilities -----
-# Functions to check if files present, validy process occured or prepare script enviroment
-
-# ensure_dir DIR_NAME
-# Makes sure the dir exists by creating it
-# Globals: none
-# Returns: Nothing
-ensure_dir() { mkdir -p -- "$1"; }
 
 # ----- Job Submission -----
 # Functions for submitting a job
