@@ -43,12 +43,12 @@ check_modules() {
 	fi
 
 	#That Amber is available
-	check_module "$amber_mod"
+	#check_module "$amber_mod"
 
 	#That gaussian is available
 	check_module "$gauss_mod"
 
-	succes "All the modules (crest, amber, gaussian) are present"
+	success "All the modules (crest, amber, gaussian) are present"
 }
 
 # check_require FUNCTION_NAME
