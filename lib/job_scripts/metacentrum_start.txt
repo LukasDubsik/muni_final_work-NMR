@@ -2,6 +2,8 @@
 
 DATADIR=${dir}/process/preparations/${job}
 
+ENV="/storage/brno2/home/lukasdubsik/.conda/envs/crest"
+
 echo "$PBS_JOBID is running on node $(hostname -f) in a scratch directory $SCRATCHDIR" >> "$DATADIR/jobs_info.txt"
 
 test -n "$SCRATCHDIR" || { echo >&2 "Variable SCRATCHDIR is not set!"; exit 1; }
