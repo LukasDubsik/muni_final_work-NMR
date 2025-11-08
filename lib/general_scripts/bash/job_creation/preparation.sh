@@ -26,7 +26,7 @@ run_crest() {
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "${name}.xyz" "${directory}" "crest"
+		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}.xyz" "${directory}" "crest"
 		substitute_name_sh_meta_end "$JOB_DIR" "crest_best.xyz"
 		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}" "" ""
 		construct_sh_meta "$JOB_DIR" "crest"

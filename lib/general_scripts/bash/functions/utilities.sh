@@ -23,7 +23,6 @@ clean_process() {
 			else
 				curr_sys="spectrum"
 			fi
-			echo "process/${curr_sys}/${key}/"
 			rm -rf "process/${curr_sys}/${key}/"
 		fi
 	done
