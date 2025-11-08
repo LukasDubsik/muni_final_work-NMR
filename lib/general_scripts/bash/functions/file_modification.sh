@@ -68,10 +68,10 @@ construct_sh_wolf() {
 	touch "$full_name"
 
 	#Add the start
-	echo -n "${dir}/start.txt" >> "$full_name"
+	cat "${dir}/start.txt" >> "$full_name"
 
 	#And add the script itself
-	echo -n "${dir}/job.txt" >> "$full_name"
+	cat "${dir}/job.txt" >> "$full_name"
 }
 
 # construct_sh_meta DIR NAME
@@ -88,12 +88,12 @@ construct_sh_meta() {
 
 	{
 		#Add the start
-		echo -n "${dir}/start.txt"
+		cat "${dir}/start.txt"
 
 		#And add the script itself
-		echo -n "${dir}/job.txt"
+		cat "${dir}/job.txt"
 
 		#Lastly add the end of the script
-		echo -n "${dir}/end.txt" 
+		cat "${dir}/end.txt" 
 	} >> "$full_name"
 }

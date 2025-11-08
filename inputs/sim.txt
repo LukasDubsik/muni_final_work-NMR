@@ -15,7 +15,7 @@ gpu:=true
 meta:=true
 
 ##Directory for metacentrum - where this directory is present (only if meta set to true)
-directory:=/storage/brno2/home/lukasdubsik/NMR_meta
+directory:=/storage/brno2/home/lukasdubsik/muni/final_work/novel
 
 ##The Amber version we are using (metacentrum has may and not all are available to all)
 amber:=/22.1.3-gcc-10.2.1-man1
