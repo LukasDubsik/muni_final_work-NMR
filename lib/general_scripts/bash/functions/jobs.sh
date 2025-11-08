@@ -13,6 +13,8 @@ submit_job() {
 	ensure_dir "$job_dir"
 	local script="$job_dir/${name}.sh"
 
+	success "Job0"
+
 	#Submit the job based on meta/wolf
 	local jobid out
 	if [[ $meta == "false" ]]; then
@@ -23,13 +25,19 @@ submit_job() {
 		out=$(qsub -q default -l "${select}" -l "walltime=${walltime}" "$script" || true)
 	fi
 
+	success "Job1"
+
 	#Extract numeric job id
 	IFS='.' read -r -a jobid_arr <<< "$out"
     IFS=' ' read -r -a jobid_arr2 <<< "${jobid_arr[0]}"
 	jobid=${jobid_arr2[-1]}
 
+	success "Job2"
+
 	#Check that the job was succesfully submitted and exit
 	[[ -n "$jobid" ]] || die "Failed to submit job '${name}': $out"
+
+	success "Job3"
 
 	return "$jobid"
 }
