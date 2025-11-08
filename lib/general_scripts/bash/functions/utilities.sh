@@ -14,7 +14,6 @@ clean_process() {
 	local curr_sys=""
 
 	for file in "${LOG_MAP[@]}"; do
-	echo $file
 		if [[ $file -gt $last_command ]]; then
 			if [[ $file -ge 0 && $file -le 4 ]]; then
 				curr_sys="preparations"
@@ -23,6 +22,7 @@ clean_process() {
 			else
 				curr_sys="spectrum"
 			fi
+			echo "process/${curr_sys}/${file}/"
 			rm -rf "process/${curr_sys}/${file}/"
 		fi
 	done
