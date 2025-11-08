@@ -143,11 +143,7 @@ main() {
 	# ----- Load Log -----
 	# Load the log of the previous run - start from the last succesfull operation
 	LOG="run.log"
-	LOG_POSITION=0
-
-	#if [[ -f $LOG ]]; then
-	#	LOG_POSITION=$( read_log "$LOG" )
-	#fi
+	LOG_POSITION=$( read_log "$LOG" )
 
 
 	# ----- Modules/Functions -----
