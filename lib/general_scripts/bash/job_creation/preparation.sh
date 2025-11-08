@@ -26,11 +26,11 @@ run_crest() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${name}.xyz" "${directory}" "crest"
 		substitute_name_sh_meta_end "$JOB_DIR" "crest_best.xyz"
-		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}"
+		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}" "" ""
 		construct_sh_meta "$JOB_DIR" "crest"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "crest" "$JOB_DIR" "crest" "${name}"
+		substitute_name_sh "crest" "$JOB_DIR" "crest" "${name}" "" ""
 		construct_sh_wolf "$JOB_DIR" "crest"
 	fi
 
