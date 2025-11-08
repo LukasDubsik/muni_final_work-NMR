@@ -49,7 +49,7 @@ substitute_name_sh_wolf_start() {
 substitute_name_sh() {
 	# Sed used to replace the name
 	local fil=$1 dst=$2 module=$3 name=$4 file=$5 num=$6
-	local src="lib/job_scripts/programs/${fil}"
+	local src="lib/job_scripts/programs/${fil}.txt"
 	local dst_full="${dst}/job_file.txt"
 	[[ -f "$src" ]] || die "Missing template: $src"
 	sed "s#\${module}#${module}#g; s#\${name}#${name}#g; s#\${file}#${file}#g; s#\${num}#${num}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
