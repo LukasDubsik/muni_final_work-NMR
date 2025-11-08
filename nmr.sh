@@ -118,6 +118,9 @@ main() {
 	LOG="run.log"
 	LOG_POSITION=$( read_log "$LOG" )
 
+	#Clear the files not important for the log
+	clean_process "$LOG_POSITION"
+
 
 	# ----- Modules/Functions -----
 	# Make sure all the necessary modules and their functions are available
