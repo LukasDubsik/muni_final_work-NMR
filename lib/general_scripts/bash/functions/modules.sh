@@ -35,7 +35,12 @@ check_modules() {
 	fi
 
 	#That Obabel is available (file conversion)
-	check_module "obabel"
+	if [[ "$meta" == "true" ]]; then
+		#On metacentrum named differently
+		check_module "openbabel"
+	else
+		check_module "obabel"
+	fi
 
 	#That Amber is available
 	check_module "$amber_mod"
