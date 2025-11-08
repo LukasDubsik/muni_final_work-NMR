@@ -6,7 +6,7 @@ _JOBS_SH_LOADED=1
 # submit_job META NAME JOB_DIR MEM_GB NCPUS NGPUS WALLTIME
 # Submits the given .sh file for executing on the cluster
 # Globals: none
-# Returns: The id of the submitted job
+# Returns: Nothing
 submit_job() {
 	#Get the parameters into local variables
 	local meta=$1 name=$2 job_dir=$3 mem_gb=$4 ncpus=$5 ngpus=$6 walltime=$7
@@ -39,7 +39,7 @@ submit_job() {
 
 	success "Job3"
 
-	return "$jobid"
+	wait_job "$jobid"
 }
 
 # wait_job JOBID
