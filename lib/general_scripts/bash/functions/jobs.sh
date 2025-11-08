@@ -11,7 +11,10 @@ submit_job() {
 	#Get the parameters into local variables
 	local meta=$1 name=$2 job_dir=$3 mem_gb=$4 ncpus=$5 ngpus=$6 walltime=$7
 	ensure_dir "$job_dir"
-	local script="$job_dir/${name}.sh"
+	local script="${name}.sh"
+
+	curr_dir=$( pwd )
+	cd "$job_dir" || exit 1
 
 	#Submit the job based on meta/wolf
 	local jobid out
@@ -32,6 +35,8 @@ submit_job() {
 	[[ -n "$jobid" ]] || die "Failed to submit job '${name}': $out"
 
 	wait_job "$jobid"
+
+	cd "$curr_dir" || exit 1
 }
 
 # wait_job JOBID
