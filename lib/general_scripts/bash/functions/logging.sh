@@ -21,7 +21,7 @@ declare -A LOG_MAP=(
 )
 
 # read_log LOG_FILE
-# reads the current log file and returns the number of the last succesfull operation, then nulls it.
+# Reads the current log file and returns the number of the last succesfull operation, then nulls it.
 # Globals: none
 # Returns: The number of the last file
 read_log() {
@@ -38,4 +38,15 @@ read_log() {
 
 	#Convert that lineinto a number nd return it
 	return "${LOG_MAP["$LOG_LAST"]}"
+}
+
+# add_to_log RUNNED_NAME LOG_FILE
+# Ads to the log file name of the currently run operation
+# Globals: none
+# Returns: Nothing
+add_to_log() {
+	local NAME=$1
+	local LOG=$2
+
+	echo "$NAME" >> "$LOG"
 }
