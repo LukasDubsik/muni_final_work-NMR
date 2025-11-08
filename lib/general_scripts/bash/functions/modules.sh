@@ -43,7 +43,7 @@ check_modules() {
 	fi
 
 	#That Amber is available
-	#check_module "$amber_mod"
+	check_module "$amber_mod"
 
 	#That gaussian is available
 	check_module "$gauss_mod"
