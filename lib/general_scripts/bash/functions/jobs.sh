@@ -48,7 +48,6 @@ submit_job() {
 # Returns: Nothing
 wait_job() {
 	local jobid=$1
-	require qstat || { info "qstat not found; skipping wait"; return 0; }
 	while qstat "$jobid" >/dev/null 2>&1; do 
 		sleep 10
 	done

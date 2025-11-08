@@ -68,5 +68,8 @@ check_requires() {
 	check_require "cpptraj"
 	check_require "g16"
 
+	#Check additional enviroment values of metacentrum
+	check_require "qstat"
+
 	success "All functions within the modules are present"
 }
