@@ -3,4 +3,4 @@ ls >> "$DATADIR/jobs_info.txt"
 
 cp * $DATADIR/ || { echo >&2 "Result file(s) copying failed (with a code $?) !!"; exit 4; }
 
-clean_scratch
+#clean_scratch
