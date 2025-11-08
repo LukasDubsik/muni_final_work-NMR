@@ -22,10 +22,7 @@ check_modules() {
 	local meta=$3
 
 	#That crest is available
-	if [[ "$meta" == "true" ]]; then
-		#On metacentrum crest needs conda additionaly to be run
-		check_module_conda "crest"
-	else
+	if [[ "$meta" == "false" ]]; then
 		check_module "crest"
 	fi
 
