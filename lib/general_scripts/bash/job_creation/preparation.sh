@@ -109,10 +109,12 @@ run_parmchk2() {
 	local meta=$3
 	local amber=$4
 
-	info "Started running parmchk2"
+	local job_name="parmchk2"
+
+	info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
-	JOB_DIR="process/preparations/parmchk2"
+	JOB_DIR="process/preparations/$job_name"
 	ensure_dir $JOB_DIR
 
 	SRC_DIR="process/preparations/antechamber"
@@ -124,22 +126,22 @@ run_parmchk2() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}_charges.mol2" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "antechamber" "$JOB_DIR" "$amber" "$name" "" ""
-		construct_sh_meta "$JOB_DIR" "antechamber"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" ""
+		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "antechmaber" "$JOB_DIR" "$amber" "$name" "" ""
-		construct_sh_wolf "$JOB_DIR" "antechamber"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" ""
+		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
     #Run the antechmaber
-    submit_job "$meta" "antechmaber" "$JOB_DIR" 4 4 0 "01:00:00"
+    submit_job "$meta" "$job_name" "$JOB_DIR" 4 4 0 "01:00:00"
 
 	#Check that the final files are truly present
-	check_res_file "${name}_charges.mol2" "$JOB_DIR" "antechamber"
+	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
 
-	success "\tantechamber has finished correctly"
+	success "\t$job_name has finished correctly"
 
 	#Write to the log a finished operation
-	add_to_log "antechamber" "$LOG"
+	add_to_log "$job_name" "$LOG"
 }
