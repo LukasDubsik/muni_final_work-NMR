@@ -124,10 +124,18 @@ main() {
 	clean_process "$LOG_POSITION"
 
 
-	# ----- Modules/Functions -----
-	# Make sure all the necessary modules and their functions are available
-	if [[ 1 -gt $LOG_POSITION ]]; then
-		run_crest "$name" "$directory" "$meta" "$mamba"
+	# ----- Preparations -----
+	# prepare the enviroment if the input has been set to the mol2
+	if [[ $input_type == "mol2" ]]; then
+		#Run crest
+		if [[ 1 -gt $LOG_POSITION ]]; then
+			run_crest "$name" "$directory" "$meta" "$mamba"
+		fi
+
+		#Run antechmaber
+		if [[ 2 -gt $LOG_POSITION ]]; then
+			run_antechamber "$name" "$directory" "$meta" "$amber_mod"
+		fi
 	fi
 }
 

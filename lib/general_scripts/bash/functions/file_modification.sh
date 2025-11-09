@@ -16,17 +16,17 @@ substitute_name_sh_meta_start() {
 	sed "s#\${copy}#${copy}#g; s#\${dir}#${dir}#g; s#\${job}#${job}#g; s#\${env}#${env}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
-# substitute_name_sh_meta_end DST COPY_END
+# substitute_name_sh_meta_end DST
 # What files to copy back to our working dir from the running dir
 # Globals: none
 # Returns: Nothing
 substitute_name_sh_meta_end() {
 	# Sed used to replace the name
-	local dst=$1 cp_end=$2
+	local dst=$1
 	local src="lib/job_scripts/metacentrum_end.txt"
 	local dst_full="${dst}/end.txt"
 	[[ -f "$src" ]] || die "Missing template: $src"
-	sed "s#\${copy_end}#${cp_end}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	cp "$src" "$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # substitute_name_sh_wolf_start DST

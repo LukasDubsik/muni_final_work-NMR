@@ -28,7 +28,7 @@ run_crest() {
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}.xyz" "${directory}" "crest" "$env"
-		substitute_name_sh_meta_end "$JOB_DIR" "crest_best.xyz"
+		substitute_name_sh_meta_end "$JOB_DIR"
 		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}" "" ""
 		construct_sh_meta "$JOB_DIR" "crest"
 	else
@@ -43,14 +43,17 @@ run_crest() {
     #Convert back to mol2 format
     obabel -ixyz "${JOB_DIR}/crest_best.xyz" -omol2 -O "${JOB_DIR}/${name}_crest.mol2" > /dev/null 2>&1
     
-	success "crest has finished correctly"
+	#Check that the final files are truly present
+	check_res_file "${name}_crest.mol2" "$JOB_DIR" "crest"
+
+	success "\tcrest has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "crest" "$LOG"
 }
 
-# run_antechamber NAME DIRECTORY META
-# Runs everything pertaining crest
+# run_antechamber NAME DIRECTORY META AMBER
+# Runs everything pertaining to antechmaber
 # Globals: none
 # Returns: Nothing
 run_antechamber() {
@@ -58,37 +61,35 @@ run_antechamber() {
 	local name=$1
 	local directory=$2
 	local meta=$3
-	local env=$4
+	local amber=$4
 
-	info "Started running crest"
-
-	#Start with finding the most stable conformation
-    module add openbabel > /dev/null 2>&1
+	info "Started running antechamber"
 
     #Start by converting the input mol into a xyz format -necessary for crest
-	JOB_DIR="process/preparations/crest"
+	JOB_DIR="process/preparations/antechamber"
 	ensure_dir $JOB_DIR
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}.xyz" "${directory}" "crest" "$env"
-		substitute_name_sh_meta_end "$JOB_DIR" "crest_best.xyz"
-		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}" "" ""
-		construct_sh_meta "$JOB_DIR" "crest"
+		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}_crest.mol2" "${directory}" "antechamber" ""
+		substitute_name_sh_meta_end "$JOB_DIR"
+		substitute_name_sh "antechamber" "$JOB_DIR" "$amber" "$name" "" ""
+		construct_sh_meta "$JOB_DIR" "antechamber"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "crest" "$JOB_DIR" "crest" "${name}" "" ""
-		construct_sh_wolf "$JOB_DIR" "crest"
+		substitute_name_sh "antechmaber" "$JOB_DIR" "$amber" "$name" "" ""
+		construct_sh_wolf "$JOB_DIR" "antechamber"
 	fi
 
-    obabel -imol2 "${INPUTS}/structures/${name}.mol2" -oxyz -O "${JOB_DIR}/${name}.xyz" > /dev/null 2>&1
-    #Run the crest simulation
-    submit_job "$meta" "crest" "$JOB_DIR" 4 16 0 "01:00:00"
-    #Convert back to mol2 format
-    obabel -ixyz "${JOB_DIR}/crest_best.xyz" -omol2 -O "${JOB_DIR}/${name}_crest.mol2" > /dev/null 2>&1
-    
-	success "crest has finished correctly"
+    #Run the antechmaber
+    submit_job "$meta" "antechmaber" "$JOB_DIR" 4 4 0 "01:00:00"
+
+	#Check that the final files are truly present
+	check_res_file "${name}_charges.mol2" "$JOB_DIR" "antechamber"
+
+	success "\tantechamber has finished correctly"
 
 	#Write to the log a finished operation
-	add_to_log "crest" "$LOG"
+	add_to_log "antechamber" "$LOG"
 }
+
