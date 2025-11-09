@@ -44,4 +44,7 @@ run_crest() {
     obabel -ixyz "${JOB_DIR}/crest_best.xyz" -omol2 -O "${JOB_DIR}/${name}_crest.mol2" > /dev/null 2>&1
     
 	success "crest has finished correctly"
+
+	#Write to the log a finished operation
+	add_to_log "crest" "$LOG"
 }

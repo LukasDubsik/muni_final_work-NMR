@@ -61,6 +61,8 @@ name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba=""
 
+LOG="log.txt"
+
 # ----- Output Functions -----
 # Functions focusing on informing user about the program's state
 
@@ -113,9 +115,9 @@ main() {
 	check_modules "$amber_mod" "$gauss_mod" "$meta"
 	check_requires
 
+
 	# ----- Load Log -----
 	# Load the log of the previous run - start from the last succesfull operation
-	LOG="run.log"
 	LOG_POSITION=$( read_log "$LOG" )
 
 	#Clear the files not important for the log
