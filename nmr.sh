@@ -46,7 +46,7 @@ on_error() {
 	local rc=$1
 	local lineno=$2
 	printf "[FATAL] %s:%s: command failed (rc=%d)\n" "${BASH_SOURCE[0]}" "$lineno" "$rc" 1>&2
-	exit "$rc"
+	exit "$rc" 
 }
 trap 'on_error $? $LINENO' ERR
 
