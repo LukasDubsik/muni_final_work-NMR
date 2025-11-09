@@ -40,12 +40,11 @@ check_in_file() {
 	success ".in present: $file"
 }
 
-check_sh_file() {
+check_res_file() {
 	# Check that given sh script truly present
-	local name=$1 dir=$2
-	local file="$dir/${name}.sh"
-	[[ -f "$file" ]] || die "Missing script: $file"
-	success ".sh present: $file"
+	local name=$1 dir=$2 job=$3
+	local file="$dir/${name}"
+	[[ -f "$file" ]] || die "Result ${file} from ${job} is missing!"
 }
 
 load_cfg() {
