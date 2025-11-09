@@ -50,7 +50,7 @@ check_res_file() {
 move_inp_file(){
 	local name=$1 src_dir=$2 dst_dir=$3
 	local src="$src_dir/$name"
-	local dst="$dst/$name"
+	local dst="$dst_dir/$name"
 	[[ -f "$src" ]] || die "Couldn't find $name from previos job in $src_dir!"
 	cp "$src" "$dst" || die "The file couldn't be copied from $src_dir to $dst_dir"
 }
