@@ -19,7 +19,7 @@ info() { log INFO "$1"; }
 # Print that given program section executed correctly
 # Globals: none
 # Returns: Nothing
-success() { printf "[%bOK%b] %s\n" "${GREEN}" "${NC}" "$1"; }
+success() { printf "\t[%bOK%b] %s\n" "${GREEN}" "${NC}" "$1"; }
 # warning
 # Print a warning to the user
 # Globals: none

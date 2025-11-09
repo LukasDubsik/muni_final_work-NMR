@@ -47,7 +47,7 @@ run_crest() {
 	#Check that the final files are truly present
 	check_res_file "${name}_crest.mol2" "$JOB_DIR" "$job_name"
 
-	success "\t$job_name has finished correctly"
+	success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -95,7 +95,7 @@ run_antechamber() {
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
 
-	success "\t$job_name has finished correctly"
+	success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -143,7 +143,7 @@ run_parmchk2() {
 	#Check that the final files are truly present
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
 
-	success "\t$job_name has finished correctly"
+	success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -175,7 +175,7 @@ run_nemesis_fix() {
 	#Check that the final files are truly present
 	check_res_file "${name}_charges_fix.mol2" "$JOB_DIR" "$job_name"
 
-	success "\t$job_name has finished correctly"
+	success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -229,7 +229,7 @@ run_tleap() {
 	check_res_file "${name}.rst7" "$JOB_DIR" "$job_name"
 	check_res_file "${name}.parm7" "$JOB_DIR" "$job_name"
 
-	success "\t$job_name has finished correctly"
+	success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"

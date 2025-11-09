@@ -104,9 +104,9 @@ load_cfg() {
 		mamba=$(get_cfg 'mamba')
 
 		info "All the informations for metacentrum loaded correctly:"
-		info "/tdirectory=$directory"
-		info "/tamber=$amber_ext"
-		info "/tmamba=$mamba"
+		info "directory=$directory"
+		info "amber=$amber_ext"
+		info "mamba=$mamba"
 	fi
 
 	#Additional parametrs for specfic programs - only for mol2
@@ -115,8 +115,8 @@ load_cfg() {
 		parmchk2_cmd=$(get_cfg 'parmchk2')
 
 		info "All the additional parametrs for mol2 loaded correctly"
-		info "$antechamber_cmd"
-		info "$parmchk2_cmd"
+		info "\t$antechamber_cmd"
+		info "\t$parmchk2_cmd"
 	fi
 
 	#Load the names of the .in files (all need to be under inputs/simulation/)
