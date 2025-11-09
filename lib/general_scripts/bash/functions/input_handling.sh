@@ -93,7 +93,13 @@ load_cfg() {
 		#What version of amber are we using
 		amber_ext=$(get_cfg 'amber')
 
-		info "All the informations for metacentrum loaded correctly: directory=$directory, amber=$amber_ext"
+		#Where the crest conda mamda env is located
+		mamba=$(get_cfg 'mamba')
+
+		info "All the informations for metacentrum loaded correctly:"
+		info "/tdirectory=$directory"
+		info "/tamber=$amber_ext"
+		info "/tmamba=$mamba"
 	fi
 
 	#Additional parametrs for specfic programs - only for mol2

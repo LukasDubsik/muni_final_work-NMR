@@ -59,7 +59,7 @@ declare -A Params
 #Give global variables given in external functions default value here
 name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
-md_iterations="" antechamber_cmd="" parmchk2_cmd=""
+md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba=""
 
 # ----- Output Functions -----
 # Functions focusing on informing user about the program's state
@@ -125,7 +125,7 @@ main() {
 	# ----- Modules/Functions -----
 	# Make sure all the necessary modules and their functions are available
 	if [[ 1 -gt $LOG_POSITION ]]; then
-		run_crest "$name" "$directory" "$meta"
+		run_crest "$name" "$directory" "$meta" "$mamba"
 	fi
 }
 
