@@ -27,7 +27,7 @@ run_crest() {
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}.xyz" "${directory}" "crest" "$env"
+		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}.xyz" "${directory}" "$env"
 		substitute_name_sh_meta_end "$JOB_DIR"
 		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}" "" ""
 		construct_sh_meta "$JOB_DIR" "crest"
@@ -69,9 +69,14 @@ run_antechamber() {
 	JOB_DIR="process/preparations/antechamber"
 	ensure_dir $JOB_DIR
 
+	SRC_DIR="process/preparations/crest"
+
+	#Copy the data from crest
+	move_inp_file "${name}_crest.mol2" "$SRC_DIR" "$JOB_DIR"
+
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}_crest.mol2" "${directory}" "antechamber" ""
+		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}_crest.mol2" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
 		substitute_name_sh "antechamber" "$JOB_DIR" "$amber" "$name" "" ""
 		construct_sh_meta "$JOB_DIR" "antechamber"
@@ -110,9 +115,14 @@ run_parmchk2() {
 	JOB_DIR="process/preparations/parmchk2"
 	ensure_dir $JOB_DIR
 
+	SRC_DIR="process/preparations/antechamber"
+
+	#Copy the data from antechamber
+	move_inp_file "${name}_charges.mol2" "$SRC_DIR" "$JOB_DIR"
+
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}_crest.mol2" "${directory}" "antechamber" ""
+		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}_charges.mol2" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
 		substitute_name_sh "antechamber" "$JOB_DIR" "$amber" "$name" "" ""
 		construct_sh_meta "$JOB_DIR" "antechamber"

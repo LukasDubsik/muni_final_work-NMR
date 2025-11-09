@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-DATADIR=${dir}/process/preparations/${job}
+DATADIR=${dir}/${job}
 
 ENV=${env}
 
