@@ -72,6 +72,10 @@ construct_sh_wolf() {
 
 	#And add the script itself
 	cat "${dir}/job_file.txt" >> "$full_name"
+
+	#Remove the .txt files used for construction
+	rm -f "${dir}/start.txt"
+	rm -f "${dir}/job_file.txt"
 }
 
 # construct_sh_meta DIR NAME
@@ -96,4 +100,9 @@ construct_sh_meta() {
 		#Lastly add the end of the script
 		cat "${dir}/end.txt" 
 	} >> "$full_name"
+
+	#Remove the .txt files used for construction
+	rm -f "${dir}/start.txt"
+	rm -f "${dir}/job_file.txt"
+	rm -f "${dir}/end.txt"
 }
