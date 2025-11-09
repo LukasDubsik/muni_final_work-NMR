@@ -101,8 +101,8 @@ run_antechamber() {
 	add_to_log "$job_name" "$LOG"
 }
 
-# run_antechamber NAME DIRECTORY META AMBER
-# Runs everything pertaining to antechmaber
+# run_parmchk2 NAME DIRECTORY META AMBER
+# Runs everything pertaining to parmchk2
 # Globals: none
 # Returns: Nothing
 run_parmchk2() {
@@ -142,6 +142,38 @@ run_parmchk2() {
 
 	#Check that the final files are truly present
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
+
+	success "\t$job_name has finished correctly"
+
+	#Write to the log a finished operation
+	add_to_log "$job_name" "$LOG"
+}
+
+# run_nemesis_fix NAME
+# Moves the mol2 file through nemesis (openbabel) to correct some mistakes from antechmaber
+# Globals: none
+# Returns: Nothing
+run_nemesis_fix() {
+	#Load the inputs
+	local name=$1
+
+	local job_name="nemesis_fix"
+
+	info "Started running $job_name"
+
+    #Start by converting the input mol into a xyz format -necessary for crest
+	JOB_DIR="process/preparations/$job_name"
+	ensure_dir $JOB_DIR
+
+	SRC_DIR="process/preparations/antechamber"
+
+	#Copy the data from antechamber
+	move_inp_file "${name}_charges.mol2" "$SRC_DIR" "$JOB_DIR"
+
+	obabel -imol2 "$JOB_DIR/${name}_charges.mol2" -omol2 -O "$JOB_DIR/${name}_charges_fix.mol2" > /dev/null 2>&1
+
+	#Check that the final files are truly present
+	check_res_file "${name}_charges_fix.mol2" "$JOB_DIR" "$job_name"
 
 	success "\t$job_name has finished correctly"
 

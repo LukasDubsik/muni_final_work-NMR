@@ -8,16 +8,17 @@ declare -A LOG_MAP=(
   ["crest"]=1
   ["antechamber"]=2
   ["parmchk2"]=3
-  ["tleap"]=4
-  ["opt_water"]=5
-  ["opt_all"]=6
-  ["opt_temp"]=7
-  ["opt_pres"]=8
-  ["md"]=9
-  ["cpptraj"]=10
-  ["gauss_prep"]=11
-  ["nmr"]=12
-  ["plotting"]=13
+  ["nemesis_fix"]=4
+  ["tleap"]=5
+  ["opt_water"]=6
+  ["opt_all"]=7
+  ["opt_temp"]=8
+  ["opt_pres"]=9
+  ["md"]=10
+  ["cpptraj"]=11
+  ["gauss_prep"]=12
+  ["nmr"]=13
+  ["plotting"]=14
 )
 
 # read_log LOG_FILE
