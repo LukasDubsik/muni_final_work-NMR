@@ -180,3 +180,57 @@ run_nemesis_fix() {
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
 }
+
+# run_tleap NAME DIRECTORY META AMBER
+# Runs everything pertaining to parmchk2
+# Globals: none
+# Returns: Nothing
+run_tleap() {
+	#Load the inputs
+	local name=$1
+	local directory=$2
+	local meta=$3
+	local amber=$4
+
+	local job_name="tleap"
+
+	info "Started running $job_name"
+
+    #Start by converting the input mol into a xyz format -necessary for crest
+	JOB_DIR="process/preparations/$job_name"
+	ensure_dir $JOB_DIR
+
+	SRC_DIR_1="process/preparations/parmchk2"
+	SRC_DIR_2="process/preparations/nemesis_fix"
+	SRC_DIR_3="inputs/simulation/"
+
+	#Copy the data from antechamber
+	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
+	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
+	move_inp_file "$job_name.in" "$SRC_DIR_3" "$JOB_DIR"
+
+	#Constrcut the job file
+	if [[ $meta == "true" ]]; then
+		to_copy="\$DATADIR/${name}_charges_fix.mol2 \$DATADIR/${name}.frcmod \$DATADIR/$job_name.in"
+		substitute_name_sh_meta_start "$JOB_DIR" "$to_copy" "${directory}" ""
+		substitute_name_sh_meta_end "$JOB_DIR"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" ""
+		construct_sh_meta "$JOB_DIR" "$job_name"
+	else
+		substitute_name_sh_wolf_start "$JOB_DIR"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" ""
+		construct_sh_wolf "$JOB_DIR" "$job_name"
+	fi
+
+    #Run the antechmaber
+    submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
+
+	#Check that the final files are truly present
+	check_res_file "${name}.rst7" "$JOB_DIR" "$job_name"
+	check_res_file "${name}.parm7" "$JOB_DIR" "$job_name"
+
+	success "\t$job_name has finished correctly"
+
+	#Write to the log a finished operation
+	add_to_log "$job_name" "$LOG"
+}

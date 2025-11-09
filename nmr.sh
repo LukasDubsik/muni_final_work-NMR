@@ -146,6 +146,11 @@ main() {
 		if [[ 4 -gt $LOG_POSITION ]]; then
 			run_nemesis_fix "$name"
 		fi
+
+		#Run tleap
+		if [[ 5 -gt $LOG_POSITION ]]; then
+			run_tleap "$name" "$directory" "$meta" "$amber_mod"
+		fi
 	fi
 }
 
