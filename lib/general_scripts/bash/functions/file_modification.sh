@@ -10,11 +10,11 @@ _FILE_NMODIFICATION_SH_LOADED=1
 # Returns: Nothing
 substitute_name_in() {
 	# Sed used to replace the name
-	local fil=$1 dst=$2 name=$3
+	local fil=$1 dst=$2 name=$3 limit=$4
 	local src="inputs/simulation/${fil}.in"
 	local dst_full="${dst}/${fil}.in"
 	[[ -f "$src" ]] || die "Missing input file: $src"
-	sed "s#\${name}#${name}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # substitute_name_sh_meta_start DST COPY DIR JOB
