@@ -9,6 +9,9 @@ save_as:=cys_crest_md_long_only_cosmo_split_5_20ns_averaged
 #Check that all necessary files and librariues are present on the system and user can access them
 check_modules:=false
 
+#How many gauss frames to aberage through
+num_frames:=100
+
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
 
