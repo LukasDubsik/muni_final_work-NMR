@@ -16,13 +16,14 @@ clean_process() {
 	for key in "${!LOG_MAP[@]}"; do
 		num=${LOG_MAP[$key]}
 		if [[ $num -gt $last_command ]]; then
-			if [[ $num -ge 0 && $num -le 4 ]]; then
+			if [[ $num -ge 1 && $num -le 4 ]]; then
 				curr_sys="preparations"
 			elif [[ $num -ge 5 && $num -le 10 ]]; then
 				curr_sys="simulation"
 			else
 				curr_sys="spectrum"
 			fi
+			echo "process/${curr_sys}/${key}/"
 			rm -rf "process/${curr_sys}/${key}/"
 		fi
 	done
