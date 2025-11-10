@@ -263,7 +263,7 @@ run_md() {
 	add_to_log "$job_name" "$LOG"
 }
 
-# run_cpptraj NAME DIRECTORY META AMBER
+# run_cpptraj NAME DIRECTORY META AMBER CURR_RUN
 # Run cppytraj and sample the needed atoms/molecules for the gaussian NMR
 # Globals: none
 # Returns: Nothing
@@ -273,6 +273,7 @@ run_cpptraj() {
 	local directory=$2
 	local meta=$3
 	local amber=$4
+	local curr_run=$5
 
 	local job_name="cpptraj"
 
@@ -283,6 +284,7 @@ run_cpptraj() {
 	ensure_dir $JOB_DIR
 
 	SRC_DIR_1="process/simulation/md"
+	SRC_DIR_2="lib/general_scripts/bash/general"
 
 	#Copy the data from antechamber
 	move_inp_file "${name}_md.rst7" "$SRC_DIR_1" "$JOB_DIR"
@@ -308,6 +310,18 @@ run_cpptraj() {
 
 	#Check that the final files are truly present
 	check_res_file "${name}_frame.xyz" "$JOB_DIR" "$job_name"
+
+	#Split the .xyz file into individual files
+	#Move the bash script for it
+	move_inp_file "split_xyz.sh" "$SRC_DIR_2" "$JOB_DIR"
+
+	#Ensure the final dir exists
+    ensure_dir $JOB_DIR/frames
+
+	#Run the bash script
+    cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
+    bash split_xyz.sh "$curr_run" < "${name}_frame.xyz"
+    cd ../../../ || die "Couldn't return back from the cpptraj dir"
 
 	success "$job_name has finished correctly"
 
