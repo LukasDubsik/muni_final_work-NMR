@@ -68,6 +68,13 @@ LOG="log.txt"
 LOG_POSITION=""
 COUNTER=1
 
+#Number of how many total gaussians we are searching for averaging
+NUM_GAUSS=100
+
+if (( (NUM_GAUSS % md_iterations) != 0 )); then
+	die "100 must be divisible by the number of simulations!"
+fi
+
 # ----- Output Functions -----
 # Functions focusing on informing user about the program's state
 
@@ -167,6 +174,9 @@ main() {
 	# ----- Simulation Preparation -----
 	# Prepare the enviroment for saving data from individual simulations
 	ensure_dir "process/spectrum/gauss_prep/frames"
+
+	#Get the starting position for each md simulation frames counting
+
 
 
 	# ----- Simulation -----
