@@ -35,10 +35,10 @@ read_log() {
 	LOG_LAST=$( tail -n 1 "$LOG_FILE" )
 
 	#Restructure the log
-	rm -f "$LOG_FILE"
+	#rm -f "$LOG_FILE"
 
-	#Convert that lineinto a number nd return it
-	return "${LOG_MAP["$LOG_LAST"]}"
+	#Convert that line into a number and return it
+	return "${LOG_MAP[$LOG_LAST]}"
 }
 
 # add_to_log RUNNED_NAME LOG_FILE
