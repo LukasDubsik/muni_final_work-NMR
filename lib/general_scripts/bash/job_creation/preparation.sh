@@ -63,6 +63,7 @@ run_antechamber() {
 	local directory=$2
 	local meta=$3
 	local amber=$4
+	local antechamber_parms=$5
 
 	local job_name="antechamber"
 
