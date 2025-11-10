@@ -5,6 +5,10 @@
 name:=cys
 save_as:=cys_crest_md_long_only_cosmo_split_5_20ns_averaged
 
+##General option on how the job is run
+#Check that all necessary files and librariues are present on the system and user can access them
+check_modules:=false
+
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
 
