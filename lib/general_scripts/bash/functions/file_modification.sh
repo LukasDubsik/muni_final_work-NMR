@@ -3,6 +3,20 @@
 [[ ${_FILE_NMODIFICATION_SH_LOADED:-0} -eq 1 ]] && return
 _FILE_NMODIFICATION_SH_LOADED=1
 
+
+# substitute_name_in FIL DST NAME
+# Substitute values directly into the input script dor the job
+# Globals: none
+# Returns: Nothing
+substitute_name_in() {
+	# Sed used to replace the name
+	local fil=$1 dst=$2 name=$3
+	local src="inputs/simulation/${fil}.in"
+	local dst_full="${dst}/${fil}.in"
+	[[ -f "$src" ]] || die "Missing input file: $src"
+	sed "s#\${name}#${name}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+}
+
 # substitute_name_sh_meta_start DST COPY DIR JOB
 # Setup the start of the metacentrum job
 # Globals: none
