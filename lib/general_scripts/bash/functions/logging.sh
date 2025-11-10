@@ -54,9 +54,14 @@ add_to_log() {
 }
 
 # remove_run_log LOG_FILE
-# Removes the last 6 liones of log representing one md run so infor about the next may be started
+# Removes the last 6 lines of log representing one md run so infor about the next may be started
 # Globals: none
 # Returns: Nothing
 remove_run_log() {
+	local LOG_FILE=$1
 
+	# shellcheck disable=SC2034
+	for i in {1..6}; do 
+		sed '$d' -i "$LOG_FILE"
+	done
 }
