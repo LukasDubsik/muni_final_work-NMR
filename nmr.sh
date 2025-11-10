@@ -66,6 +66,7 @@ md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
 LOG="log.txt"
 
 LOG_POSITION=""
+COUNTER=1
 
 # ----- Output Functions -----
 # Functions focusing on informing user about the program's state
@@ -129,6 +130,9 @@ main() {
 	#Clear the files not important for the log
 	clean_process "$LOG_POSITION"
 
+	#Get the last run md simulation
+	find_sim_num "$md_iterations"
+
 
 	# ----- Preparations -----
 	# prepare the enviroment if the input has been set to the mol2
@@ -167,9 +171,7 @@ main() {
 
 	# ----- Simulation -----
 	# Run n times the full simulation pathway: Optimize - md - cpptraj
-	counter=0
-
-	while (( counter < md_iterations )); do
+	while (( COUNTER <= md_iterations )); do
 		#Optimaze the water
 		if [[ 6 -gt $LOG_POSITION ]]; then
 			run_opt_water "$name" "$directory" "$meta" "$amber_mod"
@@ -201,7 +203,7 @@ main() {
 		fi
 
 		#Break the circle here if the last one run
-		if (( counter == (md_iterations + 1) )); then 
+		if (( COUNTER == md_iterations )); then 
 			break; 
 		fi
 
@@ -209,7 +211,7 @@ main() {
 		remove_run_log "$LOG" 6
 
 		#Move the finished files
-		move_finished_job $(( counter + 1 ))
+		move_finished_job $COUNTER
 	done
 }
 

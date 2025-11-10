@@ -27,3 +27,24 @@ clean_process() {
 		fi
 	done
 }
+
+# find_sim_num MD_ITER
+# Finds what number of job should now be run
+# Globals: none
+# Returns: 0 if everyting okay, otherwise number that causes error
+find_sim_num() {
+	local MD_ITER=$1
+
+	SEARCH_DIR="process/"
+
+	for ((i=1; i <= MD_ITER; i++)); do 
+		if [[ -d "$SEARCH_DIR/run_$i" ]]; then
+			continue
+		else
+			COUNTER=$i
+			break
+		fi
+	done
+
+	info "The md runs have stopped at (wasn't completed): $COUNTER"
+}
