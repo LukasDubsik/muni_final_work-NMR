@@ -63,6 +63,8 @@ md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
 
 LOG="log.txt"
 
+LOG_POSITION=""
+
 # ----- Output Functions -----
 # Functions focusing on informing user about the program's state
 
@@ -121,7 +123,9 @@ main() {
 	# ----- Load Log -----
 	# Load the log of the previous run - start from the last succesfull operation
 	read_log "$LOG"
-	LOG_POSITION=$?
+
+	echo "$LOG_POSITION"
+	exit 1
 
 	#Clear the files not important for the log
 	clean_process "$LOG_POSITION"

@@ -24,7 +24,7 @@ declare -A LOG_MAP=(
 # read_log LOG_FILE
 # Reads the current log file and returns the number of the last succesfull operation, then nulls it.
 # Globals: none
-# Returns: The number of the last file
+# Returns: Nothing
 read_log() {
 	local LOG_FILE=$1
 	#If the logging is not present, it is okay, just return 0
@@ -37,16 +37,9 @@ read_log() {
 	#Restructure the log
 	#rm -f "$LOG_FILE"
 
-	echo 1
+	LOG_POSITION="${LOG_MAP[$LOG_LAST]}"
 
-	num="${LOG_MAP[$LOG_LAST]}"
-
-	echo $num
-
-	echo 2
-
-	#Convert that line into a number and return it
-	return "$num"
+	info "Detected Log position as: $LOG_POSITION"
 }
 
 # add_to_log RUNNED_NAME LOG_FILE
