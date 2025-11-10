@@ -59,7 +59,7 @@ declare -A Params
 #Give global variables given in external functions default value here
 name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
-md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba=""
+md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
 
 LOG="log.txt"
 
@@ -112,8 +112,10 @@ main() {
 		gauss_mod="g16"
 	fi
 
-	check_modules "$amber_mod" "$gauss_mod" "$meta"
-	check_requires
+	if [[ $c_modules == "true" ]]; then
+		check_modules "$amber_mod" "$gauss_mod" "$meta"
+		check_requires
+	fi
 
 
 	# ----- Load Log -----

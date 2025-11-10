@@ -37,9 +37,13 @@ read_log() {
 	#Restructure the log
 	#rm -f "$LOG_FILE"
 
+	echo 1
+
 	num="${LOG_MAP[$LOG_LAST]}"
 
 	echo $num
+
+	echo 2
 
 	#Convert that line into a number and return it
 	return "${LOG_MAP[$LOG_LAST]}"
