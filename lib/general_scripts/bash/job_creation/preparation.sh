@@ -211,12 +211,13 @@ run_tleap() {
 
 	SRC_DIR_1="process/preparations/parmchk2"
 	SRC_DIR_2="process/preparations/nemesis_fix"
-	SRC_DIR_3="inputs/simulation/"
 
 	#Copy the data from antechamber
 	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
-	move_inp_file "$job_name.in" "$SRC_DIR_3" "$JOB_DIR"
+
+	#Copy the .in file for tleap
+	substitute_name_in "$job_name.in" "$JOB_DIR" "$name"
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
