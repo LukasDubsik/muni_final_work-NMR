@@ -217,7 +217,7 @@ run_tleap() {
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
 
 	#Copy the .in file for tleap
-	substitute_name_in "$job_name" "$JOB_DIR" "$name"
+	substitute_name_in "$job_name" "$JOB_DIR" "$name" ""
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then

@@ -29,7 +29,7 @@ run_opt_water() {
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
 	#Copy the .in file for tleap
-	substitute_name_in "$job_name" "$JOB_DIR" "$name"
+	substitute_name_in "$job_name" "$JOB_DIR" "$name" ""
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
@@ -81,7 +81,7 @@ run_opt_all() {
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
 	#Copy the .in file for tleap
-	substitute_name_in "$job_name" "$JOB_DIR" "$name"
+	substitute_name_in "$job_name" "$JOB_DIR" "$name" ""
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
@@ -133,7 +133,7 @@ run_opt_temp() {
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
 	#Copy the .in file for tleap
-	substitute_name_in "$job_name" "$JOB_DIR" "$name"
+	substitute_name_in "$job_name" "$JOB_DIR" "$name" ""
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
@@ -185,7 +185,7 @@ run_opt_pres() {
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
 	#Copy the .in file for tleap
-	substitute_name_in "$job_name" "$JOB_DIR" "$name"
+	substitute_name_in "$job_name" "$JOB_DIR" "$name" ""
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
@@ -237,7 +237,7 @@ run_md() {
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
 	#Copy the .in file for tleap
-	substitute_name_in "$job_name" "$JOB_DIR" "$name"
+	substitute_name_in "$job_name" "$JOB_DIR" "$name" ""
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
@@ -274,6 +274,7 @@ run_cpptraj() {
 	local meta=$3
 	local amber=$4
 	local curr_run=$5
+	local limit=$6
 
 	local job_name="cpptraj"
 
@@ -291,7 +292,7 @@ run_cpptraj() {
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
 	#Copy the .in file for tleap
-	substitute_name_in "$job_name" "$JOB_DIR" "$name"
+	substitute_name_in "$job_name" "$JOB_DIR" "$name" "$limit"
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
