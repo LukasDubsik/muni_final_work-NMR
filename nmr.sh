@@ -196,11 +196,12 @@ main() {
 		fi
 
 		#Break the circle here if the last one run
-		if [[ $counter -eq $md_iterations ]]; then 
+		if (( counter == (md_iterations + 1) )); then 
 			break; 
 		fi
 
 		#Wipe the last 6 lines from the log (new simulation)
+		remove_run_log "$LOG" 6
 	done
 }
 
