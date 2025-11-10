@@ -39,7 +39,7 @@ read_log() {
 
 	LOG_POSITION="${LOG_MAP[$LOG_LAST]}"
 
-	info "Detected Log position as: $LOG_POSITION"
+	info "Detected Log position as: $LOG_LAST -> $LOG_POSITION"
 }
 
 # add_to_log RUNNED_NAME LOG_FILE
