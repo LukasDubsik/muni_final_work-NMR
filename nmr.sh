@@ -165,7 +165,7 @@ main() {
 
 		#Run tleap
 		if [[ 5 -gt $LOG_POSITION ]]; then
-			run_tleap "$name" "$directory" "$meta" "$amber_mod"
+			run_tleap "$name" "$directory" "$meta" "$amber_mod" "$tleap"
 		fi
 	fi
 
@@ -187,32 +187,32 @@ main() {
 	while (( COUNTER <= md_iterations )); do
 		#Optimaze the water
 		if [[ 6 -gt $LOG_POSITION ]]; then
-			run_opt_water "$name" "$directory" "$meta" "$amber_mod"
+			run_opt_water "$name" "$directory" "$meta" "$amber_mod" "$opt_water"
 		fi
 
 		#Optimaze the entire system
 		if [[ 7 -gt $LOG_POSITION ]]; then
-			run_opt_all "$name" "$directory" "$meta" "$amber_mod"
+			run_opt_all "$name" "$directory" "$meta" "$amber_mod" "$opt_all"
 		fi
 
 		#Heat the system
 		if [[ 8 -gt $LOG_POSITION ]]; then
-			run_opt_temp "$name" "$directory" "$meta" "$amber_mod"
+			run_opt_temp "$name" "$directory" "$meta" "$amber_mod" "$opt_temp"
 		fi
 
 		#Set production pressure in the system
 		if [[ 9 -gt $LOG_POSITION ]]; then
-			run_opt_pres "$name" "$directory" "$meta" "$amber_mod"
+			run_opt_pres "$name" "$directory" "$meta" "$amber_mod" "$opt_pres"
 		fi
 
 		#Run the molcular dynamics
 		if [[ 10 -gt $LOG_POSITION ]]; then
-			run_md "$name" "$directory" "$meta" "$amber_mod"
+			run_md "$name" "$directory" "$meta" "$amber_mod" "$md"
 		fi
 
 		#Sample with cpptraj
 		if [[ 11 -gt $LOG_POSITION ]]; then
-			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$(( position_start * COUNTER ))" "$LIMIT"
+			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$(( position_start * COUNTER ))" "$LIMIT" "$cpptraj"
 		fi
 
 		#Break the circle here if the last one run
