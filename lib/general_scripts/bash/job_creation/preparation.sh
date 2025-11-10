@@ -27,7 +27,7 @@ run_crest() {
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		module add openbabel > /dev/null 2>&1
-		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}.xyz" "${directory}" "$env"
+		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" "$env"
 		substitute_name_sh_meta_end "$JOB_DIR"
 		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
@@ -80,7 +80,7 @@ run_antechamber() {
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}_crest.mol2" "${directory}" ""
+		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
 		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$antechamber_parms"
 		construct_sh_meta "$JOB_DIR" "$job_name"
@@ -129,7 +129,7 @@ run_parmchk2() {
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "\$DATADIR/${name}_charges.mol2" "${directory}" ""
+		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
 		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$parmchk2_params"
 		construct_sh_meta "$JOB_DIR" "$job_name"
@@ -220,8 +220,7 @@ run_tleap() {
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
-		to_copy="\$DATADIR/${name}_charges_fix.mol2 \$DATADIR/${name}.frcmod \$DATADIR/$job_name.in"
-		substitute_name_sh_meta_start "$JOB_DIR" "$to_copy" "${directory}" ""
+		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
 		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"

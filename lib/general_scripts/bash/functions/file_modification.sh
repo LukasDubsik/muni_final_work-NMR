@@ -9,11 +9,11 @@ _FILE_NMODIFICATION_SH_LOADED=1
 # Returns: Nothing
 substitute_name_sh_meta_start() {
 	# Sed used to replace the name
-	local dst=$1 copy=$2 dir=$3 env=$4
+	local dst=$1 dir=$2 env=$3
 	local src="lib/job_scripts/metacentrum_start.txt"
 	local dst_full="${dst}/start.txt"
 	[[ -f "$src" ]] || die "Missing template: $src"
-	sed "s#\${copy}#${copy}#g; s#\${dir}#${dir}#g; s#\${job}#${dst}#g; s#\${env}#${env}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	sed "s#\${dir}#${dir}#g; s#\${job}#${dst}#g; s#\${env}#${env}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # substitute_name_sh_meta_end DST
