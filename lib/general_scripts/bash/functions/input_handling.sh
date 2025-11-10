@@ -150,3 +150,11 @@ check_cfg() {
 
 	success "All .in files are present and loaded."
 }
+
+get_number_of_atoms() {
+	local name=$1
+
+	LIMIT=$(grep -A 2 "^@<TRIPOS>MOLECULE" "inputs/structures/${name}.mol2" | tail -n 1 | awk '{print $1}')
+
+	info "The number of atoms of the system are: $LIMIT"
+}

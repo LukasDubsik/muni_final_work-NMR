@@ -69,6 +69,9 @@ LOG="log.txt"
 LOG_POSITION=""
 COUNTER=1
 
+#How many atoms the simulated molecule holds
+LIMIT=""
+
 # ----- Output Functions -----
 # Functions focusing on informing user about the program's state
 
@@ -105,6 +108,8 @@ main() {
 	# ----- Input Check -----
 	# Validate that all the input files given by the suer are explicitly present
 	check_cfg
+
+	get_number_of_atoms "$name"
 
 
 	# ----- Module Check -----
