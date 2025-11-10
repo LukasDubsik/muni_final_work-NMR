@@ -36,7 +36,9 @@ SUB_PATH="lib/general_scripts/bash/job_creation"
 
 #Load the libraries with job submission
 # shellcheck source=/dev/null
-source "${SUB_PATH}/preparation.sh"
+source "${SUB_PATH}/preparations.sh"
+# shellcheck source=/dev/null
+source "${SUB_PATH}/simulation.sh"
 
 # on_error
 # Inform the user about what happened upon an error occuring
@@ -156,6 +158,50 @@ main() {
 			run_tleap "$name" "$directory" "$meta" "$amber_mod"
 		fi
 	fi
+
+
+	# ----- Simulation -----
+	# Run n times the full simulation pathway: Optimize - md - cpptraj
+	counter=0
+
+	while (( counter < md_iterations )); do
+		#Optimaze the water
+		if [[ 6 -gt $LOG_POSITION ]]; then
+			run_opt_water "$name" "$directory" "$meta" "$amber_mod"
+		fi
+
+		#Optimaze the entire system
+		if [[ 7 -gt $LOG_POSITION ]]; then
+			run_opt_all "$name" "$directory" "$meta" "$amber_mod"
+		fi
+
+		#Heat the system
+		if [[ 8 -gt $LOG_POSITION ]]; then
+			run_opt_temp "$name" "$directory" "$meta" "$amber_mod"
+		fi
+
+		#Set production pressure in the system
+		if [[ 9 -gt $LOG_POSITION ]]; then
+			run_opt_pres "$name" "$directory" "$meta" "$amber_mod"
+		fi
+
+		#Run the molcular dynamics
+		if [[ 10 -gt $LOG_POSITION ]]; then
+			run_md "$name" "$directory" "$meta" "$amber_mod"
+		fi
+
+		#Sample with cpptraj
+		if [[ 11 -gt $LOG_POSITION ]]; then
+			run_opt_water "$name" "$directory" "$meta" "$amber_mod"
+		fi
+
+		#Break the circle here if the last one run
+		if [[ $counter -eq $md_iterations ]]; then 
+			break; 
+		fi
+
+		#Wipe the last 6 lines from the log (new simulation)
+	done
 }
 
 main "$@"

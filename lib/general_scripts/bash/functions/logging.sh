@@ -52,3 +52,11 @@ add_to_log() {
 
 	echo "$NAME" >> "$LOG"
 }
+
+# remove_run_log LOG_FILE
+# Removes the last 6 liones of log representing one md run so infor about the next may be started
+# Globals: none
+# Returns: Nothing
+remove_run_log() {
+
+}
