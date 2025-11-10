@@ -199,7 +199,7 @@ main() {
 
 		#Sample with cpptraj
 		if [[ 11 -gt $LOG_POSITION ]]; then
-			run_opt_water "$name" "$directory" "$meta" "$amber_mod"
+			run_cpptraj "$name" "$directory" "$meta" "$amber_mod"
 		fi
 
 		#Break the circle here if the last one run
