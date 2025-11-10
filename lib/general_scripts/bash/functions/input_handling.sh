@@ -115,8 +115,8 @@ load_cfg() {
 		parmchk2_cmd=$(get_cfg 'parmchk2')
 
 		info "All the additional parametrs for mol2 loaded correctly"
-		info "\t$antechamber_cmd"
-		info "\t$parmchk2_cmd"
+		info "antechamber: $antechamber_cmd"
+		info "parmchk2: $parmchk2_cmd"
 	fi
 
 	#Load the names of the .in files (all need to be under inputs/simulation/)
