@@ -69,13 +69,6 @@ LOG="log.txt"
 LOG_POSITION=""
 COUNTER=1
 
-#Number of how many total gaussians we are searching for averaging
-NUM_GAUSS=100
-
-if (( (NUM_GAUSS % md_iterations) != 0 )); then
-	die "100 must be divisible by the number of simulations!"
-fi
-
 # ----- Output Functions -----
 # Functions focusing on informing user about the program's state
 
@@ -177,7 +170,11 @@ main() {
 	ensure_dir "process/spectrum/gauss_prep/frames"
 
 	#Get the starting position for each md simulation frames counting
+	if (( (num_frames % md_iterations) != 0 )); then
+		die "$num_frames must be divisible by the number of md simulations: $md_iterations!"
+	fi
 
+	position_start=$(( num_frames / md_iterations ))
 
 
 	# ----- Simulation -----
@@ -210,7 +207,7 @@ main() {
 
 		#Sample with cpptraj
 		if [[ 11 -gt $LOG_POSITION ]]; then
-			run_cpptraj "$name" "$directory" "$meta" "$amber_mod"
+			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$(( position_start * COUNTER ))"
 		fi
 
 		#Break the circle here if the last one run
