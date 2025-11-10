@@ -8,7 +8,7 @@ echo "$PBS_JOBID is running on node $(hostname -f) in a scratch directory $SCRAT
 
 test -n "$SCRATCHDIR" || { echo >&2 "Variable SCRATCHDIR is not set!"; exit 1; }
 
-cp "${copy}" $SCRATCHDIR || { echo >&2 "Error while copying input file(s)!"; exit 2; }
+cp ${copy} $SCRATCHDIR || { echo >&2 "Error while copying input file(s)!"; exit 2; }
 
 cd $SCRATCHDIR 
 
