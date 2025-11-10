@@ -170,6 +170,13 @@ run_nemesis_fix() {
 	#Copy the data from antechamber
 	move_inp_file "${name}_charges.mol2" "$SRC_DIR" "$JOB_DIR"
 
+	#Add the correct module
+	if [[ $meta == "true" ]]; then
+		module add openbabel > /dev/null 2>&1
+	else
+		module add obabel > /dev/null 2>&1
+	fi
+
 	obabel -imol2 "$JOB_DIR/${name}_charges.mol2" -omol2 -O "$JOB_DIR/${name}_charges_fix.mol2" > /dev/null 2>&1
 
 	#Check that the final files are truly present
