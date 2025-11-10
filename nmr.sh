@@ -160,6 +160,11 @@ main() {
 	fi
 
 
+	# ----- Simulation Preparation -----
+	# Prepare the enviroment for saving data from individual simulations
+	ensure_dir "process/spectrum/gauss_prep/frames"
+
+
 	# ----- Simulation -----
 	# Run n times the full simulation pathway: Optimize - md - cpptraj
 	counter=0
@@ -202,6 +207,9 @@ main() {
 
 		#Wipe the last 6 lines from the log (new simulation)
 		remove_run_log "$LOG" 6
+
+		#Move the finished files
+		move_finished_job $(( counter + 1 ))
 	done
 }
 
