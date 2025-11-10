@@ -138,12 +138,12 @@ main() {
 
 		#Run antechmaber
 		if [[ 2 -gt $LOG_POSITION ]]; then
-			run_antechamber "$name" "$directory" "$meta" "$amber_mod"
+			run_antechamber "$name" "$directory" "$meta" "$amber_mod" "$antechamber_cmd"
 		fi
 
 		#Run parmchk2
 		if [[ 3 -gt $LOG_POSITION ]]; then
-			run_parmchk2 "$name" "$directory" "$meta" "$amber_mod"
+			run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$parmchk2_cmd"
 		fi
 
 		#Perform the nemesis fix
