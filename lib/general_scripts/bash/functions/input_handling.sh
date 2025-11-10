@@ -71,6 +71,9 @@ load_cfg() {
 	#See if we have the save for the molecule
 	save_as=${OVR_SAVE:-$(get_cfg 'save_as')}
 
+	#Check that we really want to check available modules
+	c_modules=$(get_cfg 'check_modules')
+
 	#Get the input type and check it is valid type
 	input_type=$(get_cfg 'input_type')
 	#Check that it is allowed
@@ -87,7 +90,7 @@ load_cfg() {
 	#Number of iterations of the md
 	md_iterations=$(get_cfg 'md_iterations')
 
-	info "Config loaded: name=$name, save_as=$save_as, input_type=$input_type, gpu=$gpu, meta=$meta, md iterations=$md_iterations"
+	info "Config loaded: name=$name, save_as=$save_as, cchecking modules=$c_modules, input_type=$input_type, gpu=$gpu, meta=$meta, md iterations=$md_iterations"
 
 	#By default amber extension is empty
 	amber_ext=""
