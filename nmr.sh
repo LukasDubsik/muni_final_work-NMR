@@ -127,11 +127,11 @@ main() {
 	# Load the log of the previous run - start from the last succesfull operation
 	read_log "$LOG"
 
-	#Clear the files not important for the log
-	clean_process "$LOG_POSITION"
-
 	#Get the last run md simulation
 	find_sim_num "$md_iterations"
+
+	#Clear the files not important for the log
+	clean_process "$LOG_POSITION"
 
 
 	# ----- Preparations -----

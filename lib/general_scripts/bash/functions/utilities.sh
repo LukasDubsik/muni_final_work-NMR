@@ -13,6 +13,7 @@ clean_process() {
 	local last_command=$1
 	local curr_sys=""
 
+	#Delete based on log
 	for key in "${!LOG_MAP[@]}"; do
 		num=${LOG_MAP[$key]}
 		if [[ $num -gt $last_command ]]; then
