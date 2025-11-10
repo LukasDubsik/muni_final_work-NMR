@@ -46,7 +46,7 @@ read_log() {
 	echo 2
 
 	#Convert that line into a number and return it
-	return "${LOG_MAP[$LOG_LAST]}"
+	return "$num"
 }
 
 # add_to_log RUNNED_NAME LOG_FILE
