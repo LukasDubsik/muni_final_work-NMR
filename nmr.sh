@@ -124,9 +124,6 @@ main() {
 	# Load the log of the previous run - start from the last succesfull operation
 	read_log "$LOG"
 
-	echo "$LOG_POSITION"
-	exit 1
-
 	#Clear the files not important for the log
 	clean_process "$LOG_POSITION"
 
