@@ -120,7 +120,8 @@ main() {
 
 	# ----- Load Log -----
 	# Load the log of the previous run - start from the last succesfull operation
-	LOG_POSITION=$( read_log "$LOG" )
+	read_log "$LOG"
+	LOG_POSITION=$?
 
 	#Clear the files not important for the log
 	clean_process "$LOG_POSITION"
