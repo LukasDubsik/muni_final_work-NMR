@@ -36,7 +36,7 @@ opt_water:=opt_water
 opt_all:=opt_all
 opt_temp:=opt_temp
 opt_pres:=opt_pres
-md:=md_long
+md:=md
 cpptraj:=cpptraj
 
 ##Number of iterations for the md (please set the cpptraj so that correct number of sampling is done)
