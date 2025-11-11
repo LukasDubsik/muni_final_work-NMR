@@ -294,7 +294,7 @@ run_cpptraj() {
 	SRC_DIR_2="lib/general_scripts/bash/general"
 
 	#Copy the data from antechamber
-	move_inp_file "${name}_md.rst7" "$SRC_DIR_1" "$JOB_DIR"
+	move_inp_file "${name}_md.mdcrd" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
 	#Copy the .in file for tleap
