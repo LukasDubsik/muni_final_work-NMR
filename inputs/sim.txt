@@ -26,6 +26,9 @@ cpptraj_mode:=bonded
 ##What is the sigma shift value for the nmr
 sigma:=32.2
 
+#Path to a mamba conda enviroment in which crest along with other necesseray python packages are installed
+mamba:=/storage/brno2/home/lukasdubsik/.conda/envs/crest
+
 ##If we are running in metacentrum
 meta:=true
 
@@ -33,8 +36,6 @@ meta:=true
 directory:=/storage/brno2/home/lukasdubsik/muni/final_work/novel
 #The Amber version we are using (metacentrum has may and not all are available to all)
 amber:=/22.1.3-gcc-10.2.1-man1
-#Path to a mamba conda enviroment in which crest is installed
-mamba:=/storage/brno2/home/lukasdubsik/.conda/envs/crest
 
 ##Names for the expected *.in files for individual optimizations
 tleap:=tleap

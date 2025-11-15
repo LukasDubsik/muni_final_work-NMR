@@ -112,14 +112,15 @@ load_cfg() {
 		#What version of amber are we using
 		amber_ext=$(get_cfg 'amber')
 
-		#Where the crest conda mamda env is located
-		mamba=$(get_cfg 'mamba')
-
 		info "All the informations for metacentrum loaded correctly:"
 		info "directory=$directory"
 		info "amber=$amber_ext"
-		info "mamba=$mamba"
 	fi
+
+	#Where the crest conda mamda env is located
+	mamba=$(get_cfg 'mamba')
+
+	info "mamba=$mamba"
 
 	#Additional parametrs for specfic programs - only for mol2
 	if [[ $input_type == "mol2" ]]; then

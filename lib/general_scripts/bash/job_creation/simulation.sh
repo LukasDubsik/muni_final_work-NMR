@@ -282,6 +282,7 @@ run_cpptraj() {
 	local limit=$6
 	local in_file=$7
 	local mode=$8
+	local env=$9
 
 	local job_name="cpptraj"
 
@@ -337,8 +338,12 @@ run_cpptraj() {
 		move_inp_file "select_interact.py" "$SRC_DIR_3" "$JOB_DIR"
 		#Move to the job dir
 		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
+		#Activate the conda enviroment
+		conda activate ${env}
 		#Run the python script
 		python select_interact.py "${name}.parm7" "$curr_run"
+		#Then deactive it
+		conda deactivate
 		#Return to the base dir
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
 	fi
