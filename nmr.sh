@@ -250,7 +250,7 @@ main() {
 
 	#Run gaussian on all the frames
 	if [[ 13 -gt $LOG_POSITION ]]; then
-		run_gaussian "$meta" "$num_frames"
+		run_gaussian "$name" "$directory" "$meta" "$gauss_mod"
 	fi
 
 
