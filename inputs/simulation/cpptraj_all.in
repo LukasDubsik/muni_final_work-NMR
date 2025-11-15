@@ -10,7 +10,7 @@ autoimage
 center :1 mass origin
 image origin center
 
-trajout ${name}_frame.nc nc
+trajout $frames.nc nc
 
 run
 quit
