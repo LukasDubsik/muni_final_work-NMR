@@ -15,19 +15,22 @@ num_frames:=100
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
 
-##Do we want to leave out gpu speed increase?
+##Do we want to run with gpu?
 gpu:=true
+
+##Mode of cpptraj selection
+#bonded - select water h-bonded to the solvent for the qm
+#no_water - only solvent is considered
+cpptraj:=bonded
 
 ##If we are running in metacentrum
 meta:=true
 
-##Directory for metacentrum - where this directory is present (only if meta set to true)
+#Directory for metacentrum - where this directory is present (only if meta set to true)
 directory:=/storage/brno2/home/lukasdubsik/muni/final_work/novel
-
-##The Amber version we are using (metacentrum has may and not all are available to all)
+#The Amber version we are using (metacentrum has may and not all are available to all)
 amber:=/22.1.3-gcc-10.2.1-man1
-
-##Path to a mamba conda enviroment in which crest is installed
+#Path to a mamba conda enviroment in which crest is installed
 mamba:=/storage/brno2/home/lukasdubsik/.conda/envs/crest
 
 ##Names for the expected *.in files for individual optimizations
