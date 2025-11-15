@@ -1,0 +1,16 @@
+#Sampling done alredy in md amber
+#Only convert results for Gaussian
+
+#inputs
+parm ${name}.parm7
+trajin ${name}_md.mdcrd 1 last 10
+
+#Center around the residue
+autoimage
+center :1 mass origin
+image origin center
+
+trajout ${name}_frame.nc nc
+
+run
+quit
