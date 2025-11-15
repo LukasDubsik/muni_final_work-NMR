@@ -237,6 +237,12 @@ main() {
 		pos_curr=$(( position_start * (COUNTER - 1) ))
 	done
 
+	# ----- Spectrum -----
+	# Having gotten the simulation frames perform NMR computation in Gaussian 
+	# for each frame, combine and graph
+
+	
+
 	# ----- Finish -----
 	# Clean the enviroment and output run statistics	
 	end_time=$( date +%s%N )
