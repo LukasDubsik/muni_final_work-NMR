@@ -344,7 +344,7 @@ move_finished_job() {
 	local RUN=$1
 
 	#Move the frames from cpptraj to the gauss_prep
-	SRC_DIR="process/simulation/cptraj"
+	SRC_DIR="process/simulation/cpptraj"
 	DST_DIR="process/spectrum/gauss_prep"
 
 	cp "$SRC_DIR/frames/*" "$DST_DIR/frames" || exit 1

@@ -220,11 +220,11 @@ main() {
 			break; 
 		fi
 
-		#Wipe the last 6 lines from the log (new simulation)
-		remove_run_log "$LOG" 6
-
 		#Move the finished files
 		move_finished_job $COUNTER
+
+		#Wipe the last 6 lines from the log (new simulation)
+		remove_run_log "$LOG" 6
 	done
 }
 
