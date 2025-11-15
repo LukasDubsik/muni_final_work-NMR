@@ -341,7 +341,7 @@ run_cpptraj() {
 		#Activate the conda enviroment
 		conda activate ${env}
 		#Run the python script
-		python select_interact.py "${name}.parm7" "$curr_run"
+		python -W "ignore" select_interact.py "${name}.parm7" "$curr_run"
 		#Then deactive it
 		conda deactivate
 		#Return to the base dir
