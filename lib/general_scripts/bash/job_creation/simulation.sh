@@ -347,11 +347,11 @@ move_finished_job() {
 	SRC_DIR="process/simulation/cpptraj"
 	DST_DIR="process/spectrum/gauss_prep"
 
-	cp -r "$SRC_DIR/frames" "$DST_DIR/frames" || exit 1
+	cp -r $SRC_DIR/frames/* "$DST_DIR/frames" || exit 1
 
 	#Create a directory to save the results into
 	ensure_dir "process/run_$RUN"
 
 	#Move all the files there
-	mv "process/simulation/" "process/run_$RUN"
+	mv -r process/simulation/* "process/run_$RUN"
 }
