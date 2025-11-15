@@ -216,7 +216,7 @@ main() {
 
 		#Sample with cpptraj
 		if [[ 11 -gt $LOG_POSITION ]]; then
-			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$(( position_start * (COUNTER - 1) ))" "$LIMIT" "$cpptraj"
+			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$(( position_start * (COUNTER - 1) ))" "$LIMIT" "$cpptraj" "$cpptraj_mode"
 		fi
 
 		#Break the circle here if the last one run

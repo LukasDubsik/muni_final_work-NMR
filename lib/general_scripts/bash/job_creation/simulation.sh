@@ -281,6 +281,7 @@ run_cpptraj() {
 	local curr_run=$5
 	local limit=$6
 	local in_file=$7
+	local mode=$8
 
 	local job_name="cpptraj"
 
@@ -292,6 +293,7 @@ run_cpptraj() {
 
 	SRC_DIR_1="process/simulation/md"
 	SRC_DIR_2="lib/general_scripts/bash/general"
+	SRC_DIR_3="lib/general_scripts/python"
 
 	#Copy the data from antechamber
 	move_inp_file "${name}_md.mdcrd" "$SRC_DIR_1" "$JOB_DIR"
@@ -315,20 +317,31 @@ run_cpptraj() {
     #Run the antechmaber
     submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "02:00:00"
 
-	#Check that the final files are truly present
-	check_res_file "${name}_frame.xyz" "$JOB_DIR" "$job_name"
-
-	#Split the .xyz file into individual files
-	#Move the bash script for it
-	move_inp_file "split_xyz.sh" "$SRC_DIR_2" "$JOB_DIR"
-
 	#Ensure the final dir exists
     ensure_dir $JOB_DIR/frames
 
-	#Run the bash script
-    cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
-    bash split_xyz.sh "$curr_run" < "${name}_frame.xyz"
-    cd ../../../ || die "Couldn't return back from the cpptraj dir"
+	if [[ $mode == "no_water" ]]; then
+		#Check that the final files are truly present
+		check_res_file "${name}_frame.xyz" "$JOB_DIR" "$job_name"
+		#Split the .xyz file into individual files
+		#Move the bash script for it
+		move_inp_file "split_xyz.sh" "$SRC_DIR_2" "$JOB_DIR"
+		#Run the bash script
+		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
+		bash split_xyz.sh "$curr_run" < "${name}_frame.xyz"
+		cd ../../../ || die "Couldn't return back from the cpptraj dir"
+	else 
+		#Check that the final files are truly present
+		check_res_file "frames.nc" "$JOB_DIR" "$job_name"
+		#Copy the python script
+		move_inp_file "select_interact.py" "$SRC_DIR_3" "$JOB_DIR"
+		#Move to the job dir
+		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
+		#Run the python script
+		python select_interact.py "${name}.parm7" "$curr_run"
+		#Return to the base dir
+		cd ../../../ || die "Couldn't return back from the cpptraj dir"
+	fi
 
 	success "$job_name has finished correctly"
 
