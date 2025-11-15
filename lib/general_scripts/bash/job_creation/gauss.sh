@@ -1,7 +1,7 @@
 # shellcheck disable=SC2148
 # Guard so we don't load twice
 [[ ${_GAUSS_SH_LOADED:-0} -eq 1 ]] && return
-_GAUSS_LOADED=1
+_GAUSS_SH_LOADED=1
 
 # run_gauss_convert META NUM_FRAMES
 # Convert the xyz files from the amber simulation into log files for gaussian
