@@ -184,6 +184,7 @@ main() {
 	fi
 
 	position_start=$(( num_frames / md_iterations ))
+	pos_curr=0
 
 
 	# ----- Simulation -----
@@ -216,7 +217,7 @@ main() {
 
 		#Sample with cpptraj
 		if [[ 11 -gt $LOG_POSITION ]]; then
-			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$(( position_start * (COUNTER - 1) ))" "$LIMIT" "$cpptraj" "$cpptraj_mode"
+			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode"
 		fi
 
 		#Break the circle here if the last one run
@@ -232,6 +233,8 @@ main() {
 
 		#Increase the current counter
 		((COUNTER++))
+		#Inrease the current position
+		pos_curr=$(( position_start * (COUNTER - 1) ))
 	done
 
 	# ----- Finish -----
