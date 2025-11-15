@@ -9,10 +9,8 @@ _DATA_SH_LOADED=1
 # Returns: Nothing
 run_analysis() {
 	#Load the inputs
-	local meta=$1
-	local num_frames=$2
-	local sigma=$3
-	local limit=$4
+	local sigma=$1
+	local limit=$2
 
 	local job_name="analysis"
 

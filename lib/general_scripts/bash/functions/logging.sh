@@ -18,7 +18,8 @@ declare -A LOG_MAP=(
   ["cpptraj"]=11
   ["gauss_prep"]=12
   ["nmr"]=13
-  ["plotting"]=14
+  ["analysis"]=14
+  ["plotting"]=15
 )
 
 # read_log LOG_FILE
