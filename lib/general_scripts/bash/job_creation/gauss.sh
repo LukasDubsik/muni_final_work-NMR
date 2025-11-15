@@ -41,7 +41,7 @@ run_gauss_prep() {
 	add_to_log "$job_name" "$LOG"
 }
 
-# run_gaussian META NUM_FRAMES
+# run_gaussian NAME DIRECTORY META GAUSSIAN
 # For each gjf file run gaussian and acquire the log file of the results
 # Globals: none
 # Returns: Nothing
