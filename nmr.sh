@@ -43,6 +43,8 @@ source "${SUB_PATH}/simulation.sh"
 source "${SUB_PATH}/gauss.sh"
 # shellcheck source=/dev/null
 source "${SUB_PATH}/data.sh"
+# shellcheck source=/dev/null
+source "${SUB_PATH}/info.sh"
 
 # on_error
 # Inform the user about what happened upon an error occuring
@@ -272,6 +274,10 @@ main() {
 	echo ""
 
 	info "Execution time was $(( end_time - start_time )) nanoseconds"
+
+	# ----- Info -----
+	# Inform the user that the job correctly finished
+	send_email "$save_as"
 }
 
 main "$@"

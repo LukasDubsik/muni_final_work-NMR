@@ -33,7 +33,7 @@ def main() -> None:
 
     # Load the parameters of the script
     TOPOLOGY: str = sys.argv[1]
-    frame_start: int = int(x=sys.argv[2])
+    frame_start: int = int(sys.argv[2])
 
     # Make sure the directory exists
     OUTDIR.mkdir(exist_ok=True)
