@@ -6,7 +6,8 @@ import smtplib
 from email.message import EmailMessage
 
 SMTP_HOST = "smtp.yourdomain.com"
-SMTP_PORT = 587            # 587 = TLS (STARTTLS), 465 = SSL
+# Using the STARTTLS server
+SMTP_PORT = 587
 SMTP_USER = os.environ["SMTP_USER"]
 SMTP_PASS = os.environ["SMTP_PASS"]
 
@@ -16,16 +17,15 @@ BODY = """"""
 
 def main() -> None:
     # Check that correct number of params were provided
-    if len(sys.argv) != 3:
-        print(f"Usage: python {sys.argv[0]} JOB_NAME RES")
+    if len(sys.argv) != 2:
+        print(f"Usage: python {sys.argv[0]} JOB_NAME")
         sys.exit(1)
 
     # Load the parameters of the script
     job_name: str = sys.argv[1]
-    result: str = sys.argv[2]
 
     # Set the mail subject
-    subject = "Job "+job_name+" has finished "+result
+    subject = "Job "+job_name+" has finished!"
 
     msg = EmailMessage()
     msg["From"] = FROM
