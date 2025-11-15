@@ -23,6 +23,9 @@ gpu:=true
 #no_water - only solvent is considered
 cpptraj_mode:=bonded
 
+##What is the sigma shift value for the nmr
+sigma:=32.2
+
 ##If we are running in metacentrum
 meta:=true
 
