@@ -225,6 +225,9 @@ main() {
 
 		#Wipe the last 6 lines from the log (new simulation)
 		remove_run_log "$LOG" 6
+
+		#Increase the current counter
+		((COUNTER++))
 	done
 }
 
