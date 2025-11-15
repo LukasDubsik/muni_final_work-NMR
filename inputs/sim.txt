@@ -21,7 +21,7 @@ gpu:=true
 ##Mode of cpptraj selection
 #bonded - select water h-bonded to the solvent for the qm
 #no_water - only solvent is considered
-cpptraj:=bonded
+cpptraj_mode:=bonded
 
 ##If we are running in metacentrum
 meta:=true
