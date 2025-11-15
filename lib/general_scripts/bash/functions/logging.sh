@@ -38,7 +38,11 @@ read_log() {
 	#Restructure the log
 	#rm -f "$LOG_FILE"
 
-	LOG_POSITION="${LOG_MAP[$LOG_LAST]}"
+	if [[ $LOG_LAST == "" ]]; then
+		LOG_POSITION=0
+	else
+		LOG_POSITION="${LOG_MAP[$LOG_LAST]}"
+	fi
 
 	info "Detected Log position as: $LOG_LAST -> $LOG_POSITION"
 }
