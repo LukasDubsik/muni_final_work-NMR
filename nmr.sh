@@ -39,6 +39,8 @@ SUB_PATH="lib/general_scripts/bash/job_creation"
 source "${SUB_PATH}/preparations.sh"
 # shellcheck source=/dev/null
 source "${SUB_PATH}/simulation.sh"
+# shellcheck source=/dev/null
+source "${SUB_PATH}/gauss.sh"
 
 # on_error
 # Inform the user about what happened upon an error occuring
@@ -240,8 +242,17 @@ main() {
 	# ----- Spectrum -----
 	# Having gotten the simulation frames perform NMR computation in Gaussian 
 	# for each frame, combine and graph
-
 	
+	#Convert to .gjf for the gaussian program
+	if [[ 12 -gt $LOG_POSITION ]]; then
+		run_gauss_prep "$meta" "$num_frames"
+	fi
+
+	#Run gaussian on all the frames
+	if [[ 13 -gt $LOG_POSITION ]]; then
+		run_gaussian "$meta" "$num_frames"
+	fi
+
 
 	# ----- Finish -----
 	# Clean the enviroment and output run statistics	
