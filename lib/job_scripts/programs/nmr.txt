@@ -1,6 +1,0 @@
-module add ${module}
-
-psanitaze frame.${num}.gjf
-
-g16 < frame.${num}.gjf > frame.${num}.log
-

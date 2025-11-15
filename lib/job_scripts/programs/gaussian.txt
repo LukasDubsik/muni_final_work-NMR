@@ -1,0 +1,6 @@
+module add ${module}
+
+psanitaze frame.${num}.gjf
+
+g16 < ../gauss/frame.${num}.gjf > ../nmr/frame.${num}.log
+
