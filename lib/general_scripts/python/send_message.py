@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 
-import os
 import sys
 import smtplib
 from email.message import EmailMessage
 
-SMTP_HOST = "smtp.yourdomain.com"
+SMTP_HOST = "smtp.seznam.cz"
 # Using the STARTTLS server
-SMTP_PORT = 587
-SMTP_USER = os.environ["SMTP_USER"]
-SMTP_PASS = os.environ["SMTP_PASS"]
-
+SMTP_PORT = 465
+SMTP_USER = "nmrprague@seznam.cz"
+SMTP_PASS = "FinalCoalescence2020"
 FROM = "nmrprague@seznam.cz"
 TO = "luke@bubaci.net"
 BODY = """"""

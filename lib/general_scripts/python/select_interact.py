@@ -84,7 +84,7 @@ def main() -> None:
         water_resids = frame_to_water_resids.get(frame_idx, set())
 
         if not water_resids:
-            write_xyz(solute, OUTDIR / f"frame_{frame_start:05d}.xyz", comment="solute only")
+            write_xyz(solute, OUTDIR / f"frame_{frame_start}.xyz", comment="solute only")
             frame_start+=1
             continue
 
@@ -95,7 +95,7 @@ def main() -> None:
         # Combine
         cluster = solute | water
 
-        out_file = OUTDIR / f"frame_{frame_start:05d}.xyz"
+        out_file = OUTDIR / f"frame_{frame_start}.xyz"
         write_xyz(
             cluster,
             out_file,
