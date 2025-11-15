@@ -353,5 +353,5 @@ move_finished_job() {
 	ensure_dir "process/run_$RUN"
 
 	#Move all the files there
-	mv -r process/simulation/* process/run_"$RUN"
+	mv process/simulation/* process/run_"$RUN"
 }
