@@ -41,6 +41,8 @@ source "${SUB_PATH}/preparations.sh"
 source "${SUB_PATH}/simulation.sh"
 # shellcheck source=/dev/null
 source "${SUB_PATH}/gauss.sh"
+# shellcheck source=/dev/null
+source "${SUB_PATH}/data.sh"
 
 # on_error
 # Inform the user about what happened upon an error occuring
@@ -64,7 +66,7 @@ declare -A Params
 name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
-num_frames="" cpptraj_mode=""
+num_frames="" cpptraj_mode="" sigma=""
 
 LOG="log.txt"
 
@@ -253,6 +255,15 @@ main() {
 		run_gaussian "$name" "$directory" "$meta" "$gauss_mod"
 	fi
 
+	#Analyse the resulting data
+	if [[ 14 -gt $LOG_POSITION ]]; then
+		run_analysis "$sigma" "$LIMIT"
+	fi
+
+	#Run gaussian on all the frames
+	if [[ 15 -gt $LOG_POSITION ]]; then
+		run_plotting "$name" "$save_as"
+	fi
 
 	# ----- Finish -----
 	# Clean the enviroment and output run statistics	
