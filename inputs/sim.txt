@@ -40,7 +40,7 @@ opt_all:=opt_all
 opt_temp:=opt_temp
 opt_pres:=opt_pres
 md:=md
-cpptraj:=cpptraj
+cpptraj:=cpptraj_all
 
 ##Number of iterations for the md (please set the cpptraj so that correct number of sampling is done)
 md_iterations:=5
