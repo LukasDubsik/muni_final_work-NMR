@@ -99,6 +99,10 @@ shift $((OPTIND-1))
 # ...
 
 main() {
+	# ----- Setup ------
+	# Prepare variables for the main execution
+	start_time=$( date +%s%N )
+
 	# ----- Input -----
 	# Read the user input file and extract its data
 	read_config
@@ -229,6 +233,14 @@ main() {
 		#Increase the current counter
 		((COUNTER++))
 	done
+
+	# ----- Finish -----
+	# Clean the enviroment and output run statistics	
+	end_time=$( date +%s%N )
+
+	echo ""
+
+	info "Execution time was $(( end_time - start_time )) nanoseconds"
 }
 
 main "$@"
