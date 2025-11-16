@@ -22,7 +22,7 @@ for file in frames/frame_*.xyz; do
 	} >> "${base}".gjf
 
     # Only the selected H atoms will have NMR computed
-    H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | head -n "$N_CORE" | awk '{i++; if ($1=="H") h=(h?h","i:i)} END{print h}')
+    H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | head -n "$N_CORE" | awk '{i++; if ($1 ~ /^H/) h=(h?h","i:i)} END{print h}')
     {
 		echo "ReadAtoms"
     	echo "atoms=${H_ATOMS}"
