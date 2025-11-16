@@ -47,7 +47,10 @@ find_sim_num() {
 		fi
 	done
 
-	COUNTER=$i
-
-	info "The md runs have stopped at (wasn't completed): $COUNTER"
+	if [[ $COUNTER -eq 0 ]]; then
+		COUNTER=$MD_ITER
+		info "All the md runs have finished"
+	else
+		info "The md runs have stopped at (wasn't completed): $COUNTER"
+	fi
 }

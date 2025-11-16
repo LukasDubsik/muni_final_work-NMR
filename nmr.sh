@@ -73,7 +73,7 @@ num_frames="" cpptraj_mode="" sigma=""
 LOG="log.txt"
 
 LOG_POSITION=""
-COUNTER=1
+COUNTER=0
 
 #How many atoms the simulated molecule holds
 LIMIT=""
