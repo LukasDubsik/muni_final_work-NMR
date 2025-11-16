@@ -80,6 +80,8 @@ run_plotting() {
 	#Run the script and average the resulting nmr spectra
 	gnuplot plot_nmr.plt
 
+	wait 1
+
 	#Check that the final files are truly present
 	check_res_file "nmr.png" "$JOB_DIR" "$job_name"
 
