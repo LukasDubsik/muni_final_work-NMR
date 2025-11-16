@@ -35,8 +35,16 @@ clean_process() {
 # Returns: 0 if everyting okay, otherwise number that causes error
 find_sim_num() {
 	local MD_ITER=$1
+	local log=$2
 
 	SEARCH_DIR="process/"
+
+	#If we are below the jobs becessary for run, delete all the runs
+	if [[ ($log -lt 6) ]]; then
+		for file in "$SEARCH_DIR"/run_*; do
+			rm -rf "$file"
+		done
+	fi
 
 	for ((i=1; i <= MD_ITER; i++)); do 
 		if [[ -d $SEARCH_DIR/run_$i ]]; then

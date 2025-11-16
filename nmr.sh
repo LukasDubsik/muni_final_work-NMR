@@ -144,10 +144,10 @@ main() {
 	read_log "$LOG"
 
 	#Get the last run md simulation
-	find_sim_num "$md_iterations"
+	find_sim_num "$md_iterations" "$LOG_POSITION"
 
 	#Clear the files not important for the log
-	clean_process "$LOG_POSITION"
+	clean_process "$LOG_POSITION" "$COUNTER"
 
 
 	# ----- Preparations -----
