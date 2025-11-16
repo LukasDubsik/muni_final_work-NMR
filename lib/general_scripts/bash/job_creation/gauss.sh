@@ -103,7 +103,9 @@ run_gaussian() {
 		cp $JOB_DIR/gauss/frame_$num.gjf $LOC_DIR
 		#Then submit the job for run
 		( submit_job "$meta" "$job_name" "$LOC_DIR" 8 8 0 "08:00:00" ) &
-		pids+=($!)
+		p=$!
+		echo $!
+		pids+=("$p")
 	done
 	#Wait for all jobs to finish; kill all others if just one fails
 	for pid in "${pids[@]}"; do
