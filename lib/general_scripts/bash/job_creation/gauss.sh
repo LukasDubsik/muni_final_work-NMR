@@ -83,7 +83,7 @@ run_gaussian() {
 	#Run the jobs in parallel each in different directory and subshell
 	pids=()
 	#Enter the directory and run the .sh script
-	for ((num=1; num <= num_frames; num++))
+	for ((num=0; num < num_frames; num++))
 	do
 		LOC_DIR="$JOB_DIR/job_${num}/"
 		#create a new dir for the file
@@ -117,7 +117,7 @@ run_gaussian() {
 	done
 
 	#Copy all the files from the finished jobs dirs
-	for ((num=1; num <= num_frames; num++))
+	for ((num=0; num < num_frames; num++))
 	do
 		cp $JOB_DIR/job_${num}/frame_$num.log $JOB_DIR/nmr
 		rm -rf $JOB_DIR/job_${num}
