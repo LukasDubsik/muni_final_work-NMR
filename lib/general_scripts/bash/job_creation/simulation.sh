@@ -363,9 +363,9 @@ move_finished_job() {
 
 	#Move the frames from cpptraj to the gauss_prep
 	SRC_DIR=process/simulation/cpptraj
-	DST_DIR=process/spectrum/gauss_prep
+	DST_DIR=process/spectrum/frames
 
-	cp -r $SRC_DIR/frames/* $DST_DIR/frames || exit 1
+	cp -r $SRC_DIR/frames/* $DST_DIR || exit 1
 
 	#Create a directory to save the results into
 	ensure_dir "process/run_$RUN"

@@ -182,7 +182,7 @@ main() {
 
 	# ----- Simulation Preparation -----
 	# Prepare the enviroment for saving data from individual simulations
-	ensure_dir "process/spectrum/gauss_prep/frames"
+	ensure_dir "process/spectrum/frames"
 
 	#Get the starting position for each md simulation frames counting
 	if (( (num_frames % md_iterations) != 0 )); then
@@ -226,13 +226,13 @@ main() {
 			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba"
 		fi
 
+		#Move the finished files
+		move_finished_job $COUNTER
+
 		#Break the circle here if the last one run
 		if (( COUNTER == md_iterations )); then 
 			break; 
 		fi
-
-		#Move the finished files
-		move_finished_job $COUNTER
 
 		#Wipe the last 6 lines from the log (new simulation)
 		remove_run_log "$LOG" 6
