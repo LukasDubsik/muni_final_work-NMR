@@ -19,4 +19,4 @@ awk '
     for (i = 1; i <= max; i++)
       printf("%.6f 1 %d\n", x[i]/c[i], a[i]);
   }
-' plots/plot.*.dat > "$fil"
+' plots/plot_*.dat > "$fil"

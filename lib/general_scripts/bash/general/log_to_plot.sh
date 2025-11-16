@@ -3,10 +3,10 @@
 num=1
 
 #Extract the NMR data for each *.log file resulting from running Gaussian
-for file in nmr/frame.*.log; do
+for file in nmr/frame_*.log; do
 
     # shellcheck disable=SC2154
-    awk -v SIGMA_TMS="${sigma}" -v LIMIT="${limit}" -f gjf_to_plot.awk "$file" > plots/plot.${num}.dat
+    awk -v SIGMA_TMS="${sigma}" -v LIMIT="${limit}" -f gjf_to_plot.awk "$file" > plots/plot_${num}.dat
     ((num++))
 
 done
