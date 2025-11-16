@@ -28,7 +28,7 @@ run_analysis() {
 	move_inp_file "average_plot.sh" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "gjf_to_plot.awk" "$SRC_DIR_2" "$JOB_DIR"
 
-	ensure_dir $JOB_DIR/plotting
+	ensure_dir $JOB_DIR/plots
 
 	#Copy the log files from gaussian runs
 	cp -r $SRC_DIR_3 $JOB_DIR
