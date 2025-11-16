@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # shellcheck disable=SC2154
-N_CORE="${limit}"
+N_CORE=${limit}
 
-for file in frames/frame.*.xyz; do
+for file in frames/frame_*.xyz; do
 
     bas=""$(basename "$file" .xyz)
     base=gauss/${bas}
