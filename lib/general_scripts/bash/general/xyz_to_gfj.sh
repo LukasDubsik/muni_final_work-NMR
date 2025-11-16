@@ -9,10 +9,10 @@ for file in frames/frame_*.xyz; do
     base=gauss/${bas}
     echo "%chk=${bas}.chk" > "${base}".gjf
     # shellcheck disable=SC2129
-    printf "%s\n" "#P B3LYP/6-31G(d) NMR=(GIAO,ReadAtoms) SCF=XQC Int=UltraFine CPHF=Grid=Ultrafine Charge" >> "${base}".gjf
+    printf "%s\n" "#P B3LYP/6-31G(d) NMR=(GIAO,ReadAtoms) SCF=XQC Int=UltraFine CPHF=Grid=Ultrafine" >> "${base}".gjf
 
     echo "" >> "${base}".gjf
-    echo "${bas} — GIAO NMR (Cys only, Explicit water as point charges)" >> "${base}".gjf
+    echo "${bas} — GIAO NMR (Solute with bound waters)" >> "${base}".gjf
     echo "" >> "${base}".gjf
     echo "0 1" >> "${base}".gjf
 
