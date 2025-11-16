@@ -99,6 +99,9 @@ run_gaussian() {
 			substitute_name_sh "$job_name" "$LOC_DIR" "$gaussian" "$name" "" "" ""
 			construct_sh_wolf "$LOC_DIR" "$job_name"
 		fi
+		#Copy the specific frame to the local dir
+		cp $JOB_DIR/gauss/frame_$num.gjf $LOC_DIR
+		#Then submit the job for run
 		( submit_job "$meta" "$job_name" "$LOC_DIR" 8 8 0 "08:00:00" ) &
 		pids+=($!)
 	done
@@ -111,6 +114,13 @@ run_gaussian() {
 			qdel "$search"
 			die "The job $pid has failed!"
 		fi
+	done
+
+	#Copy all the files from the finished jobs dirs
+	for ((num=1; num <= num_frames; num++))
+	do
+		cp $JOB_DIR/job_${num}/frame_$num.log $JOB_DIR/nmr
+		rm -rf $JOB_DIR/job_${num}
 	done
 
 	last_frame=$((num_frames - 1))
