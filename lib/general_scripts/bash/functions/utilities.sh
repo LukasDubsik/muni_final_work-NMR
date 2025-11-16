@@ -58,6 +58,8 @@ find_sim_num() {
 	if [[ $COUNTER -eq 0 ]]; then
 		COUNTER=$MD_ITER
 		info "All the md runs have finished"
+	elif [[ $COUNTER -eq 1 ]]; then
+		info "No md have yet been run"
 	else
 		info "The md runs have stopped at (wasn't completed): $COUNTER"
 	fi
