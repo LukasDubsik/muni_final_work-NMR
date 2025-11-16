@@ -1,4 +1,3 @@
 module add ${module}
 
 g16 < ../gauss/frame_${num}.gjf > ../nmr/frame_${num}.log
-

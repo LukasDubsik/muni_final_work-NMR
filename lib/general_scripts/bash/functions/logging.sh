@@ -17,7 +17,7 @@ declare -A LOG_MAP=(
   ["md"]=10
   ["cpptraj"]=11
   ["gauss_prep"]=12
-  ["nmr"]=13
+  ["gaussian"]=13
   ["analysis"]=14
   ["plotting"]=15
 )
