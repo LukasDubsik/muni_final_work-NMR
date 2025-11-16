@@ -37,8 +37,10 @@ run_gauss_prep() {
 	bash xyz_to_gfj.sh
 	cd ../../../ || die "Couldn't return back from the cpptraj dir"
 
+	last_frame=$((num_frames - 1))
+
 	#Check that the final files are truly present
-	check_res_file "$JOB_DIR/gauss/frame.$num_frames.gfj" "$JOB_DIR" "$job_name"
+	check_res_file "$JOB_DIR/gauss/frame.$last_frame.gfj" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
 
