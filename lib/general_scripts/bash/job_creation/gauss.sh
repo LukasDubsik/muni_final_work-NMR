@@ -82,6 +82,7 @@ run_gaussian() {
 
 	#Run the jobs in parallel each in different directory and subshell
 	pids=()
+	max_parallel=20
 	#Enter the directory and run the .sh script
 	for ((num=0; num < num_frames; num++))
 	do
@@ -106,17 +107,34 @@ run_gaussian() {
 		p=$!
 		echo $!
 		pids+=("$p")
+
+		while (( ${#pids[@]} >= max_parallel )); do
+			if ! wait -n; then
+				kill "${pids[@]}" 2>/dev/null
+				search=$(qselect -u lukasdubsik)
+				qdel "$search"
+				die "One of the submit_job calls failed!"
+			fi
+			tmp=()
+			for pid in "${pids[@]}"; do
+				if kill -0 "$pid" 2>/dev/null; then
+					tmp+=("$pid")
+				fi
+			done
+			pids=("${tmp[@]}")
+		done
 	done
 	#Wait for all jobs to finish; kill all others if just one fails
 	for pid in "${pids[@]}"; do
-		pid_res=$(wait "$pid")
-		if [[ "$pid_res" -eq 0 ]]; then
-			kill "${pids[@]}" 2>/dev/null        
+		if ! wait "$pid"; then
+			# this pid failed
+			kill "${pids[@]}" 2>/dev/null
 			search=$(qselect -u lukasdubsik)
 			qdel "$search"
 			die "The job $pid has failed!"
 		fi
 	done
+
 
 	#Copy all the files from the finished jobs dirs
 	for ((num=0; num < num_frames; num++))
