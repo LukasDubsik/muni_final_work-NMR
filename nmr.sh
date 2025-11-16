@@ -277,7 +277,7 @@ main() {
 
 	# ----- Info -----
 	# Inform the user that the job correctly finished
-	send_email "$save_as"
+	send_email "$mamba" "$save_as"
 }
 
 main "$@"
