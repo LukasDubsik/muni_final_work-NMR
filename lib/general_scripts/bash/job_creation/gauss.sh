@@ -105,7 +105,6 @@ run_gaussian() {
 		#Then submit the job for run
 		( submit_job "$meta" "$job_name" "$LOC_DIR" 8 8 0 "08:00:00" ) &
 		p=$!
-		echo $!
 		pids+=("$p")
 
 		while (( ${#pids[@]} >= max_parallel )); do
