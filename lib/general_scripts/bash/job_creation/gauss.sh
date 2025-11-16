@@ -40,7 +40,7 @@ run_gauss_prep() {
 	last_frame=$((num_frames - 1))
 
 	#Check that the final files are truly present
-	check_res_file "$JOB_DIR/gauss/frame.$last_frame.gfj" "$JOB_DIR" "$job_name"
+	check_res_file "$JOB_DIR/gauss/frame_$last_frame.gfj" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
 
