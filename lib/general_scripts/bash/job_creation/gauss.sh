@@ -19,6 +19,10 @@ run_gauss_prep() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/spectrum/$job_name"
 	ensure_dir $JOB_DIR
+	ensure_dir $JOB_DIR/frames
+
+	#Move the frames into the gaussian prep run
+	cp -r process/spectrum/frames/* $JOB_DIR/frames/
 
 	SRC_DIR_1="lib/general_scripts/bash/general"
 
