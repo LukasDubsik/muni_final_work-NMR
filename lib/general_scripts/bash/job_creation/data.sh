@@ -26,7 +26,7 @@ run_analysis() {
 
 	substitute_name_sh_data "general/log_to_plot.sh" "$JOB_DIR/log_to_plot.sh" "" "$limit" "$sigma"
 	move_inp_file "average_plot.sh" "$SRC_DIR_1" "$JOB_DIR"
-	move_inp_file "gfj_to_plot.awk" "$SRC_DIR_2" "$JOB_DIR"
+	move_inp_file "gjf_to_plot.awk" "$SRC_DIR_2" "$JOB_DIR"
 
 	#Copy the log files from gaussian runs
 	cp -r $SRC_DIR_3 $JOB_DIR
