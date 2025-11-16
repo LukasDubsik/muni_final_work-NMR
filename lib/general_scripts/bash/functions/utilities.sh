@@ -39,13 +39,15 @@ find_sim_num() {
 	SEARCH_DIR="process/"
 
 	for ((i=1; i <= MD_ITER; i++)); do 
-		if [[ -d "$SEARCH_DIR/run_$i" ]]; then
+		if [[ -d $SEARCH_DIR/run_$i ]]; then
 			continue
 		else
 			COUNTER=$i
 			break
 		fi
 	done
+
+	COUNTER=$i
 
 	info "The md runs have stopped at (wasn't completed): $COUNTER"
 }

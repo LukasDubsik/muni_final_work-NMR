@@ -224,10 +224,10 @@ main() {
 		#Sample with cpptraj
 		if [[ 11 -gt $LOG_POSITION ]]; then
 			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba"
-		fi
 
-		#Move the finished files
-		move_finished_job $COUNTER
+			#Move the finished files
+			move_finished_job $COUNTER
+		fi
 
 		#Break the circle here if the last one run
 		if (( COUNTER == md_iterations )); then 
