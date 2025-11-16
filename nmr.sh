@@ -271,13 +271,13 @@ main() {
 	# Clean the enviroment and output run statistics	
 	end_time=$( date +%s%N )
 
-	echo ""
+	echo
 
-	info "Execution time was $(( end_time - start_time )) nanoseconds"
+	info "Execution time was $(( (end_time - start_time)/(60000000000) )) minutes"
 
 	# ----- Info -----
 	# Inform the user that the job correctly finished
-	send_email "$mamba" "$save_as"
+	#send_email "$mamba" "$save_as"
 }
 
 main "$@"
