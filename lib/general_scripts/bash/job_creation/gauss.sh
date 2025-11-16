@@ -145,7 +145,7 @@ run_gaussian() {
 	last_frame=$((num_frames - 1))
 
 	#Check that the final files are truly present
-	check_res_file "$JOB_DIR/nmr/frame_$last_frame.log" "$JOB_DIR" "$job_name"
+	check_res_file "frame_$last_frame.log" "$JOB_DIR/nmr" "$job_name"
 
 	success "$job_name has finished correctly"
 

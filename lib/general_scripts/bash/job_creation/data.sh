@@ -24,7 +24,7 @@ run_analysis() {
 	SRC_DIR_2="lib/general_scripts/awk"
 	SRC_DIR_3="process/spectrum/gaussian/nmr"
 
-	substitute_name_sh_data "$SRC_DIR_1/log_to_plot.sh" "$JOB_DIR" "" "$limit" "$sigma"
+	substitute_name_sh_data "general/log_to_plot.sh" "$JOB_DIR/log_to_plot.sh" "" "$limit" "$sigma"
 	move_inp_file "average_plot.sh" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "gfj_to_plot.awk" "$SRC_DIR_2" "$JOB_DIR"
 
