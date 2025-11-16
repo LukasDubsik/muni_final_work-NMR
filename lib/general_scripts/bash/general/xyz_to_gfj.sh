@@ -17,7 +17,16 @@ for file in frames/frame_*.xyz; do
     echo "0 1" >> "${base}".gjf
 
     {
-		tail -n +3 "$file" | grep -v 'XP' | awk '{i++; h=(~$1)} END{print h}'
+		tail -n +3 "$file" | grep -v 'XP' | awk '
+        {
+            name = $1
+            x = $2; y = $3; z = $4
+
+            elem = substr(name, 1, 1)
+
+            printf "%-2s %12.6f %12.6f %12.6f\n", elem, x, y, z
+        }
+        '
     	echo ""
 	} >> "${base}".gjf
 
