@@ -4,7 +4,7 @@ datafile = "avg.dat"    #Input file name
 band = 0.1         #Kernel width in ppm
 
 set terminal pngcairo enhanced size 1200,700
-set output "${name}_nmr.png"
+set output "nmr.png"
 
 set title  "Simulated 1H NMR Gaussian averaged for 100ps (image per ps)"
 set xlabel "ppm"

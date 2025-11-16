@@ -81,9 +81,9 @@ run_plotting() {
 	gnuplot plot_nmr.plt
 
 	#Check that the final files are truly present
-	check_res_file "${name}_nmr.png" "$JOB_DIR" "$job_name"
+	check_res_file "nmr.png" "$JOB_DIR" "$job_name"
 
-	mv "${name}"_nmr.png "${save_as}".png
+	mv nmr.png "${save_as}".png
 
 	#Return back
 	cd ../../.. || die "Couldn't back to the main directory"
