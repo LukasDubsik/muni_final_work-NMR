@@ -17,7 +17,7 @@ for file in frames/frame_*.xyz; do
     echo "0 1" >> "${base}".gjf
 
     {
-		tail -n +3 "$file" | grep -v 'XP'
+		tail -n +3 "$file" | grep -v 'XP' | awk '{i++; h=(~$1)} END{print h}'
     	echo ""
 	} >> "${base}".gjf
 
