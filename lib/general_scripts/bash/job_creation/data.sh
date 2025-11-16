@@ -80,15 +80,13 @@ run_plotting() {
 	#Run the script and average the resulting nmr spectra
 	gnuplot plot_nmr.plt
 
-	sleep 1
+	#Return back
+	cd ../../.. || die "Couldn't back to the main directory"
 
 	#Check that the final files are truly present
 	check_res_file "nmr.png" "$JOB_DIR" "$job_name"
 
-	mv nmr.png "${save_as}".png
-
-	#Return back
-	cd ../../.. || die "Couldn't back to the main directory"
+	mv $JOB_DIR/nmr.png $JOB_DIR/"$save_as".png
 
 	success "$job_name has finished correctly"
 
