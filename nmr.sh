@@ -249,7 +249,7 @@ main() {
 	
 	#Convert to .gjf for the gaussian program
 	if [[ 12 -gt $LOG_POSITION ]]; then
-		run_gauss_prep "$meta" "$num_frames"
+		run_gauss_prep "$meta" "$num_frames" "$LIMIT"
 	fi
 
 	#Run gaussian on all the frames

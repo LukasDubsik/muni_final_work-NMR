@@ -11,6 +11,7 @@ run_gauss_prep() {
 	#Load the inputs
 	local meta=$1
 	local num_frames=$2
+	local limit=$3
 
 	local job_name="gauss_prep"
 
@@ -26,7 +27,7 @@ run_gauss_prep() {
 
 	SRC_DIR_1="lib/general_scripts/bash/general"
 
-	move_inp_file "xyz_to_gfj.sh" "$SRC_DIR_1" "$JOB_DIR"
+	substitute_name_sh_data "general/xyz_to_gfj.sh" "$JOB_DIR/xyz_to_gfj.sh" "" "$limit" ""
 
 	#Ensure the final dir exists
     ensure_dir $JOB_DIR/gauss
