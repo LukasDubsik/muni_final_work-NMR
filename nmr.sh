@@ -251,6 +251,20 @@ main() {
 		run_plotting "$name" "$save_as"
 	fi
 
+	# ----- Move -----
+	# Move the results
+
+	info "Moving the final results"
+	#delete the file for save if already present
+	rm -rf data_results/"$save_as"/
+	mkdir -p data_results/"$save_as"/
+	#Copy everything for posterity
+	cp -r process/* data_results/"$save_as"/
+	#Delete the process directory
+	rm -rf process/*
+
+	success "All files from the job saved in results under: $save_as"
+
 	# ----- Finish -----
 	# Clean the enviroment and output run statistics	
 	end_time=$( date +%s%N )
