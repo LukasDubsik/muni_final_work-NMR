@@ -191,7 +191,6 @@ main() {
 		die "$num_frames must be divisible by the number of md simulations: $md_iterations!"
 	fi
 
-	position_start=$(( num_frames / md_iterations ))
 	pos_curr=0
 
 
