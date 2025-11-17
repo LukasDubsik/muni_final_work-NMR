@@ -191,7 +191,7 @@ main() {
 		die "$num_frames must be divisible by the number of md simulations: $md_iterations!"
 	fi
 
-	pos_curr=0
+	increase=$((num_frames / md_iterations))
 
 
 	# ----- Simulation -----
@@ -224,7 +224,7 @@ main() {
 
 	#Sample with cpptraj
 	if [[ 11 -gt $LOG_POSITION ]]; then
-		run_cpptraj_parr "$name" "$directory" "$meta" "$amber_mod" "$pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba" "$md_iterations"
+		run_cpptraj_parr "$name" "$directory" "$meta" "$amber_mod" "$increase" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba" "$md_iterations"
 	fi
 
 	# ----- Spectrum -----
