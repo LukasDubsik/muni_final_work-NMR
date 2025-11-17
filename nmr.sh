@@ -273,6 +273,8 @@ main() {
 
 	info "Execution time was $(( (end_time - start_time)/(60000000000) )) minutes"
 
+	rm -f log.txt
+
 	# ----- Info -----
 	# Inform the user that the job correctly finished
 	#send_email "$mamba" "$save_as"
