@@ -18,7 +18,7 @@ run_opt_water() {
 
 	local job_name="opt_water"
 
-	info "Started running $job_name"
+	#info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
@@ -72,7 +72,7 @@ run_opt_all() {
 
 	local job_name="opt_all"
 
-	info "Started running $job_name"
+	#info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
@@ -126,7 +126,7 @@ run_opt_temp() {
 
 	local job_name="opt_temp"
 
-	info "Started running $job_name"
+	#info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
@@ -180,7 +180,7 @@ run_opt_pres() {
 
 	local job_name="opt_pres"
 
-	info "Started running $job_name"
+	#info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
@@ -234,7 +234,7 @@ run_md() {
 
 	local job_name="md"
 
-	info "Started running $job_name"
+	#info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
@@ -293,7 +293,7 @@ run_cpptraj() {
 
 	local job_name="cpptraj"
 
-	info "Started running $job_name"
+	#info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
