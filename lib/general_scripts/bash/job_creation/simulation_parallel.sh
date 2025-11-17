@@ -24,8 +24,10 @@ run_sim_step_parr() {
 	info "Started running $job_name"
 
 	while (( COUNTER <= md_iterations )); do
+		info "-1"
 		run_dir="run_$COUNTER"
 		ensure_dir process/"$run_dir"
+		info "0"
 
 		(
 			# Optimaze the water
