@@ -33,9 +33,11 @@ run_sim_step_parr() {
 
 		) &
 		pids+=("$!")
+		info "1"
 
 		# Limit the number of concurrent runs
 		while (( ${#pids[@]} >= max_parallel )); do
+		info "3"
 			if ! wait -n; then
 				# One of the subshells failed: kill the rest
 				kill "${pids[@]}" 2>/dev/null || true
@@ -52,6 +54,8 @@ run_sim_step_parr() {
 			done
 			pids=("${tmp[@]}")
 		done
+
+		info "2"
 
 		# Increase the current counter for the NEXT run
 		((COUNTER++))
