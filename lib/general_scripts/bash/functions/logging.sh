@@ -30,7 +30,7 @@ read_log() {
 	local LOG_FILE=$1
 	#If the logging is not present, it is okay, just return 0
 	#Means that nothing has yet been run
-	[[ -f "$LOG_FILE" ]] || return 0
+	[[ -f "$LOG_FILE" ]] || { LOG_POSITION=0; return; }
 
 	#Read the last line
 	LOG_LAST=$( tail -n 1 "$LOG_FILE" )
