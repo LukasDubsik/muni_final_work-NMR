@@ -19,11 +19,11 @@ run_sim_step_parr() {
 
 	pids=()
 	max_parallel=10
-	COUNTER=0
 
 	info "Started running $job_name"
 
-	while (( COUNTER <= md_iterations )); do
+	for ((COUNTER=0; COUNTER < md_iterations; COUNTER++))
+	do
 		info "-1"
 		run_dir="run_$COUNTER"
 		ensure_dir process/"$run_dir"
