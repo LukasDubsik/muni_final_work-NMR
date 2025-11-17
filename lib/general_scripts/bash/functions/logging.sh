@@ -10,16 +10,11 @@ declare -A LOG_MAP=(
   ["parmchk2"]=3
   ["nemesis_fix"]=4
   ["tleap"]=5
-  ["opt_water"]=6
-  ["opt_all"]=7
-  ["opt_temp"]=8
-  ["opt_pres"]=9
-  ["md"]=10
-  ["cpptraj"]=11
-  ["gauss_prep"]=12
-  ["gaussian"]=13
-  ["analysis"]=14
-  ["plotting"]=15
+  ["md_run"]=6
+  ["gauss_prep"]=7
+  ["gaussian"]=8
+  ["analysis"]=9
+  ["plotting"]=10
 )
 
 # read_log LOG_FILE

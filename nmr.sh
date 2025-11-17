@@ -184,63 +184,93 @@ main() {
 	# Prepare the enviroment for saving data from individual simulations
 	ensure_dir "process/spectrum/frames"
 
-	#Get the starting position for each md simulation frames counting
+	# Get the starting position for each md simulation frames counting
 	if (( (num_frames % md_iterations) != 0 )); then
 		die "$num_frames must be divisible by the number of md simulations: $md_iterations!"
 	fi
 
 	position_start=$(( num_frames / md_iterations ))
-	pos_curr=0
-
 
 	# ----- Simulation -----
 	# Run n times the full simulation pathway: Optimize - md - cpptraj
+	# Now in PARALLEL, with a cap on max_parallel jobs
+	pids=()
+	max_parallel=10
+
 	while (( COUNTER <= md_iterations )); do
-		#Optimaze the water
-		if [[ 6 -gt $LOG_POSITION ]]; then
-			run_opt_water "$name" "$directory" "$meta" "$amber_mod" "$opt_water"
-		fi
+		# Precompute per-run values so each subshell sees its own copy
+		local_counter=$COUNTER
+		local_pos_curr=$(( position_start * (local_counter - 1) ))
 
-		#Optimaze the entire system
-		if [[ 7 -gt $LOG_POSITION ]]; then
-			run_opt_all "$name" "$directory" "$meta" "$amber_mod" "$opt_all"
-		fi
+		(
+			# ----- Single simulation run (in subshell) -----
 
-		#Heat the system
-		if [[ 8 -gt $LOG_POSITION ]]; then
-			run_opt_temp "$name" "$directory" "$meta" "$amber_mod" "$opt_temp"
-		fi
+			# Optimaze the water
+			if [[ 6 -gt $LOG_POSITION ]]; then
+				run_opt_water "$name" "$directory" "$meta" "$amber_mod" "$opt_water"
+			fi
 
-		#Set production pressure in the system
-		if [[ 9 -gt $LOG_POSITION ]]; then
-			run_opt_pres "$name" "$directory" "$meta" "$amber_mod" "$opt_pres"
-		fi
+			# Optimaze the entire system
+			if [[ 7 -gt $LOG_POSITION ]]; then
+				run_opt_all "$name" "$directory" "$meta" "$amber_mod" "$opt_all"
+			fi
 
-		#Run the molcular dynamics
-		if [[ 10 -gt $LOG_POSITION ]]; then
-			run_md "$name" "$directory" "$meta" "$amber_mod" "$md"
-		fi
+			# Heat the system
+			if [[ 8 -gt $LOG_POSITION ]]; then
+				run_opt_temp "$name" "$directory" "$meta" "$amber_mod" "$opt_temp"
+			fi
 
-		#Sample with cpptraj
-		if [[ 11 -gt $LOG_POSITION ]]; then
-			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba"
+			# Set production pressure in the system
+			if [[ 9 -gt $LOG_POSITION ]]; then
+				run_opt_pres "$name" "$directory" "$meta" "$amber_mod" "$opt_pres"
+			fi
 
-			#Move the finished files
-			move_finished_job $COUNTER
-		fi
+			# Run the molcular dynamics
+			if [[ 10 -gt $LOG_POSITION ]]; then
+				run_md "$name" "$directory" "$meta" "$amber_mod" "$md"
+			fi
 
-		#Break the circle here if the last one run
-		if (( COUNTER == md_iterations )); then 
-			break; 
-		fi
+			# Sample with cpptraj
+			if [[ 11 -gt $LOG_POSITION ]]; then
+				# use local_pos_curr instead of global pos_curr
+				run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$local_pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba"
 
-		#Wipe the last 6 lines from the log (new simulation)
-		remove_run_log "$LOG" 6
+				# Move the finished files; use local_counter for this run
+				move_finished_job "$local_counter"
+			fi
 
-		#Increase the current counter
+		) &
+		pids+=("$!")
+
+		# Limit the number of concurrent runs
+		while (( ${#pids[@]} >= max_parallel )); do
+			if ! wait -n; then
+				# One of the subshells failed: kill the rest
+				kill "${pids[@]}" 2>/dev/null || true
+				# Optional: if your run_* functions submit cluster jobs, you can also qdel them here.
+				die "One of the MD iteration runs failed!"
+			fi
+
+			# Clean up finished PIDs from the list
+			tmp=()
+			for pid in "${pids[@]}"; do
+				if kill -0 "$pid" 2>/dev/null; then
+					tmp+=("$pid")
+				fi
+			done
+			pids=("${tmp[@]}")
+		done
+
+		# Increase the current counter for the NEXT run
 		((COUNTER++))
-		#Inrease the current position
-		pos_curr=$(( position_start * (COUNTER - 1) ))
+	done
+
+	# Wait for all runs to finish; kill all others if just one fails
+	for pid in "${pids[@]}"; do
+		if ! wait "$pid"; then
+			kill "${pids[@]}" 2>/dev/null || true
+			die "One of the MD iteration runs failed during final wait!"
+		fi
 	done
 
 	# ----- Spectrum -----
