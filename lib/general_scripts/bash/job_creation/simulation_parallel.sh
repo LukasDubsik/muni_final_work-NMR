@@ -81,7 +81,6 @@ run_cpptraj_parr() {
 	local directory=$2
 	local meta=$3
 	local amber_mod=$4
-	local local_pos_curr=$5
 	local LIMIT=$6
 	local cpptraj=$7
 	local cpptraj_mode=$8
@@ -105,7 +104,7 @@ run_cpptraj_parr() {
 
 		(
 			# Optimaze the water
-			run_"$job_name" "$name" "$directory" "$meta" "$amber_mod" "$local_pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba" "$run_dir"
+			run_"$job_name" "$name" "$directory" "$meta" "$amber_mod" "$COUNTER" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba" "$run_dir"
 
 			move_finished_job $run_dir
 
