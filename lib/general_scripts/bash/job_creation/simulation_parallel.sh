@@ -24,10 +24,8 @@ run_sim_step_parr() {
 
 	for ((COUNTER=0; COUNTER < md_iterations; COUNTER++))
 	do
-		info "-1"
 		run_dir="run_$COUNTER"
 		ensure_dir process/"$run_dir"
-		info "0"
 
 		(
 			# Optimaze the water
@@ -35,11 +33,9 @@ run_sim_step_parr() {
 
 		) &
 		pids+=("$!")
-		info "1"
 
 		# Limit the number of concurrent runs
 		while (( ${#pids[@]} >= max_parallel )); do
-		info "3"
 			if ! wait -n; then
 				# One of the subshells failed: kill the rest
 				kill "${pids[@]}" 2>/dev/null || true
@@ -56,10 +52,6 @@ run_sim_step_parr() {
 			done
 			pids=("${tmp[@]}")
 		done
-
-		info "2"
-
-		info "4"
 	done
 
 	# Wait for all runs to finish; kill all others if just one fails
