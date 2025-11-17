@@ -50,7 +50,7 @@ run_opt_water() {
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_water.rst7" "$JOB_DIR" "$job_name"
 
-	success "$job_name has finished correctly"
+	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -103,7 +103,7 @@ run_opt_all() {
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_all.rst7" "$JOB_DIR" "$job_name"
 
-	success "$job_name has finished correctly"
+	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -156,7 +156,7 @@ run_opt_temp() {
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_temp.rst7" "$JOB_DIR" "$job_name"
 
-	success "$job_name has finished correctly"
+	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -209,7 +209,7 @@ run_opt_pres() {
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_pres.rst7" "$JOB_DIR" "$job_name"
 
-	success "$job_name has finished correctly"
+	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -262,7 +262,7 @@ run_md() {
 	#Check that the final files are truly present
 	check_res_file "${name}_md.rst7" "$JOB_DIR" "$job_name"
 
-	success "$job_name has finished correctly"
+	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -348,7 +348,7 @@ run_cpptraj() {
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
 	fi
 
-	success "$job_name has finished correctly"
+	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
@@ -372,4 +372,79 @@ move_finished_job() {
 
 	#Move all the files there
 	mv process/simulation/* process/run_"$RUN"
+}
+
+run_full_sim() {
+	pids=()
+	max_parallel=10
+
+	while (( COUNTER <= md_iterations )); do
+		# Precompute per-run values so each subshell sees its own copy
+		local_counter=$COUNTER
+		local_pos_curr=$(( position_start * (local_counter - 1) ))
+
+		(
+			# ----- Single simulation run (in subshell) -----
+
+			# Optimaze the water
+			run_opt_water "$name" "$directory" "$meta" "$amber_mod" "$opt_water"
+
+			# Optimaze the entire system
+			run_opt_all "$name" "$directory" "$meta" "$amber_mod" "$opt_all"
+
+			# Heat the system
+			run_opt_temp "$name" "$directory" "$meta" "$amber_mod" "$opt_temp"
+
+			# Set production pressure in the system
+			run_opt_pres "$name" "$directory" "$meta" "$amber_mod" "$opt_pres"
+
+			# Run the molcular dynamics
+			run_md "$name" "$directory" "$meta" "$amber_mod" "$md"
+
+			# Sample with cpptraj
+			# use local_pos_curr instead of global pos_curr
+			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$local_pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba"
+
+			# Move the finished files; use local_counter for this run
+			move_finished_job "$local_counter"
+
+		) &
+		pids+=("$!")
+
+		# Limit the number of concurrent runs
+		while (( ${#pids[@]} >= max_parallel )); do
+			if ! wait -n; then
+				# One of the subshells failed: kill the rest
+				kill "${pids[@]}" 2>/dev/null || true
+				# Optional: if your run_* functions submit cluster jobs, you can also qdel them here.
+				die "One of the MD iteration runs failed!"
+			fi
+
+			# Clean up finished PIDs from the list
+			tmp=()
+			for pid in "${pids[@]}"; do
+				if kill -0 "$pid" 2>/dev/null; then
+					tmp+=("$pid")
+				fi
+			done
+			pids=("${tmp[@]}")
+		done
+
+		# Increase the current counter for the NEXT run
+		((COUNTER++))
+	done
+
+	COUNTER=0
+	# Wait for all runs to finish; kill all others if just one fails
+	for pid in "${pids[@]}"; do
+		if ! wait "$pid"; then
+			kill "${pids[@]}" 2>/dev/null || true
+			die "One of the MD iteration runs failed during final wait!"
+		fi
+		success "Md run $COUNTER has finished!"
+		(( COUNTER++ ))
+	done
+
+	#All the mds have finishged, include that in the log
+	add_to_log "md" "$LOG"
 }

@@ -194,106 +194,104 @@ main() {
 	# ----- Simulation -----
 	# Run n times the full simulation pathway: Optimize - md - cpptraj
 	# Now in PARALLEL, with a cap on max_parallel jobs
-	pids=()
-	max_parallel=10
 
-	while (( COUNTER <= md_iterations )); do
-		# Precompute per-run values so each subshell sees its own copy
-		local_counter=$COUNTER
-		local_pos_curr=$(( position_start * (local_counter - 1) ))
+	if [[ 6 -gt $LOG_POSITION ]]; then
 
-		(
-			# ----- Single simulation run (in subshell) -----
+		pids=()
+		max_parallel=10
 
-			# Optimaze the water
-			if [[ 6 -gt $LOG_POSITION ]]; then
+		while (( COUNTER <= md_iterations )); do
+			# Precompute per-run values so each subshell sees its own copy
+			local_counter=$COUNTER
+			local_pos_curr=$(( position_start * (local_counter - 1) ))
+
+			(
+				# ----- Single simulation run (in subshell) -----
+
+				# Optimaze the water
 				run_opt_water "$name" "$directory" "$meta" "$amber_mod" "$opt_water"
-			fi
 
-			# Optimaze the entire system
-			if [[ 7 -gt $LOG_POSITION ]]; then
+				# Optimaze the entire system
 				run_opt_all "$name" "$directory" "$meta" "$amber_mod" "$opt_all"
-			fi
 
-			# Heat the system
-			if [[ 8 -gt $LOG_POSITION ]]; then
+				# Heat the system
 				run_opt_temp "$name" "$directory" "$meta" "$amber_mod" "$opt_temp"
-			fi
 
-			# Set production pressure in the system
-			if [[ 9 -gt $LOG_POSITION ]]; then
+				# Set production pressure in the system
 				run_opt_pres "$name" "$directory" "$meta" "$amber_mod" "$opt_pres"
-			fi
 
-			# Run the molcular dynamics
-			if [[ 10 -gt $LOG_POSITION ]]; then
+				# Run the molcular dynamics
 				run_md "$name" "$directory" "$meta" "$amber_mod" "$md"
-			fi
 
-			# Sample with cpptraj
-			if [[ 11 -gt $LOG_POSITION ]]; then
+				# Sample with cpptraj
 				# use local_pos_curr instead of global pos_curr
 				run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$local_pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba"
 
 				# Move the finished files; use local_counter for this run
 				move_finished_job "$local_counter"
-			fi
 
-		) &
-		pids+=("$!")
+			) &
+			pids+=("$!")
 
-		# Limit the number of concurrent runs
-		while (( ${#pids[@]} >= max_parallel )); do
-			if ! wait -n; then
-				# One of the subshells failed: kill the rest
-				kill "${pids[@]}" 2>/dev/null || true
-				# Optional: if your run_* functions submit cluster jobs, you can also qdel them here.
-				die "One of the MD iteration runs failed!"
-			fi
-
-			# Clean up finished PIDs from the list
-			tmp=()
-			for pid in "${pids[@]}"; do
-				if kill -0 "$pid" 2>/dev/null; then
-					tmp+=("$pid")
+			# Limit the number of concurrent runs
+			while (( ${#pids[@]} >= max_parallel )); do
+				if ! wait -n; then
+					# One of the subshells failed: kill the rest
+					kill "${pids[@]}" 2>/dev/null || true
+					# Optional: if your run_* functions submit cluster jobs, you can also qdel them here.
+					die "One of the MD iteration runs failed!"
 				fi
+
+				# Clean up finished PIDs from the list
+				tmp=()
+				for pid in "${pids[@]}"; do
+					if kill -0 "$pid" 2>/dev/null; then
+						tmp+=("$pid")
+					fi
+				done
+				pids=("${tmp[@]}")
 			done
-			pids=("${tmp[@]}")
+
+			# Increase the current counter for the NEXT run
+			((COUNTER++))
 		done
 
-		# Increase the current counter for the NEXT run
-		((COUNTER++))
-	done
+		COUNTER=0
+		# Wait for all runs to finish; kill all others if just one fails
+		for pid in "${pids[@]}"; do
+			if ! wait "$pid"; then
+				kill "${pids[@]}" 2>/dev/null || true
+				die "One of the MD iteration runs failed during final wait!"
+			fi
+			success "Md run $COUNTER has finished!"
+			(( COUNTER++ ))
+		done
 
-	# Wait for all runs to finish; kill all others if just one fails
-	for pid in "${pids[@]}"; do
-		if ! wait "$pid"; then
-			kill "${pids[@]}" 2>/dev/null || true
-			die "One of the MD iteration runs failed during final wait!"
-		fi
-	done
+		#All the mds have finishged, include that in the log
+		add_to_log "md" "$LOG"
+	fi
 
 	# ----- Spectrum -----
 	# Having gotten the simulation frames perform NMR computation in Gaussian 
 	# for each frame, combine and graph
 	
 	#Convert to .gjf for the gaussian program
-	if [[ 12 -gt $LOG_POSITION ]]; then
+	if [[ 7 -gt $LOG_POSITION ]]; then
 		run_gauss_prep "$meta" "$num_frames" "$LIMIT"
 	fi
 
 	#Run gaussian on all the frames
-	if [[ 13 -gt $LOG_POSITION ]]; then
+	if [[ 8 -gt $LOG_POSITION ]]; then
 		run_gaussian "$name" "$directory" "$meta" "$gauss_mod"
 	fi
 
 	#Analyse the resulting data
-	if [[ 14 -gt $LOG_POSITION ]]; then
+	if [[ 9 -gt $LOG_POSITION ]]; then
 		run_analysis "$sigma" "$LIMIT"
 	fi
 
 	#Run gaussian on all the frames
-	if [[ 15 -gt $LOG_POSITION ]]; then
+	if [[ 10 -gt $LOG_POSITION ]]; then
 		run_plotting "$name" "$save_as"
 	fi
 
