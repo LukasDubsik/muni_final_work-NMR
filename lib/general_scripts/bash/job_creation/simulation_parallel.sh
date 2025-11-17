@@ -59,8 +59,6 @@ run_sim_step_parr() {
 
 		info "2"
 
-		# Increase the current counter for the NEXT run
-		(( COUNTER++ ))
 		info "4"
 	done
 
