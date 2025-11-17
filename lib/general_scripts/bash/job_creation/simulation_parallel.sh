@@ -96,7 +96,8 @@ run_cpptraj_parr() {
 
 	info "Started running $job_name"
 
-	while (( COUNTER <= md_iterations )); do
+	for ((COUNTER=0; COUNTER < md_iterations; COUNTER++))
+	do
 		run_dir="run_$COUNTER"
 
 		(
@@ -126,9 +127,6 @@ run_cpptraj_parr() {
 			done
 			pids=("${tmp[@]}")
 		done
-
-		# Increase the current counter for the NEXT run
-		((COUNTER++))
 	done
 
 	# Wait for all runs to finish; kill all others if just one fails
