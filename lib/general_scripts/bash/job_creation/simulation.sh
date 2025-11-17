@@ -14,14 +14,15 @@ run_opt_water() {
 	local meta=$3
 	local amber=$4
 	local in_file=$5
+	local run_dir=$6
 
 	local job_name="opt_water"
 
 	info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
-	JOB_DIR="process/simulation/$job_name"
-	ensure_dir $JOB_DIR
+	JOB_DIR="process/$run_dir/$job_name"
+	ensure_dir "$JOB_DIR"
 
 	SRC_DIR_1="process/preparations/tleap"
 
@@ -53,7 +54,7 @@ run_opt_water() {
 	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
+	#add_to_log "$job_name" "$LOG"
 }
 
 # run_opt_all NAME DIRECTORY META AMBER
@@ -67,16 +68,17 @@ run_opt_all() {
 	local meta=$3
 	local amber=$4
 	local in_file=$5
+	local run_dir=$6
 
 	local job_name="opt_all"
 
 	info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
-	JOB_DIR="process/simulation/$job_name"
-	ensure_dir $JOB_DIR
+	JOB_DIR="process/$run_dir/$job_name"
+	ensure_dir "$JOB_DIR"
 
-	SRC_DIR_1="process/simulation/opt_water"
+	SRC_DIR_1="process/$run_dir/opt_water"
 
 	#Copy the data from antechamber
 	move_inp_file "${name}_opt_water.rst7" "$SRC_DIR_1" "$JOB_DIR"
@@ -106,7 +108,7 @@ run_opt_all() {
 	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
+	#add_to_log "$job_name" "$LOG"
 }
 
 # run_opt_temp NAME DIRECTORY META AMBER
@@ -120,16 +122,17 @@ run_opt_temp() {
 	local meta=$3
 	local amber=$4
 	local in_file=$5
+	local run_dir=$6
 
 	local job_name="opt_temp"
 
 	info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
-	JOB_DIR="process/simulation/$job_name"
-	ensure_dir $JOB_DIR
+	JOB_DIR="process/$run_dir/$job_name"
+	ensure_dir "$JOB_DIR"
 
-	SRC_DIR_1="process/simulation/opt_all"
+	SRC_DIR_1="process/$run_dir/opt_all"
 
 	#Copy the data from antechamber
 	move_inp_file "${name}_opt_all.rst7" "$SRC_DIR_1" "$JOB_DIR"
@@ -159,7 +162,7 @@ run_opt_temp() {
 	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
+	#add_to_log "$job_name" "$LOG"
 }
 
 # run_opt_pres NAME DIRECTORY META AMBER
@@ -173,16 +176,17 @@ run_opt_pres() {
 	local meta=$3
 	local amber=$4
 	local in_file=$5
+	local run_dir=$6
 
 	local job_name="opt_pres"
 
 	info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
-	JOB_DIR="process/simulation/$job_name"
-	ensure_dir $JOB_DIR
+	JOB_DIR="process/$run_dir/$job_name"
+	ensure_dir "$JOB_DIR"
 
-	SRC_DIR_1="process/simulation/opt_temp"
+	SRC_DIR_1="process/$run_dir/opt_temp"
 
 	#Copy the data from antechamber
 	move_inp_file "${name}_opt_temp.rst7" "$SRC_DIR_1" "$JOB_DIR"
@@ -212,7 +216,7 @@ run_opt_pres() {
 	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
+	#add_to_log "$job_name" "$LOG"
 }
 
 # run_md NAME DIRECTORY META AMBER
@@ -226,16 +230,17 @@ run_md() {
 	local meta=$3
 	local amber=$4
 	local in_file=$5
+	local run_dir=$6
 
 	local job_name="md"
 
 	info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
-	JOB_DIR="process/simulation/$job_name"
-	ensure_dir $JOB_DIR
+	JOB_DIR="process/$run_dir/$job_name"
+	ensure_dir "$JOB_DIR"
 
-	SRC_DIR_1="process/simulation/opt_pres"
+	SRC_DIR_1="process/$run_dir/opt_pres"
 
 	#Copy the data from antechamber
 	move_inp_file "${name}_opt_pres.rst7" "$SRC_DIR_1" "$JOB_DIR"
@@ -265,7 +270,7 @@ run_md() {
 	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
+	#add_to_log "$job_name" "$LOG"
 }
 
 # run_cpptraj NAME DIRECTORY META AMBER CURR_RUN
@@ -283,16 +288,18 @@ run_cpptraj() {
 	local in_file=$7
 	local mode=$8
 	local env=$9
+	shift 9
+	local run_dir=$1
 
 	local job_name="cpptraj"
 
 	info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
-	JOB_DIR="process/simulation/$job_name"
-	ensure_dir $JOB_DIR
+	JOB_DIR="process/$run_dir/$job_name"
+	ensure_dir "$JOB_DIR"
 
-	SRC_DIR_1="process/simulation/md"
+	SRC_DIR_1="process/$run_dir/md"
 	SRC_DIR_2="lib/general_scripts/bash/general"
 	SRC_DIR_3="lib/general_scripts/python"
 
@@ -351,7 +358,7 @@ run_cpptraj() {
 	#success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
+	#add_to_log "$job_name" "$LOG"
 }
 
 # move_finished_job RUN
@@ -359,22 +366,33 @@ run_cpptraj() {
 # Globals: none
 # Returns: Nothing
 move_finished_job() {
-	local RUN=$1
+	local run_dir=$1
 
 	#Move the frames from cpptraj to the gauss_prep
-	SRC_DIR=process/simulation/cpptraj
+	SRC_DIR=process/$run_dir/cpptraj
 	DST_DIR=process/spectrum/frames
 
-	cp -r $SRC_DIR/frames/* $DST_DIR || exit 1
-
-	#Create a directory to save the results into
-	ensure_dir "process/run_$RUN"
-
-	#Move all the files there
-	mv process/simulation/* process/run_"$RUN"
+	cp -r "$SRC_DIR"/frames/* $DST_DIR || exit 1
 }
 
 run_full_sim() {
+	local amber_mod=$1
+	local opt_water=$2
+	local opt_all=$3
+	local opt_temp=$4
+	local opt_pres=$5
+	local md=$6
+	local LIMIT=$7
+	local cpptraj=$8
+	local cpptraj_mode=$9
+
+	shift 9
+
+	local mamba=$1
+	local md_iterations=$2
+	local position_start=$3
+
+
 	pids=()
 	max_parallel=10
 
@@ -383,30 +401,32 @@ run_full_sim() {
 		local_counter=$COUNTER
 		local_pos_curr=$(( position_start * (local_counter - 1) ))
 
+		run_dir="run_$COUNTER"
+
 		(
 			# ----- Single simulation run (in subshell) -----
 
 			# Optimaze the water
-			run_opt_water "$name" "$directory" "$meta" "$amber_mod" "$opt_water"
+			run_opt_water "$name" "$directory" "$meta" "$amber_mod" "$opt_water" "$run_dir"
 
 			# Optimaze the entire system
-			run_opt_all "$name" "$directory" "$meta" "$amber_mod" "$opt_all"
+			run_opt_all "$name" "$directory" "$meta" "$amber_mod" "$opt_all" "$run_dir"
 
 			# Heat the system
-			run_opt_temp "$name" "$directory" "$meta" "$amber_mod" "$opt_temp"
+			run_opt_temp "$name" "$directory" "$meta" "$amber_mod" "$opt_temp" "$run_dir"
 
 			# Set production pressure in the system
-			run_opt_pres "$name" "$directory" "$meta" "$amber_mod" "$opt_pres"
+			run_opt_pres "$name" "$directory" "$meta" "$amber_mod" "$opt_pres" "$run_dir"
 
 			# Run the molcular dynamics
-			run_md "$name" "$directory" "$meta" "$amber_mod" "$md"
+			run_md "$name" "$directory" "$meta" "$amber_mod" "$md" "$run_dir"
 
 			# Sample with cpptraj
 			# use local_pos_curr instead of global pos_curr
-			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$local_pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba"
+			run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$local_pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba" "$run_dir"
 
 			# Move the finished files; use local_counter for this run
-			move_finished_job "$local_counter"
+			move_finished_job "$local_counter" "$run_dir"
 
 		) &
 		pids+=("$!")
