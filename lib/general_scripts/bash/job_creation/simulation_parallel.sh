@@ -61,6 +61,7 @@ run_sim_step_parr() {
 
 		# Increase the current counter for the NEXT run
 		((COUNTER++))
+		info "4"
 	done
 
 	# Wait for all runs to finish; kill all others if just one fails
