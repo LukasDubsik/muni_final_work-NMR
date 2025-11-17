@@ -40,6 +40,8 @@ source "${SUB_PATH}/preparations.sh"
 # shellcheck source=/dev/null
 source "${SUB_PATH}/simulation.sh"
 # shellcheck source=/dev/null
+source "${SUB_PATH}/simulation_parallel.sh"
+# shellcheck source=/dev/null
 source "${SUB_PATH}/gauss.sh"
 # shellcheck source=/dev/null
 source "${SUB_PATH}/data.sh"
@@ -144,10 +146,10 @@ main() {
 	read_log "$LOG"
 
 	#Get the last run md simulation
-	find_sim_num "$md_iterations" "$LOG_POSITION"
+	#find_sim_num "$md_iterations" "$LOG_POSITION"
 
 	#Clear the files not important for the log
-	clean_process "$LOG_POSITION" "$COUNTER"
+	clean_process "$LOG_POSITION"
 
 
 	# ----- Preparations -----
@@ -198,35 +200,32 @@ main() {
 
 	#Optimaze the water
 	if [[ 6 -gt $LOG_POSITION ]]; then
-		run_opt_water "$name" "$directory" "$meta" "$amber_mod" "$opt_water"
+		run_sim_step_parr "$name" "$directory" "$meta" "$amber_mod" "$opt_water" "$md_iterations" "opt_water"
 	fi
 
 	#Optimaze the entire system
 	if [[ 7 -gt $LOG_POSITION ]]; then
-		run_opt_all "$name" "$directory" "$meta" "$amber_mod" "$opt_all"
+		run_sim_step_parr "$name" "$directory" "$meta" "$amber_mod" "$opt_all" "$md_iterations" "opt_all"
 	fi
 
 	#Heat the system
 	if [[ 8 -gt $LOG_POSITION ]]; then
-		run_opt_temp "$name" "$directory" "$meta" "$amber_mod" "$opt_temp"
+		run_sim_step_parr "$name" "$directory" "$meta" "$amber_mod" "$opt_temp" "$md_iterations" "opt_temp"
 	fi
 
 	#Set production pressure in the system
 	if [[ 9 -gt $LOG_POSITION ]]; then
-		run_opt_pres "$name" "$directory" "$meta" "$amber_mod" "$opt_pres"
+		run_sim_step_parr "$name" "$directory" "$meta" "$amber_mod" "$opt_pres" "$md_iterations" "opt_pres"
 	fi
 
 	#Run the molcular dynamics
 	if [[ 10 -gt $LOG_POSITION ]]; then
-		run_md "$name" "$directory" "$meta" "$amber_mod" "$md"
+		run_sim_step_parr "$name" "$directory" "$meta" "$amber_mod" "$md" "$md_iterations" "md"
 	fi
 
 	#Sample with cpptraj
 	if [[ 11 -gt $LOG_POSITION ]]; then
-		run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba"
-
-		#Move the finished files
-		move_finished_job $COUNTER
+		run_cpptraj_parr "$name" "$directory" "$meta" "$amber_mod" "$pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba" "$md_iterations"
 	fi
 
 	# ----- Spectrum -----

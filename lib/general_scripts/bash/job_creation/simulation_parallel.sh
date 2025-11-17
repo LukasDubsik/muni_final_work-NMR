@@ -14,9 +14,8 @@ run_sim_step_parr() {
 	local meta=$3
 	local amber=$4
 	local in_file=$5
-	local run_dir=$6
-	local md_iterations=$7
-	local job_name=$8
+	local md_iterations=$6
+	local job_name=$7
 
 	pids=()
 	max_parallel=10
@@ -90,8 +89,7 @@ run_cpptraj_parr() {
 
 	shift 9
 
-	local run_dir=$1
-	local md_iterations=$2
+	local md_iterations=$1
 
 
 	pids=()
