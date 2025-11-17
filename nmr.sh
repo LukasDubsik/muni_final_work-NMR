@@ -184,20 +184,49 @@ main() {
 	# Prepare the enviroment for saving data from individual simulations
 	ensure_dir "process/spectrum/frames"
 
-	# Get the starting position for each md simulation frames counting
+	#Get the starting position for each md simulation frames counting
 	if (( (num_frames % md_iterations) != 0 )); then
 		die "$num_frames must be divisible by the number of md simulations: $md_iterations!"
 	fi
 
 	position_start=$(( num_frames / md_iterations ))
+	pos_curr=0
+
 
 	# ----- Simulation -----
-	# Run n times the full simulation pathway: Optimize - md - cpptraj
-	# Now in PARALLEL, with a cap on max_parallel jobs
+	# Run in parallel each step
 
-	#Run all the md jobs in parallel
+	#Optimaze the water
 	if [[ 6 -gt $LOG_POSITION ]]; then
-		run_full_sim 
+		run_opt_water "$name" "$directory" "$meta" "$amber_mod" "$opt_water"
+	fi
+
+	#Optimaze the entire system
+	if [[ 7 -gt $LOG_POSITION ]]; then
+		run_opt_all "$name" "$directory" "$meta" "$amber_mod" "$opt_all"
+	fi
+
+	#Heat the system
+	if [[ 8 -gt $LOG_POSITION ]]; then
+		run_opt_temp "$name" "$directory" "$meta" "$amber_mod" "$opt_temp"
+	fi
+
+	#Set production pressure in the system
+	if [[ 9 -gt $LOG_POSITION ]]; then
+		run_opt_pres "$name" "$directory" "$meta" "$amber_mod" "$opt_pres"
+	fi
+
+	#Run the molcular dynamics
+	if [[ 10 -gt $LOG_POSITION ]]; then
+		run_md "$name" "$directory" "$meta" "$amber_mod" "$md"
+	fi
+
+	#Sample with cpptraj
+	if [[ 11 -gt $LOG_POSITION ]]; then
+		run_cpptraj "$name" "$directory" "$meta" "$amber_mod" "$pos_curr" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba"
+
+		#Move the finished files
+		move_finished_job $COUNTER
 	fi
 
 	# ----- Spectrum -----
