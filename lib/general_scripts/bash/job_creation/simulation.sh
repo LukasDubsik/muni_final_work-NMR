@@ -326,7 +326,7 @@ run_cpptraj() {
     submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "02:00:00"
 
 	#Ensure the final dir exists
-    ensure_dir $JOB_DIR/frames
+    ensure_dir "$JOB_DIR"/frames
 
 	if [[ $mode == "no_water" ]]; then
 		#Check that the final files are truly present
@@ -346,7 +346,7 @@ run_cpptraj() {
 		#Move to the job dir
 		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
 		#Activate the conda enviroment
-		conda activate ${env}
+		conda activate "$env"
 		#Run the python script
 		python -W "ignore" select_interact.py "${name}.parm7" "$curr_run"
 		#Then deactive it
