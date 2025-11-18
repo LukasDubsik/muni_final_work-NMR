@@ -142,7 +142,7 @@ main() {
 
 	# ----- Load Log -----
 	# Load the log of the previous run - start from the last succesfull operation
-	read_log "$LOG"
+	read_log "$LOG" "$md_iterations"
 
 	#Get the last run md simulation
 	#find_sim_num "$md_iterations" "$LOG_POSITION"

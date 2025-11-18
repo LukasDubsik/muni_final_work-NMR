@@ -11,6 +11,7 @@ ensure_dir() { mkdir -p "$1"; }
 
 clean_process() {
 	local last_command=$1
+	local num_frames=$2
 	local curr_sys=""
 
 	#Delete based on log
@@ -19,12 +20,17 @@ clean_process() {
 		if [[ $num -gt $last_command ]]; then
 			if [[ $num -ge 1 && $num -le 5 ]]; then
 				curr_sys="preparations"
+				rm -rf "process/${curr_sys}/${key}/"
 			elif [[ $num -ge 6 && $num -le 11 ]]; then
-				curr_sys="simulation"
+				curr_sys="run_"
+				for ((num=0; num < num_frames; num++))
+				do
+					rm -rf "process/${curr_sys}${num}/${key}/"
+				done
 			else
 				curr_sys="spectrum"
+				rm -rf "process/${curr_sys}/${key}/"
 			fi
-			rm -rf "process/${curr_sys}/${key}/"
 		fi
 	done
 }
