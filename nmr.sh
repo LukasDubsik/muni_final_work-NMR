@@ -70,12 +70,11 @@ declare -A Params
 name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
-num_frames="" cpptraj_mode="" sigma=""
+num_frames="" cpptraj_mode="" sigma="" charge=""
 
 LOG="log.txt"
 
 LOG_POSITION=""
-COUNTER=0
 
 #How many atoms the simulated molecule holds
 LIMIT=""

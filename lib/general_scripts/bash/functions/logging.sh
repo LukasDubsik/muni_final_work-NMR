@@ -20,6 +20,7 @@ declare -A LOG_MAP=(
   ["gaussian"]=13
   ["analysis"]=14
   ["plotting"]=15
+  ["moving"]=15
 )
 
 # read_log LOG_FILE

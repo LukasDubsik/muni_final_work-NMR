@@ -99,7 +99,10 @@ load_cfg() {
 	#Number of iterations of the md
 	md_iterations=$(get_cfg 'md_iterations')
 
-	info "Config loaded: name=$name, save_as=$save_as, checking modules=$c_modules, number of frames=$num_frames, input_type=$input_type, gpu=$gpu, cpptraj_mode=$cpptraj_mode meta=$meta, sigma=$sigma, md iterations=$md_iterations"
+	#Get the overall charge of the system
+	charge=$(get_cfg 'charge')
+
+	info "Config loaded: name=$name, save_as=$save_as, checking modules=$c_modules, number of frames=$num_frames, input_type=$input_type, gpu=$gpu, cpptraj_mode=$cpptraj_mode meta=$meta, sigma=$sigma, md iterations=$md_iterations, charge=$charge"
 
 	#By default amber extension is empty
 	amber_ext=""

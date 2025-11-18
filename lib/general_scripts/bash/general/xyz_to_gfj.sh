@@ -2,6 +2,7 @@
 
 # shellcheck disable=SC2154
 N_CORE=${limit}
+char=${charge}
 
 for file in frames/frame_*.xyz; do
 
@@ -14,7 +15,7 @@ for file in frames/frame_*.xyz; do
     echo "" >> "${base}".gjf
     echo "${bas} — GIAO NMR (Solute with bound waters)" >> "${base}".gjf
     echo "" >> "${base}".gjf
-    echo "0 1" >> "${base}".gjf
+    echo "$char 1" >> "${base}".gjf
 
     {
 		tail -n +3 "$file" | grep -v 'XP' | awk '
