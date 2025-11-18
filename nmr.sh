@@ -161,7 +161,7 @@ main() {
 
 		#Run antechmaber
 		if [[ 2 -gt $LOG_POSITION ]]; then
-			run_antechamber "$name" "$directory" "$meta" "$amber_mod" "$antechamber_cmd"
+			run_antechamber "$name" "$directory" "$meta" "$amber_mod" "$antechamber_cmd" "$charge"
 		fi
 
 		#Run parmchk2
@@ -232,7 +232,7 @@ main() {
 	
 	#Convert to .gjf for the gaussian program
 	if [[ 12 -gt $LOG_POSITION ]]; then
-		run_gauss_prep "$meta" "$num_frames" "$LIMIT"
+		run_gauss_prep "$meta" "$num_frames" "$LIMIT" "$charge"
 	fi
 
 	#Run gaussian on all the frames
@@ -252,15 +252,18 @@ main() {
 
 	# ----- Move -----
 	# Move the results
-
-	info "Moving the final results"
-	#delete the file for save if already present
-	rm -rf data_results/"$save_as"/
-	mkdir -p data_results/"$save_as"/
-	#Copy everything for posterity
-	cp -r process/* data_results/"$save_as"/
-	#Delete the process directory
-	rm -rf process/*
+	if [[ 16 -gt $LOG_POSITION ]]; then
+		info "Moving the final results"
+		#delete the file for save if already present
+		rm -rf data_results/"$save_as"/
+		mkdir -p data_results/"$save_as"/
+		#Copy everything for posterity
+		cp -r process/* data_results/"$save_as"/
+		#Delete the process directory
+		rm -rf process/*
+		#Add to the log
+		add_to_log "moving" "$LOG"
+	fi
 
 	success "All files from the job saved in results under: $save_as"
 
