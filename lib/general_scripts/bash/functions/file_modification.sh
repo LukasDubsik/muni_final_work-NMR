@@ -23,11 +23,11 @@ substitute_name_in() {
 # Returns: Nothing
 substitute_name_sh_data() {
 	# Sed used to replace the name
-	local fil=$1 dst=$2 name=$3 limit=$4 sigma=$5
+	local fil=$1 dst=$2 name=$3 limit=$4 sigma=$5 charge=$6
 	local src="lib/general_scripts/bash/${fil}"
 	local dst_full="${dst}"
 	[[ -f "$src" ]] || die "Missing input file: $src"
-	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g; s#\${sigma}#${sigma}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g; s#\${sigma}#${sigma}#g; s#\${charge}#${charge}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # substitute_name_sh_meta_start DST COPY DIR JOB
@@ -75,11 +75,11 @@ substitute_name_sh_wolf_start() {
 # Returns: Nothing
 substitute_name_sh() {
 	# Sed used to replace the name
-	local fil=$1 dst=$2 module=$3 name=$4 file=$5 num=$6 params=$7
+	local fil=$1 dst=$2 module=$3 name=$4 file=$5 num=$6 params=$7 charge=$8
 	local src="lib/job_scripts/programs/${fil}.txt"
 	local dst_full="${dst}/job_file.txt"
 	[[ -f "$src" ]] || die "Missing template: $src"
-	sed "s#\${module}#${module}#g; s#\${name}#${name}#g; s#\${file}#${file}#g; s#\${num}#${num}#g; s#\${params}#${params}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	sed "s#\${module}#${module}#g; s#\${name}#${name}#g; s#\${file}#${file}#g; s#\${num}#${num}#g; s#\${params}#${params}#g; s#\${charge}#${charge}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # construct_sh_wolf DIR NAME

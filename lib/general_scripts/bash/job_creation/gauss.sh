@@ -12,6 +12,7 @@ run_gauss_prep() {
 	local meta=$1
 	local num_frames=$2
 	local limit=$3
+	local charge=$4
 
 	local job_name="gauss_prep"
 
@@ -27,7 +28,7 @@ run_gauss_prep() {
 
 	SRC_DIR_1="lib/general_scripts/bash/general"
 
-	substitute_name_sh_data "general/xyz_to_gfj.sh" "$JOB_DIR/xyz_to_gfj.sh" "" "$limit" ""
+	substitute_name_sh_data "general/xyz_to_gfj.sh" "$JOB_DIR/xyz_to_gfj.sh" "" "$limit" "" "$charge"
 
 	#Ensure the final dir exists
     ensure_dir $JOB_DIR/gauss
@@ -93,11 +94,11 @@ run_gaussian() {
 		if [[ $meta == "true" ]]; then
 			substitute_name_sh_meta_start "$LOC_DIR" "${directory}" ""
 			substitute_name_sh_meta_end "$LOC_DIR"
-			substitute_name_sh "$job_name" "$LOC_DIR" "$gaussian" "$name" "" "$num" ""
+			substitute_name_sh "$job_name" "$LOC_DIR" "$gaussian" "$name" "" "$num" "" ""
 			construct_sh_meta "$LOC_DIR" "$job_name"
 		else
 			substitute_name_sh_wolf_start "$LOC_DIR"
-			substitute_name_sh "$job_name" "$LOC_DIR" "$gaussian" "$name" "" "" ""
+			substitute_name_sh "$job_name" "$LOC_DIR" "$gaussian" "$name" "" "" "" ""
 			construct_sh_wolf "$LOC_DIR" "$job_name"
 		fi
 		#Copy the specific frame to the local dir

@@ -29,12 +29,12 @@ run_crest() {
 		module add openbabel > /dev/null 2>&1
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" "$env"
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}" "" "" ""
+		substitute_name_sh "crest_metacentrum" "$JOB_DIR" "" "${name}" "" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		module add obabel > /dev/null 2>&1
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$job_name" "${name}" "" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$job_name" "${name}" "" "" "" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
@@ -64,6 +64,7 @@ run_antechamber() {
 	local meta=$3
 	local amber=$4
 	local antechamber_parms=$5
+	local charge=$6
 
 	local job_name="antechamber"
 
@@ -82,11 +83,11 @@ run_antechamber() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$antechamber_parms"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$antechamber_parms" "$charge"
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$antechamber_parms"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$antechamber_parms" "$charge"
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
@@ -131,11 +132,11 @@ run_parmchk2() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$parmchk2_params"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$parmchk2_params" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$parmchk2_params"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$parmchk2_params" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
@@ -224,11 +225,11 @@ run_tleap() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" "" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 

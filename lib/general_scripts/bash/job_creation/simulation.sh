@@ -37,11 +37,11 @@ run_opt_water() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" "" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
@@ -91,11 +91,11 @@ run_opt_all() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$job_name.in" "" "" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
@@ -145,11 +145,11 @@ run_opt_temp() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
@@ -199,11 +199,11 @@ run_opt_pres() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
@@ -253,11 +253,11 @@ run_md() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
@@ -314,11 +314,11 @@ run_cpptraj() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
