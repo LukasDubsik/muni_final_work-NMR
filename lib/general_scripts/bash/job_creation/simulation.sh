@@ -264,6 +264,9 @@ run_md() {
     #Run the antechmaber
     submit_job "$meta" "$job_name" "$JOB_DIR" 64 16 1 "24:00:00"
 
+	#Sleep to load all the files and avoid errors
+	sleep 60
+
 	#Check that the final files are truly present
 	check_res_file "${name}_md.rst7" "$JOB_DIR" "$job_name"
 
