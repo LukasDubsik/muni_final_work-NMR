@@ -262,7 +262,7 @@ run_md() {
 	fi
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 16 16 1 "24:00:00"
+    submit_job "$meta" "$job_name" "$JOB_DIR" 64 16 1 "24:00:00"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_md.rst7" "$JOB_DIR" "$job_name"
