@@ -2,8 +2,8 @@
 ##No spaces are expected between ':='
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
-name:=dicys
-save_as:=dicys_sh
+name:=cys_sm
+save_as:=cys_sm_sh
 
 ##General option on how the job is run
 #Check that all necessary files and librariues are present on the system and user can access them
@@ -24,7 +24,7 @@ gpu:=true
 ##Mode of cpptraj selection
 #bonded - select water h-bonded to the solvent for the qm
 #no_water - only solvent is considered
-cpptraj_mode:=bonded
+cpptraj_mode:=no_water
 
 ##What is the sigma shift value for the nmr
 sigma:=32.2
@@ -47,7 +47,7 @@ opt_all:=opt_all
 opt_temp:=opt_temp
 opt_pres:=opt_pres
 md:=md
-cpptraj:=cpptraj_all
+cpptraj:=cpptraj
 
 ##Number of iterations for the md (please set the cpptraj so that correct number of sampling is done)
 md_iterations:=5
