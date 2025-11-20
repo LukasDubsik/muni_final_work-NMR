@@ -32,6 +32,10 @@ clean_process() {
 				rm -rf "process/${curr_sys}/${key}/"
 			fi
 		fi
+
+		if [[ $num -lt 11 ]]; then
+			rm -rf "process/spectrum/frames"
+		fi
 	done
 }
 
