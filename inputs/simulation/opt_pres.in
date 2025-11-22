@@ -1,7 +1,7 @@
 &cntrl
 
  imin=0,    !Runs the simulations, 1 means optimilization
- nstlim=100000,     !Run for 100ps
+ nstlim=1000000,     !Run for 1ns
  dt=0.001,      !Units for nstlim
  
  ntb=2,     !NTP system
@@ -21,7 +21,7 @@
  gamma_ln=2.0,  !Collision frequency
 
  ntpr=500,      !When to take energy measurements
- ntwx=1000,     !Trajectory
+ ntwx=10000,     !Trajectory
  ntwr=1000,     !Restart
 
  iwrap=1,

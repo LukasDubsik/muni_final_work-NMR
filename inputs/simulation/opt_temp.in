@@ -1,7 +1,7 @@
 &cntrl
 
  imin=0,
- nstlim=100000,
+ nstlim=1000000,
  dt=0.001,
  
  ntb=1,
@@ -20,7 +20,7 @@
  gamma_ln=2.0,
 
  ntpr=500,
- ntwx=1000,
+ ntwx=10000,
  ntwr=1000,
 
  ntr=1,
