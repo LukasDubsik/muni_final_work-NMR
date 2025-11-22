@@ -55,6 +55,6 @@ md_iterations:=5
 ##Additional parameters to be added when running specific programs (Some can be left if not run, otherwise error, eg. no antechamber when 7 specified in 'input_type')
 ##The parameters must be enclosed in "..." brackets
 #Standart values :- antechamber -i $NAME.mol2 -fi mol2 -o $NAME.mol2 -fo mol2 ($NAME refers to general file naming dependent on the pipeline's progress)
-antechamber:=-c bcc -at gaff
+antechamber:=-c bcc -at gaff2
 #Standart values :- parmchk2 -i $NAME.mol2 -f mol2 -o $NAME.frcmod
 parmchk2:= 
