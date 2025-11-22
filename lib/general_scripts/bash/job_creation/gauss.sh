@@ -83,7 +83,7 @@ run_gaussian() {
 
 	#Run the jobs in parallel each in different directory and subshell
 	pids=()
-	max_parallel=20
+	max_parallel=10
 	#Enter the directory and run the .sh script
 	for ((num=0; num < num_frames; num++))
 	do

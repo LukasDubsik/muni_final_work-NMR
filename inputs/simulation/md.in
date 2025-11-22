@@ -5,9 +5,9 @@
  dt=0.001,      !Units for nstlim
  
  ntb=2,     !NTP system
- cut=9.0,   !PME cutoff (for forces calculation cutoff)
- ntc=1,     !Hydrogen bonds are flexible
- ntf=1,     !Don't skip hydrogen bond computation
+ cut=8.0,   !PME cutoff (for forces calculation cutoff)
+ ntc=2,     !Hydrogen bonds are flexible
+ ntf=2,     !Don't skip hydrogen bond computation
  ioutfm=0,  !Binary file result, quicker calculation
 
  irest=1,   !Continue from previous data
@@ -15,6 +15,8 @@
 
  ntp=1,     !Berendsen pressure
  barostat=2,!Monte-Carlo barostat
+ pres0=1.0,
+ comp=44.6e-6,
  taup=2.0,  !Pressure coupling constant - how long till prssure assumes final result
 
  ntt=3,     !Langevin thermostat model
