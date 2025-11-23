@@ -2,8 +2,8 @@
 ##No spaces are expected between ':='
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
-name:=cys_s
-save_as:=cys_s_2rep_sh
+name:=dicys_s
+save_as:=dicys_sh
 
 ##General option on how the job is run
 #Check that all necessary files and librariues are present on the system and user can access them
@@ -13,7 +13,7 @@ check_modules:=false
 num_frames:=100
 
 #The overall charge of the molecule
-charge:=-1
+charge:=0
 
 ##Type of input -> mol2 means that charges should be computed, 7 means parm7/rst7 already provided
 input_type:=mol2
