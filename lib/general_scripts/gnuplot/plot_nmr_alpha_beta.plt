@@ -1,6 +1,6 @@
 #!/usr/bin/env gnuplot
 
-datafile = "avg_ab.dat"    # Input file name after α/β filtering
+datafile = "filtered_avg.dat"    # Input file name after α/β filtering
 band = 0.1                 # Kernel width in ppm
 
 set terminal pngcairo enhanced size 1200,700
