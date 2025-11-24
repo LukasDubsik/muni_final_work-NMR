@@ -59,6 +59,7 @@ run_plotting() {
 	#Load the inputs
 	local name=$1
 	local save_as=$2
+	local filter=$3
 
 	local job_name="plotting"
 
@@ -72,13 +73,29 @@ run_plotting() {
 	SRC_DIR_2="lib/general_scripts/gnuplot"
 
 	move_inp_file "avg.dat" "$SRC_DIR_1" "$JOB_DIR"
-	move_inp_file "plot_nmr.plt" "$SRC_DIR_2" "$JOB_DIR"
+
+	if [[ $filter == "none" ]]; then
+		move_inp_file "plot_nmr.plt" "$SRC_DIR_2" "$JOB_DIR"
+	elif [[ $filter == "alpha_beta" ]]; then
+		cp "lib/python/filter/filter_alpha_beta.py" "$SRC_DIR_1/$job_name/."
+		cp "inputs/structures/$name.mol2" "$SRC_DIR_1/$job_name/."
+		move_inp_file "plot_nmr_alpha_beta.plt" "$SRC_DIR_2" "$JOB_DIR"
+	else
+		die "Unknown filter parameter"
+	fi
 
 	#Move to the directory to run the scripts
-	cd $JOB_DIR || die "Couldn'r enter the $JOB_DIR"
+	cd $JOB_DIR || die "Couldn't enter the $JOB_DIR"
 
 	#Run the script and average the resulting nmr spectra
-	gnuplot plot_nmr.plt
+	if [[ $filter == "none" ]]; then
+		gnuplot plot_nmr.plt
+	elif [[ $filter == "alpha_beta" ]]; then
+		python filter_alpha_beta.py avg.dat "$name.mol2" filtered_avg.dat
+		gnuplot plot_nmr_alpha_beta.plt
+	else
+		die "Unknown filter parameter"
+	fi
 
 	#Return back
 	cd ../../.. || die "Couldn't back to the main directory"

@@ -143,6 +143,10 @@ load_cfg() {
 	opt_pres=$(get_cfg 'opt_pres')
 	md=$(get_cfg 'md')
 	cpptraj=$(get_cfg 'cpptraj')
+
+	filter=$(get_cfg 'filter')
+
+	info "filter: $filter"
 }
 
 check_cfg() {

@@ -70,7 +70,7 @@ declare -A Params
 name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
-num_frames="" cpptraj_mode="" sigma="" charge=""
+num_frames="" cpptraj_mode="" sigma="" charge="" filter=""
 
 LOG="log.txt"
 
@@ -247,7 +247,7 @@ main() {
 
 	#Run gaussian on all the frames
 	if [[ 15 -gt $LOG_POSITION ]]; then
-		run_plotting "$name" "$save_as"
+		run_plotting "$name" "$save_as" "$filter"
 	fi
 
 	# ----- Move -----
