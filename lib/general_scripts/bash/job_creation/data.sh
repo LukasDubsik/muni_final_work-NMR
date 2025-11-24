@@ -77,7 +77,7 @@ run_plotting() {
 	if [[ $filter == "none" ]]; then
 		move_inp_file "plot_nmr.plt" "$SRC_DIR_2" "$JOB_DIR"
 	elif [[ $filter == "alpha_beta" ]]; then
-		cp "lib/python/filter/filter_alpha_beta.py" "$SRC_DIR_1/$job_name/."
+		cp "lib/general_scripts/python/filter/filter_alpha_beta.py" "$SRC_DIR_1/$job_name/."
 		cp "inputs/structures/$name.mol2" "$SRC_DIR_1/$job_name/."
 		move_inp_file "plot_nmr_alpha_beta.plt" "$SRC_DIR_2" "$JOB_DIR"
 	else
