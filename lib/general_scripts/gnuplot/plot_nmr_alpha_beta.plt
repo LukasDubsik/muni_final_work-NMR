@@ -19,9 +19,8 @@ set xrange [7:-2]
 # More sampling points for a smooth curve
 set samples 4000
 
-# --- NEW: choose a fixed y position for the first label and spacing between labels
-first_label_y = GPVAL_Y_MAX * 0.9    # near the top of the plot
-label_step    = GPVAL_Y_MAX * 0.06   # vertical spacing between stacked labels
+first_label_y = 10 * 0.9    # near the top of the plot
+label_step    = 10 * 0.06   # vertical spacing between stacked labels
 
 # Sum of Gaussians centered at each x with weight y
 # 1st plot: spectrum
