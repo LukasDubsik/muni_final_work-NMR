@@ -206,11 +206,6 @@ run_tleap() {
 
 	local job_name="tleap"
 
-	#Check what tleap .in file to load
-	if [[ $params == "yes" ]]; then
-		in_file="${in_file}_spec"
-	fi
-
 	info "Started running $job_name"
 
     #Start by converting the input mol into a xyz format -necessary for crest
@@ -219,10 +214,17 @@ run_tleap() {
 
 	SRC_DIR_1="process/preparations/parmchk2"
 	SRC_DIR_2="process/preparations/nemesis_fix"
+	SRC_DIR_3="inputs/params"
 
 	#Copy the data from antechamber
 	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
+
+	#If also spec, load the necessary files
+	if [[ $params == "yes" ]]; then
+		cp  "$SRC_DIR_3/gaff.zf" "$JOB_DIR"
+		cp  "$SRC_DIR_3/leaprc.zf" "$JOB_DIR"
+	fi
 
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
