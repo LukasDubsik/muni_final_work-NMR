@@ -77,6 +77,9 @@ load_cfg() {
 	#How many frames to create
 	num_frames=$(get_cfg 'num_frames')
 
+	#If to use specific force field params
+	params=$(get_cfg 'params')
+
 	#Get the input type and check it is valid type
 	input_type=$(get_cfg 'input_type')
 	#Check that it is allowed
@@ -102,7 +105,7 @@ load_cfg() {
 	#Get the overall charge of the system
 	charge=$(get_cfg 'charge')
 
-	info "Config loaded: name=$name, save_as=$save_as, checking modules=$c_modules, number of frames=$num_frames, input_type=$input_type, gpu=$gpu, cpptraj_mode=$cpptraj_mode meta=$meta, sigma=$sigma, md iterations=$md_iterations, charge=$charge"
+	info "Config loaded: name=$name, save_as=$save_as, checking modules=$c_modules, number of frames=$num_frames, input_type=$input_type, gpu=$gpu, cpptraj_mode=$cpptraj_mode meta=$meta, sigma=$sigma, md iterations=$md_iterations, charge=$charge, params=$params"
 
 	#By default amber extension is empty
 	amber_ext=""
