@@ -202,8 +202,14 @@ run_tleap() {
 	local meta=$3
 	local amber=$4
 	local in_file=$5
+	local params=$6
 
 	local job_name="tleap"
+
+	#Check what tleap .in file to load
+	if [[ $params == "yes" ]]; then
+		in_file="${in_file}_spec"
+	fi
 
 	info "Started running $job_name"
 
@@ -221,7 +227,7 @@ run_tleap() {
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
-	#Constrcut the job file
+	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"

@@ -176,7 +176,7 @@ main() {
 
 		#Run tleap
 		if [[ 5 -gt $LOG_POSITION ]]; then
-			run_tleap "$name" "$directory" "$meta" "$amber_mod" "$tleap"
+			run_tleap "$name" "$directory" "$meta" "$amber_mod" "$tleap" "$params"
 		fi
 	fi
 
