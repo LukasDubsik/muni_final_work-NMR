@@ -6,7 +6,7 @@ band = 0.1                 # Kernel width in ppm
 set terminal pngcairo enhanced size 1200,700
 set output "nmr.png"
 
-set title  "Simulated 1H NMR Gaussian averaged for 100ps (image per ps)"
+set title  "Simulated 1H NMR Gaussian averaged for 5, 10 ns runs"
 set xlabel "ppm"
 set ylabel "Intensity"
 set key off
