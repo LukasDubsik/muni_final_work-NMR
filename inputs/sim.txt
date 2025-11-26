@@ -30,7 +30,7 @@ gpu:=true
 #bonded - select water h-bonded to the solvent for the qm
 #         Expects that your cpptraj script will return frames.nc file
 #no_water - only solvent is considered
-cpptraj_mode:=np_water
+cpptraj_mode:=no_water
 
 ##What is the sigma shift value for the nmr
 sigma:=32.2
