@@ -21,7 +21,7 @@ params:=yes
 num_frames:=100
 
 #The overall charge of the molecule
-charge:=-1
+charge:=0
 
 ##Do we want to run with gpu?
 gpu:=true
