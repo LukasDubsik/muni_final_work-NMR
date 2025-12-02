@@ -19,7 +19,7 @@ set xrange [7:-2]
 # More sampling points for a smooth curve
 set samples 4000
 
-first_label_y = 5 * 0.9    # near the top of the plot
+first_label_y = 2 * 0.9    # near the top of the plot
 label_step    = 5 * 0.06   # vertical spacing between stacked labels
 
 # Sum of Gaussians centered at each x with weight y
