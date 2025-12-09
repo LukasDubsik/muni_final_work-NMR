@@ -43,7 +43,9 @@ run_crest() {
     submit_job "$meta" "$job_name" "$JOB_DIR" 4 16 0 "01:00:00"
     #Convert back to mol2 format
     obabel -ixyz "${JOB_DIR}/crest_best.xyz" -omol2 -O "${JOB_DIR}/${name}_crest.mol2" > /dev/null 2>&1
-    
+	#Convert the symbols
+	sed -i 's/^[[:space:]]*AU[[:space:]]/Au /' "${JOB_DIR}/${name}_crest.mol2"
+
 	#Check that the final files are truly present
 	check_res_file "${name}_crest.mol2" "$JOB_DIR" "$job_name"
 
