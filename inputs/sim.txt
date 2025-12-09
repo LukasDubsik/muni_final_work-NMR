@@ -2,8 +2,8 @@
 ##No spaces are expected between ':='
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
-name:=dicys
-save_as:=dicys_exp_sh
+name:=gold1
+save_as:=gold1_sh
 
 ##General option on how the job is run
 #Check that all necessary files and libraries are present on the system and user can access them
@@ -17,7 +17,7 @@ input_type:=mol2
 #If yes, expected leaprc/gaff.zf inside inputs/param dir
 params:=yes
 
-#How many gauss frames to aberage through
+#How many gauss frames to average through
 num_frames:=100
 
 #The overall charge of the molecule
@@ -30,7 +30,7 @@ gpu:=true
 #bonded - select water h-bonded to the solvent for the qm
 #         Expects that your cpptraj script will return frames.nc file
 #no_water - only solvent is considered
-cpptraj_mode:=bonded
+cpptraj_mode:=no_water
 
 ##What is the sigma shift value for the nmr
 sigma:=32.2
@@ -68,4 +68,4 @@ parmchk2:=
 ##What resulting hydrogens to filter
 #none -> All hydrogens of the molecule
 #alpha_beta -> Only alpha beta hydrogens of the molecule (only if amino acid)
-filter:=alpha_beta
+filter:=none
