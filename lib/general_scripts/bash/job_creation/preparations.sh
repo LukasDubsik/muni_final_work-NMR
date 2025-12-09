@@ -141,7 +141,7 @@ run_parmchk2() {
 	fi
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 4 4 0 "01:00:00"
+    submit_job "$meta" "$job_name" "$JOB_DIR" 32 32 0 "01:00:00"
 
 	#Check that the final files are truly present
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
