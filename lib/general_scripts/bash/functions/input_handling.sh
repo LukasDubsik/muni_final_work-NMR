@@ -32,6 +32,15 @@ get_cfg() {
 	fi
 }
 
+get_cfg_opt() {
+	local key=$1
+	if [[ -v "Params[$key]" ]]; then
+		printf "%s\n" "${Params[$key]}"
+	else
+		printf ''
+	fi
+}
+
 check_in_file() {
 	# Check that given in file truly present
 	local name=$1 dir=$2
@@ -132,10 +141,16 @@ load_cfg() {
 	if [[ $input_type == "mol2" ]]; then
 		antechamber_cmd=$(get_cfg 'antechamber')
 		parmchk2_cmd=$(get_cfg 'parmchk2')
+		mcpb_cmd=$(get_cfg_opt 'mcpb')
 
 		info "All the additional parametrs for mol2 loaded correctly"
 		info "antechamber: $antechamber_cmd"
 		info "parmchk2: $parmchk2_cmd"
+		if [[ -n "$mcpb_cmd" ]]; then
+			info "mcpb: $mcpb_cmd"
+		else
+			info "mcpb: <disabled>"
+		fi
 	fi
 
 	#Load the names of the .in files (all need to be under inputs/simulation/)

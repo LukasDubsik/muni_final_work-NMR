@@ -105,6 +105,60 @@ run_antechamber() {
 	add_to_log "$job_name" "$LOG"
 }
 
+# run_mcpb NAME DIRECTORY META AMBER
+# Runs MCPB.py metal-center parametrization and merges the resulting frcmod
+# into the standard parmchk2 frcmod.
+# Globals: mcpb_cmd
+# Returns: Nothing
+run_mcpb() {
+	local name=$1
+	local directory=$2
+	local meta=$3
+	local amber=$4
+
+	local job_name="mcpb"
+
+	# If MCPB is not configured at all, do nothing.
+	if [[ -z "${mcpb_cmd:-}" ]]; then
+		info "mcpb_cmd is not set in sim.txt; skipping MCPB.py stage"
+		return 0
+	fi
+
+	info "Started running $job_name"
+
+	JOB_DIR="process/preparations/$job_name"
+	ensure_dir "$JOB_DIR"
+
+	# Construct the job file for the selected backend (Meta/Wolf)
+	if [[ $meta == "true" ]]; then
+		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
+		substitute_name_sh_meta_end "$JOB_DIR"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$mcpb_cmd" ""
+		construct_sh_meta "$JOB_DIR" "$job_name"
+	else
+		substitute_name_sh_wolf_start "$JOB_DIR"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$mcpb_cmd" ""
+		construct_sh_wolf "$JOB_DIR" "$job_name"
+	fi
+
+	# MCPB.py is effectively serial; 1 rank is enough, give it time and memory
+	submit_job "$meta" "$job_name" "$JOB_DIR" 8 1 0 "24:00:00"
+
+	# MCPB.py typically produces mcpbpy.frcmod with metal-center parameters
+	# (see e.g. published pipelines using MCPB.py). :contentReference[oaicite:1]{index=1}
+	local mcpb_frcmod="mcpbpy.frcmod"
+	check_res_file "$mcpb_frcmod" "$JOB_DIR" "$job_name"
+
+	local parmchk_dir="process/preparations/parmchk2"
+	local target_frcmod="${parmchk_dir}/${name}.frcmod"
+	[[ -f "$target_frcmod" ]] || die "Expected parmchk2 frcmod $target_frcmod before merging MCPB parameters"
+
+	# Append MCPB parameters to the ligand frcmod
+	cat "$JOB_DIR/$mcpb_frcmod" >> "$target_frcmod"
+
+	info "MCPB.py parameters from $mcpb_frcmod merged into $target_frcmod"
+}
+
 # run_parmchk2 NAME DIRECTORY META AMBER
 # Runs everything pertaining to parmchk2
 # Globals: none
@@ -147,6 +201,15 @@ run_parmchk2() {
 
 	#Check that the final files are truly present
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
+
+	# Optionally run MCPB.py if we have a metal center; this keeps MCPB
+	# logically attached to the parmchk2 stage.
+	if has_heavy_metal "inputs/structures/${name}.mol2"; then
+		info "Heavy metal detected in inputs/structures/${name}.mol2 – running MCPB.py"
+		run_mcpb "$name" "$directory" "$meta" "$amber"
+	else
+		info "No heavy metal detected in inputs/structures/${name}.mol2; skipping MCPB.py"
+	fi
 
 	success "$job_name has finished correctly"
 

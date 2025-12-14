@@ -74,3 +74,29 @@ find_sim_num() {
 		info "The md runs have stopped at (wasn't completed): $COUNTER"
 	fi
 }
+
+# has_heavy_metal MOL2_FILE
+# Returns 0 (success) if the mol2 file contains at least one atom that is
+# treated as a "heavy metal" (transition metals, Au, etc.), 1 otherwise.
+has_heavy_metal() {
+	local mol2=$1
+
+	[[ -f "$mol2" ]] || die "Missing mol2 file for heavy-metal detection: $mol2"
+
+	awk '
+	BEGIN { in_atoms=0; found=0 }
+	/^@<TRIPOS>ATOM/ { in_atoms=1; next }
+	/^@<TRIPOS>/     { in_atoms=0 }
+	in_atoms {
+		# column 2: atom name; strip trailing digits/underscores
+		elem = $2
+		gsub(/[0-9_]+$/, "", elem)
+		u = toupper(elem)
+		if (u ~ /^(ZN|CU|FE|CO|NI|MN|CR|V|TI|MO|W|RE|RU|RH|PD|AG|CD|PT|AU|HG|AL|GA|IN|TL|SN|PB|BI|ZR|HF)$/) {
+			found = 1
+			exit
+		}
+	}
+	END { if (found) exit 0; else exit 1 }
+	' "$mol2"
+}
