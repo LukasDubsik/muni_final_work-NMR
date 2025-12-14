@@ -203,7 +203,7 @@ EOF
 
 	cat > "$JOB_DIR/job_file.txt" <<EOF
 module add ${amber}
-MCPB.py -i ${name}_mcpb.in -s 4
+MCPB.py -i ${name}_mcpb.in -s 1
 EOF
 
 	if [[ $meta == "true" ]]; then
