@@ -1,7 +1,9 @@
-original_pdb ${name}_mcpb.pdb
-group_name ${name}
-cut_off 2.8
-ion_ids __ION_ID__
-ion_mol2files __ION_MOL2__
+original_pdb ${NAME}_mcpb.pdb
+group_name ${NAME}
+cut_off ${CUTOFF}
+ion_ids ${METAL_ID}
+ion_mol2files ${METAL_RES}.mol2
 naa_mol2files LIG.mol2
 frcmod_files LIG.frcmod
+large_opt 0
+

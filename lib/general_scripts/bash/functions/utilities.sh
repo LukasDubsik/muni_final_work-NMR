@@ -146,29 +146,191 @@ mol2_write_charge_file() {
 	[[ -s "$out" ]] || die "Charge file was not created or is empty: $out"
 }
 
-has_heavy_metal_mcpb()
-{
-    local mol2="$1"
+# mol2_first_metal MOL2FILE
+# Prints: "<atom_id> <elem> <charge> <x> <y> <z>"
+mol2_first_metal() {
+	local mol2="$1"
 
-    [[ -f "$mol2" ]] || return 1
+	awk '
+	BEGIN {
+		inatom=0
+		# Extend as needed
+		metals["AU"]=1; metals["AG"]=1; metals["PT"]=1; metals["PD"]=1; metals["HG"]=1;
+		metals["ZN"]=1; metals["FE"]=1; metals["CU"]=1; metals["NI"]=1; metals["CO"]=1;
+	}
+	/^@<TRIPOS>ATOM/ { inatom=1; next }
+	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0 }
+	inatom {
+		id=$1; name=$2; x=$3; y=$4; z=$5; type=$6; charge=$9
 
-    # Minimal “metal presence” detector (expand if needed)
-    grep -qE '(^|[^A-Za-z])(AU|Au|AG|Ag|PT|Pt|PD|Pd|HG|Hg|ZN|Zn|FE|Fe|CU|Cu|NI|Ni|CO|Co|MN|Mn|CD|Cd|CR|Cr|MO|Mo|RU|Ru|RH|Rh|IR|Ir|OS|Os|W|Ta|TA)([^A-Za-z]|$)' "$mol2"
+		elem=name
+		gsub(/[0-9]/,"",elem)
+		elem=toupper(elem)
+
+		# also try from type (before any dot)
+		elem2=type
+		sub(/\..*/,"",elem2)
+		gsub(/[0-9]/,"",elem2)
+		elem2=toupper(elem2)
+
+		if (metals[elem])  { print id, elem, charge, x, y, z; exit }
+		if (metals[elem2]) { print id, elem2, charge, x, y, z; exit }
+	}
+	' "$mol2"
 }
 
-copy_first_existing()
-{
-    local file="$1"
-    local dest_dir="$2"
-    shift 2
+# mol2_has_metal MOL2FILE
+mol2_has_metal() {
+	local mol2="$1"
+	[[ -n "$(mol2_first_metal "$mol2")" ]]
+}
 
-    local src_dir=""
-    for src_dir in "$@"; do
-        if [[ -f "${src_dir}/${file}" ]]; then
-            cp "${src_dir}/${file}" "${dest_dir}/" || die "Failed copying ${src_dir}/${file} -> ${dest_dir}/"
-            return 0
-        fi
-    done
+# mol2_to_mcpb_pdb MOL2FILE OUTPDB METAL_ID
+# Writes a minimal PDB with residue 1=LIG and residue 2=<METAL> (metal is separate residue)
+mol2_to_mcpb_pdb() {
+	local mol2="$1"
+	local outpdb="$2"
+	local metal_id="$3"
 
-    return 1
+	awk -v mid="$metal_id" '
+	BEGIN { inatom=0 }
+	/^@<TRIPOS>ATOM/ { inatom=1; next }
+	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0 }
+	inatom {
+		id=$1; name=$2; x=$3; y=$4; z=$5
+
+		# residue assignment
+		if (id == mid) { res="AU"; resid=2 }
+		else          { res="LIG"; resid=1 }
+
+		# PDB atom naming: keep up to 4 chars
+		aname=name
+		if (length(aname) > 4) aname=substr(aname,1,4)
+
+		printf "HETATM%5d %-4s %-3s A%4d    %8.3f%8.3f%8.3f  1.00  0.00\n",
+			id, aname, res, resid, x, y, z
+	}
+	END { print "END" }
+	' "$mol2" > "$outpdb"
+}
+
+# mol2_strip_atom MOL2FILE OUTMOL2 ATOM_ID
+# Removes one atom and all bonds to it; renumbers atoms and bonds.
+mol2_strip_atom() {
+	local mol2="$1"
+	local outmol2="$2"
+	local strip_id="$3"
+
+	awk -v sid="$strip_id" '
+	function flush_counts() {
+		# rewrite molecule counts line later; handled by storing and printing after parse
+	}
+	BEGIN { state=0; nat=0; nb=0 }
+	{
+		lines[NR]=$0
+	}
+	/^@<TRIPOS>ATOM/ { state=1 }
+	/^@<TRIPOS>BOND/ { state=2 }
+	END {
+		# First pass: map atoms
+		inatom=0
+		for (i=1;i<=NR;i++) {
+			if (lines[i] ~ /^@<TRIPOS>ATOM/) { inatom=1; continue }
+			if (lines[i] ~ /^@<TRIPOS>/ && lines[i] !~ /^@<TRIPOS>ATOM/) { if (inatom) inatom=0 }
+			if (inatom) {
+				split(lines[i], f, /[ \t]+/)
+				old=f[1]
+				if (old == sid) continue
+				nat++
+				map[old]=nat
+				atomline[nat]=lines[i]
+			}
+		}
+
+		# Second pass: bonds
+		inbond=0
+		for (i=1;i<=NR;i++) {
+			if (lines[i] ~ /^@<TRIPOS>BOND/) { inbond=1; continue }
+			if (lines[i] ~ /^@<TRIPOS>/ && lines[i] !~ /^@<TRIPOS>BOND/) { if (inbond) inbond=0 }
+			if (inbond) {
+				split(lines[i], f, /[ \t]+/)
+				a=f[2]; b=f[3]
+				if (a == sid || b == sid) continue
+				nb++
+				bondline[nb]=lines[i]
+				bonda[nb]=a; bondb[nb]=b
+			}
+		}
+
+		# Output
+		# Copy header through molecule section, but fix counts line (2nd line after @<TRIPOS>MOLECULE)
+		out=""
+		inmol=0; mol_line=0
+		for (i=1;i<=NR;i++) {
+			if (lines[i] ~ /^@<TRIPOS>MOLECULE/) { inmol=1; mol_line=0; print lines[i]; continue }
+			if (inmol) {
+				mol_line++
+				if (mol_line == 2) {
+					printf "%d %d 0 0 0\n", nat, nb
+					inmol=0
+					continue
+				}
+				print lines[i]
+				continue
+			}
+			if (lines[i] ~ /^@<TRIPOS>ATOM/) {
+				print lines[i]
+				for (k=1;k<=nat;k++) {
+					# rewrite atom index
+					split(atomline[k], f, /[ \t]+/)
+					old=f[1]
+					sub("^" old "[ \t]+", k " ", atomline[k])
+					print atomline[k]
+				}
+				# skip original atom block
+				for (j=i+1;j<=NR;j++) {
+					if (lines[j] ~ /^@<TRIPOS>/ && lines[j] !~ /^@<TRIPOS>ATOM/) { i=j-1; break }
+				}
+				continue
+			}
+			if (lines[i] ~ /^@<TRIPOS>BOND/) {
+				print lines[i]
+				for (k=1;k<=nb;k++) {
+					split(bondline[k], f, /[ \t]+/)
+					old=f[1]; a=f[2]; b=f[3]
+					newa=map[a]; newb=map[b]
+					printf "%d %d %d %s\n", k, newa, newb, f[4]
+				}
+				# skip original bond block
+				for (j=i+1;j<=NR;j++) {
+					if (lines[j] ~ /^@<TRIPOS>/ && lines[j] !~ /^@<TRIPOS>BOND/) { i=j-1; break }
+				}
+				continue
+			}
+			print lines[i]
+		}
+	}
+	' "$mol2" > "$outmol2"
+}
+
+# write_single_ion_mol2 OUTMOL2 ELEM CHARGE X Y Z
+write_single_ion_mol2() {
+	local outmol2="$1"
+	local elem="$2"
+	local charge="$3"
+	local x="$4"
+	local y="$5"
+	local z="$6"
+
+	cat > "$outmol2" <<EOF
+@<TRIPOS>MOLECULE
+${elem}
+ 1 0 0 0 0
+SMALL
+NO_CHARGES
+
+@<TRIPOS>ATOM
+      1 ${elem}        ${x} ${y} ${z} ${elem} 1 ${elem} ${charge}
+@<TRIPOS>BOND
+EOF
 }
