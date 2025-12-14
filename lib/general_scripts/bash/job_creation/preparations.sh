@@ -181,9 +181,18 @@ run_mcpb() {
 	write_single_ion_mol2 "$JOB_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
 
 	# Generate MCPB input (resolved values; no runtime substitutions needed)
+		# Generate MCPB input (resolved values; no runtime substitutions needed)
 	cat > "$JOB_DIR/${name}_mcpb.in" <<EOF
-original_pdb ${name}_mcpb.pdb group_name ${name} cut_off 2.8 ion_ids ${metal_id} ion_mol2files ${metal_elem}.mol2 naa_mol2files LIG.mol2 frcmod_files LIG.frcmod large_opt 0
+original_pdb ${name}_mcpb.pdb
+group_name ${name}
+cut_off 2.8
+ion_ids ${metal_id}
+ion_mol2files ${metal_elem}.mol2
+naa_mol2files LIG.mol2
+frcmod_files LIG.frcmod
+large_opt 0
 EOF
+
 
 	# Build job script (avoid quoting issues; avoid relying on broken template substitutions)
 	if [[ $meta == "true" ]]; then
