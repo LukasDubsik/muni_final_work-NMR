@@ -142,210 +142,101 @@ run_antechamber() {
 # Globals: mcpb_cmd
 # Returns: Nothing
 # run_mcpb NAME DIRECTORY META AMBER IN_MOL2 LIG_FRCMOD
-run_mcpb()
-{
-    # Get the name of the system
-    local name="$1"
-    # Get the main directory
-    local directory="$2"
-    # Get the amber module to load
-    local amber="$3"
-    # Unused (kept for API compatibility)
-    local pdb2pqr="$4"
-    # The extra cmd flags for MCPB.py (e.g. "-s 4")
-    local mcpb_cmd="$5"
-
-    # Setup the directory to store the results and logs
-    local out_dir="$directory/process/preparations/mcpb"
-    local in_dir="$directory/process/preparations/parmchk2"
-
-    # Inputs we rely on (already produced earlier in the pipeline)
-    local src_mol2="$in_dir/${name}_charges.mol2"
-    local src_frcmod="$in_dir/${name}.frcmod"
+run_mcpb() {
+	local name="$1"
+	local directory="$2"
+	local meta="$3"
+	local amber="$4"
+	local in_mol2="$5"
+	local lig_frcmod="$6"
 
 	local job_name="mcpb"
+	local JOB_DIR="process/preparations/$job_name"
 
-    info "Started running $job_name"
+	# Only run if a heavy metal is present
+	if ! mol2_has_metal "$in_mol2"; then
+		return 0
+	fi
 
-    # Create/clean the job dir
-    prepare_job_dir "$out_dir"
+	info "Heavy metal detected in $in_mol2 – running MCPB.py"
 
-    # Sanity checks
-    [[ -f "$src_mol2" ]] || die "mcpb: Missing source mol2: $src_mol2"
-    [[ -f "$src_frcmod" ]] || die "mcpb: Missing parmchk2 frcmod: $src_frcmod"
+	rm -rf "$JOB_DIR"
+	ensure_dir "$JOB_DIR"
 
-    # Copy ligand inputs into MCPB dir (these names match what MCPB expects)
-    cp -f "$src_mol2" "$out_dir/LIG.mol2" || die "mcpb: Failed copying mol2 to LIG.mol2"
-    cp -f "$src_frcmod" "$out_dir/LIG.frcmod" || die "mcpb: Failed copying frcmod to LIG.frcmod"
+	# Identify the first metal (Au in your case)
+	local metal_line
+	metal_line="$(mol2_first_metal "$in_mol2")"
+	[[ -n "$metal_line" ]] || die "Failed to detect metal in $in_mol2"
 
-    # Also keep the original mol2 around for debugging/repro
-    cp -f "$src_mol2" "$out_dir/${name}_mcpb_source.mol2" || die "mcpb: Failed copying source mol2"
+	local metal_id metal_elem metal_charge mx my mz
+	read -r metal_id metal_elem metal_charge mx my mz <<< "$metal_line"
 
-    # Detect the first heavy metal atom (id + coords + element) from the MOL2
-    # Output: "<id> <x> <y> <z> <elem>"
-    local ion_line ion_id ion_x ion_y ion_z ion_el
-    ion_line="$(
-        awk '
-        function elem_from(n,t, e){
-            e=t
-            gsub(/[^A-Za-z]/,"",e)
-            if (e=="") { e=n; gsub(/[^A-Za-z]/,"",e) }
-            if (length(e)>=2) return toupper(substr(e,1,1)) tolower(substr(e,2,1))
-            return toupper(substr(e,1,1))
-        }
-        BEGIN{inatom=0}
-        /^@<TRIPOS>ATOM/{inatom=1; next}
-        /^@<TRIPOS>BOND/{inatom=0}
-        inatom{
-            el=elem_from($2,$6)
-            u=toupper(el)
-            # Extend this list if you need more metals
-            if (u=="AU" || u=="HG" || u=="PT" || u=="PD" || u=="AG" || u=="CU" || u=="ZN" || u=="FE" || u=="NI" || u=="CO" || u=="MN") {
-                printf "%s %s %s %s %s\n", $1, $3, $4, $5, el
-                exit
-            }
-        }' "$src_mol2"
-    )"
+	# Stage all MCPB inputs in JOB_DIR (so the job can just copy and run)
+	cp "$in_mol2" "$JOB_DIR/${name}_mcpb_source.mol2"
+	cp "$lig_frcmod" "$JOB_DIR/LIG.frcmod"
 
-    [[ -n "$ion_line" ]] || die "mcpb: Heavy metal not detected in $src_mol2 (but pipeline tried to run MCPB)."
+	# Generate PDB and split MOL2s
+	mol2_to_mcpb_pdb "$JOB_DIR/${name}_mcpb_source.mol2" "$JOB_DIR/${name}_mcpb.pdb" "$metal_id"
+	mol2_strip_atom "$JOB_DIR/${name}_mcpb_source.mol2" "$JOB_DIR/LIG.mol2" "$metal_id"
+	write_single_ion_mol2 "$JOB_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
 
-    read -r ion_id ion_x ion_y ion_z ion_el <<< "$ion_line"
-
-    # Create the ion mol2 file required by MCPB (e.g., AU.mol2)
-    # Keep filename exactly as MCPB expects (uppercased element).
-    local ion_mol2="${ion_el^^}.mol2"
-    cat > "$out_dir/$ion_mol2" <<EOF
-@<TRIPOS>MOLECULE
-${ion_el^^}
- 1 0 0 0 0
-SMALL
-USER_CHARGES
-
-@<TRIPOS>ATOM
-1 ${ion_el^^}   ${ion_x} ${ion_y} ${ion_z} ${ion_el^^} 1 ${ion_el^^} 0.0000
-
-@<TRIPOS>SUBSTRUCTURE
-1 ${ion_el^^} 1 TEMP 0 **** 0 **** 0
+	# Generate MCPB input (resolved values; no runtime substitutions needed)
+		# Generate MCPB input (resolved values; no runtime substitutions needed)
+	cat > "$JOB_DIR/${name}_mcpb.in" <<EOF
+original_pdb ${name}_mcpb.pdb
+group_name ${name}
+cut_off 2.8
+ion_ids ${metal_id}
+ion_mol2files ${metal_elem}.mol2
+naa_mol2files LIG.mol2
+frcmod_files LIG.frcmod
+large_opt 0
 EOF
 
-    # Build a simple PDB from MOL2 (no external tools required)
-    # MCPB mainly needs consistent atom serials + coordinates.
-    awk '
-    function elem_from(n,t, e){
-        e=t
-        gsub(/[^A-Za-z]/,"",e)
-        if (e=="") { e=n; gsub(/[^A-Za-z]/,"",e) }
-        if (length(e)>=2) return toupper(substr(e,1,1)) tolower(substr(e,2,1))
-        return toupper(substr(e,1,1))
-    }
-    BEGIN{inatom=0}
-    /^@<TRIPOS>ATOM/{inatom=1; next}
-    /^@<TRIPOS>BOND/{inatom=0; print "TER"; print "END"; exit}
-    inatom{
-        id=$1; an=$2; x=$3; y=$4; z=$5; el=elem_from($2,$6)
-        printf "ATOM  %5d %-4s LIG A%4d    %8.3f%8.3f%8.3f  1.00  0.00          %-2s\n", id, substr(an,1,4), 1, x, y, z, el
-    }
-    END{ if (inatom==1) { print "TER"; print "END" } }
-    ' "$src_mol2" > "$out_dir/${name}_mcpb.pdb" || die "mcpb: Failed generating PDB from MOL2"
 
-    # Generate the MCPB input file (general, driven by NAME/DIRECTORY substitutions)
-    # IMPORTANT: step 4 needs NAME_standard.fingerprint, so the job will run 1->4.
-    cat > "$out_dir/${name}_mcpb.in" <<EOF
-group_name = ${name}
-original_pdb = ${name}_mcpb.pdb
+	# Build job script (avoid quoting issues; avoid relying on broken template substitutions)
+	if [[ $meta == "true" ]]; then
+		substitute_name_sh_meta_start "$JOB_DIR" "$directory" ""
+	else
+		substitute_name_sh_wolf_start "$JOB_DIR"
+	fi
 
-# Ions
-ion_ids = [${ion_id}]
-ion_info = []
-ion_mol2files = ['${ion_mol2}']
-ion_paraset = 12_6
-
-# Non-standard residues
-naa_mol2files = ['LIG.mol2']
-frcmod_files = ['LIG.frcmod']
-gaff = 1
-
-# General settings
-cut_off = 2.8
-force_field = ff19SB
-water_model = OPC
-software_version = gau
-
-# Skip QM/sqm stages (pipeline intent: keep MCPB light and deterministic)
-sqm_opt = 0
-smmodel_chg = -99
-smmodel_spin = -99
-lgmodel_chg = -99
-lgmodel_spin = -99
+	cat > "$JOB_DIR/job_file.txt" <<EOF
+module add ${amber}
+MCPB.py -i ${name}_mcpb.in -s 4
 EOF
 
-    # Touch jobs_info so the job can append reliably
-    : > "$out_dir/jobs_info.txt"
+	if [[ $meta == "true" ]]; then
+		substitute_name_sh_meta_end "$JOB_DIR" "$JOB_DIR"
+		construct_sh_meta "$JOB_DIR" "$job_name"
+	else
+		substitute_name_sh_wolf_end "$JOB_DIR" "$JOB_DIR"
+		construct_sh_wolf "$JOB_DIR" "$job_name"
+	fi
 
-    # Create the job script directly (do NOT rely on the old template; it still runs MCPB.py without -i)
-    local amber_mod="${amber#/}"
-    cat > "$out_dir/mcpb.sh" <<EOF
-#!/bin/bash -l
+	# MCPB.py step 4 needs *_standard.fingerprint, which is generated in step 1
+	# So force step 1 to run before whatever the user requested (usually -s 4)
+	local job_sh="${JOB_DIR}/mcpb.sh"
 
-DATADIR=$out_dir
-
-echo "\$PBS_JOBID is running on node \$(hostname -f) in a scratch directory \$SCRATCHDIR" >> "\$DATADIR/jobs_info.txt"
-
-test -n "\$SCRATCHDIR" || { echo >&2 "Variable SCRATCHDIR is not set!"; exit 1; }
-
-cp \$DATADIR/* \$SCRATCHDIR || { echo >&2 "Error while copying input file(s)!"; exit 2; }
-
-cd \$SCRATCHDIR || { echo >&2 "Failed to cd to SCRATCHDIR"; exit 3; }
-
-module add amber/${amber_mod}
-
-# Run steps 1-3 first so NAME_standard.fingerprint exists for step 4
-MCPB.py -i ${name}_mcpb.in -s 1
-MCPB.py -i ${name}_mcpb.in -s 2
-MCPB.py -i ${name}_mcpb.in -s 3
-
-# Final stage (usually "-s 4" from your config)
-MCPB.py -i ${name}_mcpb.in ${mcpb_cmd:-"-s 4"}
-
-echo "The files in the directory at the end" >> "\$DATADIR/jobs_info.txt"
-ls >> "\$DATADIR/jobs_info.txt"
-
-cp * \$DATADIR/ || { echo >&2 "Result file(s) copying failed (with a code \$?) !!"; exit 4; }
-
-clean_scratch
-EOF
-
-    chmod +x "$out_dir/mcpb.sh"
-
-    # Submit the job
-    submit_job "mcpb" "$out_dir/mcpb.sh"
-
-    # Expected outputs from MCPB
-    check_result "$out_dir/mcpbpy.frcmod"
-
-    # Create a tleap include file that your main tleap can source
-    # (this is what your pipeline is currently checking for)
-    if [[ ! -f "$out_dir/${name}_tleap.in" ]]; then
-        cat > "$out_dir/${name}_tleap.in" <<'EOF'
-# Auto-generated by pipeline (MCPB include)
-# Load ligand base params + MCPB metal-center params
-loadamberparams DIRECTORY/process/preparations/mcpb/LIG.frcmod
-loadamberparams DIRECTORY/process/preparations/mcpb/mcpbpy.frcmod
-
-# If MCPB.py generated/updated MOL2/LIB, these are typically the files you want tleap to use:
-# (Uncomment if your main tleap script does NOT already load them.)
-# loadoff DIRECTORY/process/preparations/mcpb/LIG.lib
-# LIG = loadmol2 DIRECTORY/process/preparations/mcpb/LIG.mol2
-EOF
-        substitute_name_in "$out_dir/${name}_tleap.in" "$directory" "$name"
+	# Insert only if it's not already there
+	if ! grep -Fq "MCPB.py -i ${name}_mcpb.in -s 1" "$job_sh"; then
+        sed -i "/^MCPB\.py /i MCPB.py -i ${name}_mcpb.in -s 1" "$job_sh" \
+            || die "Failed to patch MCPB job script: $job_sh"
     fi
 
-    check_result "$out_dir/${name}_tleap.in"
+	# Run
+	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
 
-    log_finished "mcpb"
-    set_status "mcpb" true
+	if [[ ! -f "$JOB_DIR/${name}_tleap.in" && -f "$JOB_DIR/tleap.in" ]]; then
+		cp "$JOB_DIR/tleap.in" "$JOB_DIR/${name}_tleap.in"
+	fi
+
+	# For -s 4, the expected artifact is ${group}_tleap.in
+	check_res_file "${name}_tleap.in" "$JOB_DIR" "$job_name"
+
+	success "$job_name has finished correctly"
+	add_to_log "$job_name" "$LOG"
 }
-
 
 
 
