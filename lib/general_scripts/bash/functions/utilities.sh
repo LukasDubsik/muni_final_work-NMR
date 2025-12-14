@@ -155,7 +155,7 @@ mol2_first_metal() {
 	BEGIN {
 		inatom=0
 		# Extend as needed
-		metals["AU"]=1; metals["Au"]=1; metals["AG"]=1; metals["PT"]=1; metals["PD"]=1; metals["HG"]=1;
+		metals["AU"]=1; metals["AG"]=1; metals["PT"]=1; metals["PD"]=1; metals["HG"]=1;
 		metals["ZZ"]=1; metals["FE"]=1; metals["CU"]=1; metals["NI"]=1; metals["CO"]=1;
 	}
 	/^@<TRIPOS>ATOM/ { inatom=1; next }
@@ -173,8 +173,15 @@ mol2_first_metal() {
 		gsub(/[0-9]/,"",elem2)
 		elem2=toupper(elem2)
 
+		# also try from z
+		elem3=z
+		sub(/\..*/,"",elem3)
+		gsub(/[0-9]/,"",elem3)
+		elem3=toupper(elem3)
+
 		if (metals[elem])  { print id, elem, charge, x, y, z; exit }
 		if (metals[elem2]) { print id, elem2, charge, x, y, z; exit }
+		if (metals[elem3]) { print id, elem3, charge, x, y, z; exit }
 	}
 	' "$mol2"
 }
