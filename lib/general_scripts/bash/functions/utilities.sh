@@ -155,8 +155,8 @@ mol2_first_metal() {
 	BEGIN {
 		inatom=0
 		# Extend as needed
-		metals["Au"]=1; metals["AG"]=1; metals["PT"]=1; metals["PD"]=1; metals["HG"]=1;
-		metals["Zn"]=1; metals["FE"]=1; metals["CU"]=1; metals["NI"]=1; metals["CO"]=1;
+		metals["AU"]=1; metals["AG"]=1; metals["PT"]=1; metals["PD"]=1; metals["HG"]=1;
+		metals["ZZ"]=1; metals["FE"]=1; metals["CU"]=1; metals["NI"]=1; metals["CO"]=1;
 	}
 	/^@<TRIPOS>ATOM/ { inatom=1; next }
 	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0 }

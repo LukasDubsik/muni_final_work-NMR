@@ -225,7 +225,6 @@ EOF
 		cp "$JOB_DIR/tleap.in" "$JOB_DIR/${name}_tleap.in"
 	fi
 
-	# For -s 4, the expected artifact is ${group}_tleap.in
 	check_res_file "${name}_tleap.in" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
