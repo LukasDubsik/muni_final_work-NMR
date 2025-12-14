@@ -187,7 +187,7 @@ EOF
 
 	# Build job script (avoid quoting issues; avoid relying on broken template substitutions)
 	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "$JOB_DIR" ""
+		substitute_name_sh_meta_start "$JOB_DIR" "$directory" ""
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
 	fi
@@ -207,6 +207,10 @@ EOF
 
 	# Run
 	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
+
+	if [[ ! -f "$JOB_DIR/${name}_tleap.in" && -f "$JOB_DIR/tleap.in" ]]; then
+		cp "$JOB_DIR/tleap.in" "$JOB_DIR/${name}_tleap.in"
+	fi
 
 	# For -s 4, the expected artifact is ${group}_tleap.in
 	check_res_file "${name}_tleap.in" "$JOB_DIR" "$job_name"
