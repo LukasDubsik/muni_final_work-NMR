@@ -72,21 +72,44 @@ run_antechamber() {
 
 	info "Started running $job_name"
 
-    #Start by converting the input mol into a xyz format -necessary for crest
+	#Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/preparations/$job_name"
-	ensure_dir $JOB_DIR
+	ensure_dir "$JOB_DIR"
 
 	SRC_DIR="process/preparations/crest"
 
 	#Copy the data from crest
 	move_inp_file "${name}_crest.mol2" "$SRC_DIR" "$JOB_DIR"
 
-	# If a heavy metal is present, antechamber cannot run sqm/AM1-BCC.
-	# Force it to reuse the input charges from the MOL2.
-	if mol2_has_heavy_metal "${INPUTS}/structures/${name}.mol2" && echo "$antechamber_parms" | grep -qE "(^|[[:space:]])-c[[:space:]]*bcc([[:space:]]|$)"; then
-		info "Heavy metal detected in ${INPUTS}/structures/${name}.mol2; forcing antechamber to use input charges (-c rc) instead of AM1-BCC."
-		antechamber_parms=$(echo "$antechamber_parms" | sed -E "s/(^|[[:space:]])-c[[:space:]]*bcc([[:space:]]|$)/\\1-c rc\\2/")
+	# --- Heavy-metal handling --------------------------------------------
+	# If the original structure contains a heavy metal (e.g. Au),
+	# AM1-BCC (sqm) will fail because it has no parameters for that element.
+	# In that case, tell antechamber to *reuse* the input charges (-c rc)
+	# and avoid calling sqm completely.
+	local struct_file="${INPUTS}/structures/${name}.mol2"
+	if has_heavy_metal "$struct_file"; then
+		info "Heavy metal detected in $struct_file; forcing antechamber to use input charges (-c rc) instead of AM1-BCC."
+
+		# Generate a stable charge file from the ORIGINAL input mol2
+		# (crest/openbabel mol2 often does not preserve partial charges).
+		local chg_file="${JOB_DIR}/${name}.crg"
+		mol2_write_charge_file "$struct_file" "$chg_file"
+
+		# Strip any existing "-c <...>", "-cf <...>", "-dr <...>" from user parameters
+		# and force:
+		#   -c rc   (read charges)
+		#   -cf ... (charge file)
+		#   -dr no  (disable unusual-element checking)
+		# Everything else (-at, etc.) stays as configured in sim.txt.
+		local base_parms
+		base_parms=$(printf '%s\n' "$antechamber_parms" | sed -E \
+			's/(^|[[:space:]])-c[[:space:]]+[[:alnum:]]+//g;
+			 s/(^|[[:space:]])-cf[[:space:]]+[^[:space:]]+//g;
+			 s/(^|[[:space:]])-dr[[:space:]]+[[:alnum:]]+//g')
+		antechamber_parms="${base_parms} -c rc -cf ${name}.crg -dr no"
+
 	fi
+	# ---------------------------------------------------------------------
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
@@ -100,8 +123,8 @@ run_antechamber() {
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
-    #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 4 4 0 "01:00:00"
+	#Run the antechamber
+	submit_job "$meta" "$job_name" "$JOB_DIR" 4 4 0 "01:00:00"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
@@ -110,6 +133,61 @@ run_antechamber() {
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
+}
+
+
+# run_mcpb NAME DIRECTORY META AMBER
+# Runs MCPB.py metal-center parametrization and merges the resulting frcmod
+# into the standard parmchk2 frcmod.
+# Globals: mcpb_cmd
+# Returns: Nothing
+run_mcpb() {
+	local name=$1
+	local directory=$2
+	local meta=$3
+	local amber=$4
+
+	local job_name="mcpb"
+
+	# If MCPB is not configured at all, do nothing.
+	if [[ -z "${mcpb_cmd:-}" ]]; then
+		info "mcpb_cmd is not set in sim.txt; skipping MCPB.py stage"
+		return 0
+	fi
+
+	info "Started running $job_name"
+
+	JOB_DIR="process/preparations/$job_name"
+	ensure_dir "$JOB_DIR"
+
+	# Construct the job file for the selected backend (Meta/Wolf)
+	if [[ $meta == "true" ]]; then
+		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
+		substitute_name_sh_meta_end "$JOB_DIR"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$mcpb_cmd" ""
+		construct_sh_meta "$JOB_DIR" "$job_name"
+	else
+		substitute_name_sh_wolf_start "$JOB_DIR"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$mcpb_cmd" ""
+		construct_sh_wolf "$JOB_DIR" "$job_name"
+	fi
+
+	# MCPB.py is effectively serial; 1 rank is enough, give it time and memory
+	submit_job "$meta" "$job_name" "$JOB_DIR" 8 1 0 "24:00:00"
+
+	# MCPB.py typically produces mcpbpy.frcmod with metal-center parameters
+	# (see e.g. published pipelines using MCPB.py). :contentReference[oaicite:1]{index=1}
+	local mcpb_frcmod="mcpbpy.frcmod"
+	check_res_file "$mcpb_frcmod" "$JOB_DIR" "$job_name"
+
+	local parmchk_dir="process/preparations/parmchk2"
+	local target_frcmod="${parmchk_dir}/${name}.frcmod"
+	[[ -f "$target_frcmod" ]] || die "Expected parmchk2 frcmod $target_frcmod before merging MCPB parameters"
+
+	# Append MCPB parameters to the ligand frcmod
+	cat "$JOB_DIR/$mcpb_frcmod" >> "$target_frcmod"
+
+	info "MCPB.py parameters from $mcpb_frcmod merged into $target_frcmod"
 }
 
 # run_parmchk2 NAME DIRECTORY META AMBER
@@ -155,93 +233,19 @@ run_parmchk2() {
 	#Check that the final files are truly present
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
 
-	# Optional metal-center parametrization (MCPB.py)
-	# If the MOL2 contains a heavy metal and user provided an MCPB command, run it
-	if [[ -n "${mcpb_cmd:-}" ]] && mol2_has_heavy_metal "${INPUTS}/structures/${name}.mol2"; then
-		info "Heavy metal detected in ${INPUTS}/structures/${name}.mol2; running MCPB.py"
-		run_mcpb "$directory" "$amber" "$name" "$meta" "${mcpb_cmd}"
+	# Optionally run MCPB.py if we have a metal center; this keeps MCPB
+	# logically attached to the parmchk2 stage.
+	if has_heavy_metal "inputs/structures/${name}.mol2"; then
+		info "Heavy metal detected in inputs/structures/${name}.mol2 – running MCPB.py"
+		run_mcpb "$name" "$directory" "$meta" "$amber"
+	else
+		info "No heavy metal detected in inputs/structures/${name}.mol2; skipping MCPB.py"
 	fi
 
 	success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
-}
-
-run_mcpb() {
-	local directory=$1
-	local amber=$2
-	local name=$3
-	local meta=$4
-	local mcpb_cmd=$5
-
-	local JOB_DIR="process/preparations/mcpb"
-	local SRC_DIR="process/preparations/parmchk2"
-	local job_name="mcpb"
-
-	info "Started running mcpb"
-
-	# Ensure the directory exists
-	ensure_dir "$JOB_DIR"
-
-	# Stage required inputs into the MCPB job directory (these get copied to $SCRATCHDIR)
-	#   - MCPB control file
-	local mcpb_in=""
-	for cand in \
-		"${INPUTS}/structures/${name}_mcpb.in" \
-		"${INPUTS}/simulation/${name}_mcpb.in" \
-		"${name}_mcpb.in"; do
-		if [[ -f "$cand" ]]; then
-			mcpb_in=$cand
-			break
-		fi
-	done
-	[[ -n "$mcpb_in" ]] || die "Missing MCPB input file ${name}_mcpb.in (looked in ${INPUTS}/structures, ${INPUTS}/simulation, and current dir)"
-	cp "$mcpb_in" "$JOB_DIR/${name}_mcpb.in" || die "Failed to copy MCPB input file into $JOB_DIR"
-
-	#   - Bring forward ligand/force-field artifacts for convenience/debugging
-	[[ -f "$SRC_DIR/${name}.frcmod" ]] && cp "$SRC_DIR/${name}.frcmod" "$JOB_DIR/${name}.frcmod" || true
-	[[ -f "$SRC_DIR/${name}_charges.mol2" ]] && cp "$SRC_DIR/${name}_charges.mol2" "$JOB_DIR/${name}_charges.mol2" || true
-
-	#   - Also stage any .pdb files referenced in the MCPB input
-	local pdb_refs
-	pdb_refs=$(grep -Eo '[^[:space:]]+\.pdb' "$mcpb_in" | sort -u || true)
-	for pdb in $pdb_refs; do
-		if [[ -f "${INPUTS}/structures/${pdb}" ]]; then
-			cp "${INPUTS}/structures/${pdb}" "$JOB_DIR/${pdb}" || die "Failed to copy ${pdb} into $JOB_DIR"
-		elif [[ -f "${pdb}" ]]; then
-			cp "${pdb}" "$JOB_DIR/${pdb}" || die "Failed to copy ${pdb} into $JOB_DIR"
-		else
-			warn "MCPB input references ${pdb}, but it was not found in ${INPUTS}/structures or current dir"
-		fi
-	done
-
-	# Sanitize params so config can use $NAME or ${name} without breaking the job script
-	local mcpb_params="$mcpb_cmd"
-	if [[ "$mcpb_params" == \"*\" && "$mcpb_params" == *\" ]]; then
-		mcpb_params="${mcpb_params:1:${#mcpb_params}-2}"
-	fi
-	mcpb_params=$(printf '%s' "$mcpb_params" | sed "s/\\\$NAME/${name}/g; s/\\\${name}/${name}/g")
-
-	# Create the script and submit
-	substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
-	substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$mcpb_params" ""
-	substitute_name_sh_meta_end "$JOB_DIR" ""
-	construct_sh_meta "$JOB_DIR" "$job_name" "meta_start" "$job_name" "meta_end"
-	submit_job "$directory" "$job_name" "$JOB_DIR" 1 8 "24:00:00" "" "$meta" ""
-
-	# Verify output
-	check_res_file "mcpbpy.frcmod" "$JOB_DIR" "$job_name"
-
-	# Merge MCPB frcmod into the parmchk2 frcmod (stable across reruns)
-	local base_frcmod="$SRC_DIR/${name}.frcmod"
-	local base_backup="$SRC_DIR/${name}.frcmod.base"
-	[[ -f "$base_frcmod" ]] || die "Expected base frcmod $base_frcmod to exist before MCPB merge"
-	[[ -f "$base_backup" ]] || cp "$base_frcmod" "$base_backup"
-	cat "$base_backup" "$JOB_DIR/mcpbpy.frcmod" > "$base_frcmod" || die "Failed to merge MCPB frcmod into $base_frcmod"
-
-	# Keep MCPB library around if produced (tleap_spec.in can load it via loadoff)
-	[[ -f "$JOB_DIR/mcpbpy.lib" ]] && cp "$JOB_DIR/mcpbpy.lib" "$SRC_DIR/mcpbpy.lib" || true
 }
 
 # run_nemesis_fix NAME
