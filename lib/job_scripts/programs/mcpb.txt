@@ -1,4 +1,4 @@
 
 module add ${module}
 
-MCPB.py ${params}
+MCPB.py -i mcpb.in ${params}

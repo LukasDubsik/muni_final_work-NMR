@@ -1,0 +1,7 @@
+original_pdb ${name}_mcpb.pdb
+group_name ${name}
+cut_off 2.8
+ion_ids __ION_ID__
+ion_mol2files __ION_MOL2__
+naa_mol2files LIG.mol2
+frcmod_files LIG.frcmod

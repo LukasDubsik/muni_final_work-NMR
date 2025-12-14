@@ -143,136 +143,273 @@ run_antechamber() {
 # Returns: Nothing
 run_mcpb()
 {
-    local name=$1
-    local directory=$2
-    local meta=$3
-    local amber=$4
-    local mcpb_params=$5
+    local in_mol2=$1
 
-    local job_name="mcpb"
-    info "Started running $job_name"
+    local JOB_DIR="process/preparations/mcpb"
+    local OUT_FRCMOD="$JOB_DIR/mcpbpy.frcmod"
 
-    JOB_DIR="process/preparations/$job_name"
-    ensure_dir "$JOB_DIR"
+    log_info "Started running mcpb"
 
-    # Default params if config didn’t provide anything sane
-    if [[ -z "${mcpb_params:-}" ]]; then
-        mcpb_params="-i ${name}_mcpb.in -s 4"
-    fi
+    # Prepare the directory
+    mkdir -p "$JOB_DIR" || { log_err "Failed to create $JOB_DIR"; exit 2; }
+    rm -f "$JOB_DIR"/* 2>/dev/null || true
 
-    # Expand common placeholders people put into sim.txt
-    mcpb_params="${mcpb_params//\$\{name\}/$name}"
-    mcpb_params="${mcpb_params//\$NAME/$name}"
-    mcpb_params="${mcpb_params//\"/}"
-
-    # MCPB input must exist (user-provided)
-    local mcpb_in_src="${INPUTS}/structures/${name}_mcpb.in"
-    [[ -f "$mcpb_in_src" ]] || die "Missing MCPB input file: ${mcpb_in_src}"
-    cp "$mcpb_in_src" "${JOB_DIR}/${name}_mcpb.in" || die "Failed copying MCPB input file"
-
-    # Stage common pipeline products that MCPB inputs usually reference
-    # (does not fail if not present; MCPB .in parsing below will enforce required ones)
-    copy_first_existing "${name}.frcmod" "$JOB_DIR" \
-        "process/preparations/parmchk2" || true
-
-    copy_first_existing "${name}_charges_fix.mol2" "$JOB_DIR" \
-        "process/preparations/nemesis_fix" \
-        "process/preparations/antechamber" || true
-
-    copy_first_existing "${name}_charges.mol2" "$JOB_DIR" \
-        "process/preparations/antechamber" || true
-
-    copy_first_existing "${name}.mol2" "$JOB_DIR" \
-        "${INPUTS}/structures" || true
-
-    copy_first_existing "${name}.pdb" "$JOB_DIR" \
-        "${INPUTS}/structures" || true
-
-    # Parse MCPB .in for referenced files and enforce staging
-    # Keys per MCPB.py tutorial: original_pdb, ion_mol2files, naa_mol2files, frcmod_files, etc.
-    # 
-    local refs=()
-    local line=""
-    while IFS= read -r line; do
-        line="${line#*=}"
-        line="${line//\"/}"
-        line="${line//,/ }"
-        for tok in $line; do
-            refs+=("$tok")
-        done
-    done < <(grep -E '^[[:space:]]*(original_pdb|ion_pdbfile|ion_mol2files|naa_mol2files|frcmod_files)[[:space:]]*=' "${JOB_DIR}/${name}_mcpb.in" || true)
-
-    local f=""
-    for f in "${refs[@]}"; do
-        # skip obvious non-filenames
-        [[ -z "$f" ]] && continue
-
-        if [[ -f "${JOB_DIR}/${f}" ]]; then
-            continue
-        fi
-
-        copy_first_existing "$f" "$JOB_DIR" \
-            "${INPUTS}/structures" \
-            "process/preparations/antechamber" \
-            "process/preparations/nemesis_fix" \
-            "process/preparations/parmchk2" \
-            "process/preparations/mcpb" \
-            "." || die "MCPB input references missing file: $f (not found in any known staging dirs)"
-    done
-
-    # Build the job script
-    local mcpb_script=""
-    if [[ "$meta" == "true" ]]; then
-        mcpb_script="${JOB_DIR}/${job_name}_start.sh"
-        substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$mcpb_params" ""
-        construct_sh_meta "$JOB_DIR" "$job_name" "$amber" "$name" "" "" "$mcpb_params" ""
-    else
-        create_wolf_sh "$job_name" "$JOB_DIR"
-        substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$mcpb_params" ""
-        construct_sh_wolf "$JOB_DIR" "$job_name" "$amber" "$name" "" "" "$mcpb_params" ""
-    fi
-
-    # Run (MCPB is CPU-side)
-    submit_job "$meta" "$job_name" "$JOB_DIR" 8 4 0 "08:00:00"
-
-    # Normalize expected outputs
-    local frcmod_out=""
-    if [[ -f "${JOB_DIR}/mcpbpy.frcmod" ]]; then
-        frcmod_out="${JOB_DIR}/mcpbpy.frcmod"
-    else
-        frcmod_out="$(ls -1 "${JOB_DIR}"/*mcpbpy*.frcmod 2>/dev/null | head -n 1 || true)"
-    fi
-
-    [[ -n "$frcmod_out" ]] || {
-        ls -la "$JOB_DIR" >> "${JOB_DIR}/jobs_info.txt" 2>/dev/null || true
-        die "MCPB finished but no mcpbpy frcmod was produced (check ${JOB_DIR}/*.e* and jobs_info.txt)."
+    # Only allowed input: mol2 from antechamber
+    cp "$in_mol2" "$JOB_DIR/${name}_charges.mol2" || {
+        log_err "Failed to copy $in_mol2 to $JOB_DIR/${name}_charges.mol2"
+        exit 2
     }
 
-    # Ensure canonical filename for downstream steps
-    if [[ "$frcmod_out" != "${JOB_DIR}/mcpbpy.frcmod" ]]; then
-        cp "$frcmod_out" "${JOB_DIR}/mcpbpy.frcmod" || die "Failed normalizing MCPB frcmod output"
-    fi
+    # Generate the MCPB .in (with placeholders filled later inside the job)
+    cat > "$JOB_DIR/${name}_mcpb.in" <<EOF
+original_pdb ${name}_mcpb.pdb
+group_name ${name}
+cut_off 2.8
+ion_ids __ION_ID__
+ion_mol2files __ION_MOL2__
+naa_mol2files LIG.mol2
+frcmod_files LIG.frcmod
+EOF
 
-    # Export MCPB parameters into the ligand frcmod used by tleap
-    local dst_frcmod="process/preparations/parmchk2/${name}.frcmod"
-    if [[ -f "$dst_frcmod" ]]; then
-        if ! grep -q "### MCPB.py (auto) ###" "$dst_frcmod"; then
-            printf "\n### MCPB.py (auto) ###\n" >> "$dst_frcmod"
-            cat "${JOB_DIR}/mcpbpy.frcmod" >> "$dst_frcmod"
-        fi
-    else
-        cp "${JOB_DIR}/mcpbpy.frcmod" "$dst_frcmod" || die "Failed exporting MCPB frcmod -> $dst_frcmod"
-    fi
+    # Create metacentrum start/end wrappers
+    # MCPB+Gaussian typically needs more mem than antechamber/parmchk2
+    substitute_name_sh_meta_start "$JOB_DIR" "$name" "" "32" "8" "1"
+    substitute_name_sh_meta_end "$JOB_DIR"
 
-    # Keep library for tleap if MCPB produced it
-    if [[ -f "${JOB_DIR}/mcpbpy.lib" ]]; then
-        success "MCPB produced mcpbpy.lib (will be available for tleap staging)"
-    fi
+    # Create the actual job body (job_file.txt) so we are not dependent on lib templates
+    cat > "$JOB_DIR/job_file.txt" <<EOF
+set -e
 
-    check_res_file "mcpbpy.frcmod" "$JOB_DIR" "$job_name"
-    success "Finished running $job_name"
+module add ${amber_mod} ${gauss_mod}
 
-    add_to_log "$job_name" "$LOG"
+# Decide the input mol2 (we always copy ${name}_charges.mol2 here)
+IN_MOL2="${name}_charges.mol2"
+test -f "\$IN_MOL2" || { echo >&2 "Missing \$IN_MOL2"; exit 2; }
+
+# From mol2 only, generate:
+# - ${name}_mcpb.pdb   (metal is its own residue, e.g. AU)
+# - LIG.mol2           (all atoms except the metal)
+# - <METAL>.pdb        (single-atom metal pdb)
+# - metal_sym.txt, ion_id.txt, metal_charge_int.txt
+python3 - <<'PY'
+import re
+from pathlib import Path
+
+mol2_path = Path("${name}_charges.mol2")
+lines = mol2_path.read_text().splitlines()
+
+def find_idx(tag):
+    for i, l in enumerate(lines):
+        if l.strip() == tag:
+            return i
+    return None
+
+i_mol = find_idx("@<TRIPOS>MOLECULE")
+i_at  = find_idx("@<TRIPOS>ATOM")
+i_bd  = find_idx("@<TRIPOS>BOND")
+i_sb  = find_idx("@<TRIPOS>SUBSTRUCTURE")
+
+if i_mol is None or i_at is None or i_bd is None:
+    raise SystemExit("mol2 is missing required sections")
+
+# Atom lines go until next section tag
+def section_end(start):
+    for j in range(start+1, len(lines)):
+        if lines[j].startswith("@<TRIPOS>"):
+            return j
+    return len(lines)
+
+at_end = section_end(i_at)
+bd_end = section_end(i_bd)
+
+atom_lines = lines[i_at+1:at_end]
+bond_lines = lines[i_bd+1:bd_end]
+
+metals = {
+    "Au","Ag","Pt","Pd","Hg","Zn","Fe","Cu","Co","Ni","Mn","Mo","W","Ir","Os","Ru","Rh","Cd","Pb","Sn","Bi","Cr","V","Ti","Zr"
+}
+
+atoms = []
+tot_q = 0.0
+metal_atom = None
+
+for l in atom_lines:
+    if not l.strip():
+        continue
+    # id name x y z type subst_id subst_name charge
+    parts = l.split()
+    if len(parts) < 9:
+        continue
+    aid = int(parts[0])
+    aname = parts[1]
+    x,y,z = map(float, parts[2:5])
+    atype = parts[5]
+    subst_id = parts[6]
+    subst_name = parts[7]
+    q = float(parts[8])
+    tot_q += q
+
+    m = re.match(r"[A-Za-z]+", aname)
+    elem = m.group(0) if m else aname
+    elem = elem[0].upper() + (elem[1:].lower() if len(elem) > 1 else "")
+    if (elem in metals) and (metal_atom is None):
+        metal_atom = (aid, aname, x, y, z, elem, q)
+
+    atoms.append((aid, aname, x, y, z, atype, q))
+
+if metal_atom is None:
+    raise SystemExit("No metal atom detected in mol2 (expected e.g. Au)")
+
+metal_id, metal_aname, mx, my, mz, metal_sym, metal_q = metal_atom
+
+# Write PDB with clean residue naming:
+# - LIG for all non-metal atoms (resid 1)
+# - METAL (e.g. AU) for the metal atom (resid 2)
+pdb_lines = []
+for aid, aname, x, y, z, atype, q in atoms:
+    if aid == metal_id:
+        resn = metal_sym.upper()
+        resid = 2
+        elem = metal_sym.upper()
+    else:
+        resn = "LIG"
+        resid = 1
+        em = re.match(r"[A-Za-z]+", aname)
+        elem = (em.group(0) if em else aname)
+        elem = elem[0].upper() + (elem[1:].lower() if len(elem) > 1 else "")
+    # PDB formatting (good enough for MCPB parsing)
+    pdb_lines.append(
+        f"HETATM{aid:5d} {aname:<4s} {resn:>3s} A{resid:4d}    {x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00          {elem:>2s}"
+    )
+
+Path("${name}_mcpb.pdb").write_text("\\n".join(pdb_lines) + "\\n")
+
+# Write single-atom metal pdb
+metal_pdb = f"HETATM{metal_id:5d} {metal_sym.upper():<4s} {metal_sym.upper():>3s} A{2:4d}    {mx:8.3f}{my:8.3f}{mz:8.3f}  1.00  0.00          {metal_sym.upper():>2s}\\n"
+Path(f"{metal_sym.upper()}.pdb").write_text(metal_pdb)
+
+# Build ligand mol2 (strip only the metal atom)
+keep = [a for a in atoms if a[0] != metal_id]
+old2new = {a[0]: i+1 for i, a in enumerate(keep)}
+
+# Parse bonds: id a1 a2 type
+new_bonds = []
+for l in bond_lines:
+    if not l.strip():
+        continue
+    p = l.split()
+    if len(p) < 4:
+        continue
+    a1 = int(p[1]); a2 = int(p[2])
+    if a1 == metal_id or a2 == metal_id:
+        continue
+    if a1 in old2new and a2 in old2new:
+        new_bonds.append((len(new_bonds)+1, old2new[a1], old2new[a2], p[3]))
+
+lig_q = sum(a[6] for a in keep)
+
+# Integer net charges for MCPB bookkeeping
+tot_q_i = int(round(tot_q))
+lig_q_i = int(round(lig_q))
+metal_q_i = tot_q_i - lig_q_i
+
+Path("metal_sym.txt").write_text(metal_sym.upper() + "\\n")
+Path("ion_id.txt").write_text(str(metal_id) + "\\n")
+Path("metal_charge_int.txt").write_text(str(metal_q_i) + "\\n")
+
+# Reconstruct ligand mol2 with clean residue naming (LIG)
+out = []
+out.append("@<TRIPOS>MOLECULE")
+out.append("LIG")
+out.append(f"{len(keep)} {len(new_bonds)} 1 0 0")
+out.append("SMALL")
+out.append("USER_CHARGES")
+out.append("")
+out.append("@<TRIPOS>ATOM")
+for old_id, aname, x, y, z, atype, q in keep:
+    nid = old2new[old_id]
+    # id name x y z type subst_id subst_name charge
+    out.append(f"{nid:7d} {aname:<8s} {x:10.4f} {y:10.4f} {z:10.4f} {atype:<6s} 1 LIG {q: .6f}")
+out.append("@<TRIPOS>BOND")
+for bid, a1, a2, btyp in new_bonds:
+    out.append(f"{bid:6d} {a1:4d} {a2:4d} {btyp}")
+out.append("@<TRIPOS>SUBSTRUCTURE")
+out.append("     1 LIG         1 GROUP 0 ****  ****    0 ROOT")
+
+Path("LIG.mol2").write_text("\\n".join(out) + "\\n")
+PY
+
+METAL=\$(cat metal_sym.txt)
+ION_ID=\$(cat ion_id.txt)
+METALQ=\$(cat metal_charge_int.txt)
+
+# Generate a 1-atom metal mol2 with the correct integer net charge
+metalpdb2mol2.py -i "\${METAL}.pdb" -o "\${METAL}.mol2" -c "\${METALQ}"
+
+# Generate ligand frcmod from the stripped ligand mol2
+parmchk2 -i LIG.mol2 -f mol2 -o LIG.frcmod -s gaff2
+
+# Fill MCPB .in placeholders
+sed -i "s/__ION_ID__/\${ION_ID}/g" "${name}_mcpb.in"
+sed -i "s/__ION_MOL2__/\${METAL}.mol2/g" "${name}_mcpb.in"
+
+# Run MCPB (step 1 generates Gaussian inputs under mcpbpy/)
+MCPB.py -i "${name}_mcpb.in" -s 1
+
+# Patch Gaussian inputs to a basis that works for Au (def2SVP is available in g16)
+# (We only rewrite the method/basis token on the route line; keep the rest.)
+if [ -d mcpbpy ]; then
+    for f in mcpbpy/*.com 2>/dev/null; do
+        [ -f "\$f" ] || continue
+        sed -i -E '/^#/ s#([^[:space:]]+/)[^[:space:]]+#\\1def2SVP#g' "\$f"
+    done
+fi
+
+# Run Gaussian jobs if MCPB produced them
+export GAUSS_SCRDIR="\$SCRATCHDIR/gauss_scratch"
+mkdir -p "\$GAUSS_SCRDIR"
+
+if [ -d mcpbpy ]; then
+    cd mcpbpy
+    for com in *.com 2>/dev/null; do
+        [ -f "\$com" ] || continue
+        g16 < "\$com" > "\${com%.com}.log"
+    done
+    for chk in *.chk 2>/dev/null; do
+        [ -f "\$chk" ] || continue
+        formchk "\$chk" "\${chk%.chk}.fchk"
+    done
+    cd ..
+fi
+
+# Continue MCPB parameterization (requires the Gaussian outputs above)
+MCPB.py -i "${name}_mcpb.in" -s 2
+MCPB.py -i "${name}_mcpb.in" -s 3
+MCPB.py -i "${name}_mcpb.in" -s 4
+
+# IMPORTANT: meta end does "cp * \$DATADIR/" (no directories).
+# Copy key outputs from mcpbpy/ up to the scratch root so they are copied back.
+if [ -d mcpbpy ]; then
+    cp -f mcpbpy/*.frcmod . 2>/dev/null || true
+    cp -f mcpbpy/*.mol2   . 2>/dev/null || true
+    cp -f mcpbpy/*.lib    . 2>/dev/null || true
+    cp -f mcpbpy/*.pdb    . 2>/dev/null || true
+    cp -f mcpbpy/*.in     . 2>/dev/null || true
+fi
+
+echo "MCPB finished; scratch top-level files:"
+ls -lah
+EOF
+
+    # Wrap and submit
+    construct_sh_meta "$JOB_DIR" "mcpb"
+    chmod +x "$JOB_DIR/mcpb.sh"
+
+    submit_job "$JOB_DIR/mcpb.sh" "mcpb" "$JOB_DIR/jobs_info.txt"
+    wait_for_job_completion
+
+    check_file_exists "$OUT_FRCMOD" "mcpb"
+    log_ok "MCPB finished; found: $OUT_FRCMOD"
 }
 
 # run_parmchk2 NAME DIRECTORY META AMBER
