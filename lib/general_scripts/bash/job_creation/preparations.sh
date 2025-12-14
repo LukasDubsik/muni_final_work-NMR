@@ -72,14 +72,32 @@ run_antechamber() {
 
 	info "Started running $job_name"
 
-    #Start by converting the input mol into a xyz format -necessary for crest
+	#Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/preparations/$job_name"
-	ensure_dir $JOB_DIR
+	ensure_dir "$JOB_DIR"
 
 	SRC_DIR="process/preparations/crest"
 
 	#Copy the data from crest
 	move_inp_file "${name}_crest.mol2" "$SRC_DIR" "$JOB_DIR"
+
+	# --- Heavy-metal handling --------------------------------------------
+	# If the original structure contains a heavy metal (e.g. Au),
+	# AM1-BCC (sqm) will fail because it has no parameters for that element.
+	# In that case, tell antechamber to *reuse* the input charges (-c rc)
+	# and avoid calling sqm completely.
+	local struct_file="${INPUTS}/structures/${name}.mol2"
+	if has_heavy_metal "$struct_file"; then
+		info "Heavy metal detected in $struct_file; forcing antechamber to use input charges (-c rc) instead of AM1-BCC."
+
+		# Strip any existing "-c <something>" from user parameters
+		# and append "-c rc". This keeps everything else (-at, -dr, etc.)
+		# exactly as configured in sim.txt.
+		local base_parms
+		base_parms=$(printf '%s\n' "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[[:alnum:]]+//g')
+		antechamber_parms="${base_parms} -c rc"
+	fi
+	# ---------------------------------------------------------------------
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
@@ -93,8 +111,8 @@ run_antechamber() {
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
-    #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 4 4 0 "01:00:00"
+	#Run the antechamber
+	submit_job "$meta" "$job_name" "$JOB_DIR" 4 4 0 "01:00:00"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
@@ -104,6 +122,7 @@ run_antechamber() {
 	#Write to the log a finished operation
 	add_to_log "$job_name" "$LOG"
 }
+
 
 # run_mcpb NAME DIRECTORY META AMBER
 # Runs MCPB.py metal-center parametrization and merges the resulting frcmod
