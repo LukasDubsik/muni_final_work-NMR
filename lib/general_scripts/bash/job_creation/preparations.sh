@@ -214,6 +214,16 @@ EOF
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
+	# MCPB.py step 4 needs *_standard.fingerprint, which is generated in step 1
+	# So force step 1 to run before whatever the user requested (usually -s 4)
+	local job_sh="${JOB_DIR}/mcpb.sh"
+
+	# Insert only if it's not already there
+	if ! grep -q '^MCPB\.py -i \$NAME_mcpb\.in -s 1' "$job_sh"; then
+		sed -i '/^MCPB\.py /i MCPB.py -i $NAME_mcpb.in -s 1' "$job_sh" \
+			|| die "Failed to patch MCPB job script: $job_sh"
+	fi
+
 	# Run
 	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
 
@@ -222,7 +232,8 @@ EOF
 	fi
 
 	# For -s 4, the expected artifact is ${group}_tleap.in
-	check_res_file "${name}_tleap.in" "$JOB_DIR" "$job_name"
+	ccheck_res_file "${name}_tleap.in" "$mcpb_dir" "mcpb"
+	check_res_file "${name}_mcpbpy.frcmod" "$mcpb_dir" "mcpb"
 
 	success "$job_name has finished correctly"
 	add_to_log "$job_name" "$LOG"
