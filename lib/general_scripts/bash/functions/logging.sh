@@ -8,7 +8,6 @@ declare -A LOG_MAP=(
   ["crest"]=1
   ["antechamber"]=2
   ["parmchk2"]=3
-  ["mcpb"]=3
   ["nemesis_fix"]=4
   ["tleap"]=5
   ["opt_water"]=6

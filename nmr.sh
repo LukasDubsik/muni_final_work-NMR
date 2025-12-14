@@ -70,7 +70,7 @@ declare -A Params
 name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
-num_frames="" cpptraj_mode="" sigma="" charge="" filter="" params=""
+num_frames="" cpptraj_mode="" sigma="" charge="" filter="" params="" mcpb_cmd=""
 
 LOG="log.txt"
 
@@ -166,7 +166,7 @@ main() {
 
 		#Run parmchk2
 		if [[ 3 -gt $LOG_POSITION ]]; then
-			run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$parmchk2_cmd"
+			run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$parmchk2_cmd" "$mcpb_cmd"
 		fi
 
 		#Perform the nemesis fix

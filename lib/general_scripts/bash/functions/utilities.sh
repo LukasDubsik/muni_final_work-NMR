@@ -21,6 +21,9 @@ clean_process() {
 			if [[ $num -ge 1 && $num -le 5 ]]; then
 				curr_sys="preparations"
 				rm -rf "process/${curr_sys}/${key}/"
+				if [[ $num -eq 3 ]]; then
+					rm -rf "process/${curr_sys}/mcpb/"
+				fi
 			elif [[ $num -ge 6 && $num -le 11 ]]; then
 				curr_sys="run_"
 				for ((num=0; num < num_frames; num++))
@@ -141,4 +144,31 @@ mol2_write_charge_file() {
 	}
 
 	[[ -s "$out" ]] || die "Charge file was not created or is empty: $out"
+}
+
+has_heavy_metal_mcpb()
+{
+    local mol2="$1"
+
+    [[ -f "$mol2" ]] || return 1
+
+    # Minimal “metal presence” detector (expand if needed)
+    grep -qE '(^|[^A-Za-z])(AU|Au|AG|Ag|PT|Pt|PD|Pd|HG|Hg|ZN|Zn|FE|Fe|CU|Cu|NI|Ni|CO|Co|MN|Mn|CD|Cd|CR|Cr|MO|Mo|RU|Ru|RH|Rh|IR|Ir|OS|Os|W|Ta|TA)([^A-Za-z]|$)' "$mol2"
+}
+
+copy_first_existing()
+{
+    local file="$1"
+    local dest_dir="$2"
+    shift 2
+
+    local src_dir=""
+    for src_dir in "$@"; do
+        if [[ -f "${src_dir}/${file}" ]]; then
+            cp "${src_dir}/${file}" "${dest_dir}/" || die "Failed copying ${src_dir}/${file} -> ${dest_dir}/"
+            return 0
+        fi
+    done
+
+    return 1
 }
