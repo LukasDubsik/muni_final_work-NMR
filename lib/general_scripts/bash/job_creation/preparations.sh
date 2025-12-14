@@ -163,8 +163,9 @@ run_mcpb()
     local src_mol2="$in_dir/${name}_charges.mol2"
     local src_frcmod="$in_dir/${name}.frcmod"
 
-    log_started "mcpb"
-    log_mod "Started running mcpb"
+	local job_name="mcpb"
+
+    info "Started running $job_name"
 
     # Create/clean the job dir
     prepare_job_dir "$out_dir"
