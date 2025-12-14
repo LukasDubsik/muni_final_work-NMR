@@ -90,12 +90,24 @@ run_antechamber() {
 	if has_heavy_metal "$struct_file"; then
 		info "Heavy metal detected in $struct_file; forcing antechamber to use input charges (-c rc) instead of AM1-BCC."
 
-		# Strip any existing "-c <something>" from user parameters
-		# and append "-c rc". This keeps everything else (-at, -dr, etc.)
-		# exactly as configured in sim.txt.
+		# Generate a stable charge file from the ORIGINAL input mol2
+		# (crest/openbabel mol2 often does not preserve partial charges).
+		local chg_file="${JOB_DIR}/${name}.crg"
+		mol2_write_charge_file "$struct_file" "$chg_file"
+
+		# Strip any existing "-c <...>", "-cf <...>", "-dr <...>" from user parameters
+		# and force:
+		#   -c rc   (read charges)
+		#   -cf ... (charge file)
+		#   -dr no  (disable unusual-element checking)
+		# Everything else (-at, etc.) stays as configured in sim.txt.
 		local base_parms
-		base_parms=$(printf '%s\n' "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[[:alnum:]]+//g')
-		antechamber_parms="${base_parms} -c rc"
+		base_parms=$(printf '%s\n' "$antechamber_parms" | sed -E \
+			's/(^|[[:space:]])-c[[:space:]]+[[:alnum:]]+//g;
+			 s/(^|[[:space:]])-cf[[:space:]]+[^[:space:]]+//g;
+			 s/(^|[[:space:]])-dr[[:space:]]+[[:alnum:]]+//g')
+		antechamber_parms="${base_parms} -c rc -cf ${name}.crg -dr no"
+
 	fi
 	# ---------------------------------------------------------------------
 

@@ -100,3 +100,45 @@ has_heavy_metal() {
 	END { if (found) exit 0; else exit 1 }
 	' "$mol2"
 }
+
+# mol2_write_charge_file MOL2_FILE OUT_FILE
+# Extracts per-atom partial charges from a mol2 file and writes them as
+# one charge per line (format suitable for antechamber -c rc -cf).
+# Globals: none
+# Returns: Nothing (dies on error)
+mol2_write_charge_file() {
+	local mol2=$1
+	local out=$2
+
+	[[ -f "$mol2" ]] || die "Missing mol2 file for charge extraction: $mol2"
+
+	awk '
+	BEGIN { in_atoms=0; n=0 }
+	/^@<TRIPOS>ATOM/ { in_atoms=1; next }
+	/^@<TRIPOS>/     { in_atoms=0 }
+	in_atoms {
+		# mol2 ATOM line: ... <subst_id> <subst_name> <charge>
+		c = $NF
+		# validate numeric charge
+		if (c !~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) {
+			exit 3
+		}
+		print c
+		n++
+	}
+	END {
+		if (n == 0) exit 2
+	}
+	' "$mol2" > "$out" || {
+		rc=$?
+		if [[ $rc -eq 2 ]]; then
+			die "Charge extraction failed (no ATOM records): $mol2"
+		elif [[ $rc -eq 3 ]]; then
+			die "Charge extraction failed (missing/non-numeric charge column): $mol2"
+		else
+			die "Charge extraction failed for: $mol2"
+		fi
+	}
+
+	[[ -s "$out" ]] || die "Charge file was not created or is empty: $out"
+}
