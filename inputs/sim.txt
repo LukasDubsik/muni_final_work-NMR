@@ -65,7 +65,7 @@ antechamber:=-c bcc -at gaff2 -dr no
 #Standart values :- parmchk2 -i $NAME.mol2 -f mol2 -o $NAME.frcmod
 parmchk2:= 
 # Standart values :- ...
-mcpb :=-i $NAME_mcpb.in -s 4
+mcpb :=-i ${name}_mcpb.in -s 4
 
 
 ##What resulting hydrogens to filter

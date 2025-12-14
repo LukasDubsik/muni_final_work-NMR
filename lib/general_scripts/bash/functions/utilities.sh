@@ -9,6 +9,31 @@ _UTILITIES_SH_LOADED=1
 # Returns: Nothing
 ensure_dir() { mkdir -p "$1"; }
 
+# mol2_has_heavy_metal MOL2_FILE
+# Returns 0 if MOL2 contains a heavy metal / non-organic element (e.g., Au, Pt, ...), otherwise 1.
+# This is used to:
+#   - avoid AM1-BCC (sqm/AM1 has no parameters for many metals)
+#   - decide whether to run MCPB.py
+mol2_has_heavy_metal() {
+	local mol2_file=$1
+
+	[[ -f "$mol2_file" ]] || return 1
+
+	# We scan the @<TRIPOS>ATOM section and check the atom type field (6th column).
+	# For metals the type is typically the element symbol (e.g., Au, Zn, Fe, ...).
+	awk '
+		BEGIN{inatom=0}
+		/^@<TRIPOS>ATOM/{inatom=1; next}
+		/^@<TRIPOS>BOND/{inatom=0}
+		inatom==1{
+			at=$6
+			gsub(/[^A-Za-z].*$/,"",at)
+			if (at ~ /^(Au|Ag|Pt|Pd|Hg|Zn|Cu|Fe|Co|Ni|Mn|Cr|Mo|W|Ir|Ru|Rh|Cd|Pb|Sn|U|Al|Ga|In|Ti|V|Zr)$/) { exit 0 }
+		}
+		END{ exit 1 }
+	' "$mol2_file"
+}
+
 clean_process() {
 	local last_command=$1
 	local num_frames=$2
@@ -73,72 +98,4 @@ find_sim_num() {
 	else
 		info "The md runs have stopped at (wasn't completed): $COUNTER"
 	fi
-}
-
-# has_heavy_metal MOL2_FILE
-# Returns 0 (success) if the mol2 file contains at least one atom that is
-# treated as a "heavy metal" (transition metals, Au, etc.), 1 otherwise.
-has_heavy_metal() {
-	local mol2=$1
-
-	[[ -f "$mol2" ]] || die "Missing mol2 file for heavy-metal detection: $mol2"
-
-	awk '
-	BEGIN { in_atoms=0; found=0 }
-	/^@<TRIPOS>ATOM/ { in_atoms=1; next }
-	/^@<TRIPOS>/     { in_atoms=0 }
-	in_atoms {
-		# column 2: atom name; strip trailing digits/underscores
-		elem = $2
-		gsub(/[0-9_]+$/, "", elem)
-		u = toupper(elem)
-		if (u ~ /^(ZN|CU|FE|CO|NI|MN|CR|V|TI|MO|W|RE|RU|RH|PD|AG|CD|PT|AU|HG|AL|GA|IN|TL|SN|PB|BI|ZR|HF)$/) {
-			found = 1
-			exit
-		}
-	}
-	END { if (found) exit 0; else exit 1 }
-	' "$mol2"
-}
-
-# mol2_write_charge_file MOL2_FILE OUT_FILE
-# Extracts per-atom partial charges from a mol2 file and writes them as
-# one charge per line (format suitable for antechamber -c rc -cf).
-# Globals: none
-# Returns: Nothing (dies on error)
-mol2_write_charge_file() {
-	local mol2=$1
-	local out=$2
-
-	[[ -f "$mol2" ]] || die "Missing mol2 file for charge extraction: $mol2"
-
-	awk '
-	BEGIN { in_atoms=0; n=0 }
-	/^@<TRIPOS>ATOM/ { in_atoms=1; next }
-	/^@<TRIPOS>/     { in_atoms=0 }
-	in_atoms {
-		# mol2 ATOM line: ... <subst_id> <subst_name> <charge>
-		c = $NF
-		# validate numeric charge
-		if (c !~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) {
-			exit 3
-		}
-		print c
-		n++
-	}
-	END {
-		if (n == 0) exit 2
-	}
-	' "$mol2" > "$out" || {
-		rc=$?
-		if [[ $rc -eq 2 ]]; then
-			die "Charge extraction failed (no ATOM records): $mol2"
-		elif [[ $rc -eq 3 ]]; then
-			die "Charge extraction failed (missing/non-numeric charge column): $mol2"
-		else
-			die "Charge extraction failed for: $mol2"
-		fi
-	}
-
-	[[ -s "$out" ]] || die "Charge file was not created or is empty: $out"
 }

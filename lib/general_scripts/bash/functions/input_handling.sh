@@ -32,13 +32,13 @@ get_cfg() {
 	fi
 }
 
+# Optional version of get_cfg. Returns an empty string if the key is missing.
 get_cfg_opt() {
 	local key=$1
-	if [[ -v "Params[$key]" ]]; then
-		printf "%s\n" "${Params[$key]}"
-	else
-		printf ''
-	fi
+	local line
+	line=$(grep -E "^${key}:" "$file" | head -n 1 || true)
+	[[ -z "$line" ]] && { echo ""; return 0; }
+	echo "$line" | sed -E "s/^${key}:[[:space:]]*//"
 }
 
 check_in_file() {
@@ -146,11 +146,7 @@ load_cfg() {
 		info "All the additional parametrs for mol2 loaded correctly"
 		info "antechamber: $antechamber_cmd"
 		info "parmchk2: $parmchk2_cmd"
-		if [[ -n "$mcpb_cmd" ]]; then
-			info "mcpb: $mcpb_cmd"
-		else
-			info "mcpb: <disabled>"
-		fi
+		[[ -n "$mcpb_cmd" ]] && info "mcpb: $mcpb_cmd"
 	fi
 
 	#Load the names of the .in files (all need to be under inputs/simulation/)

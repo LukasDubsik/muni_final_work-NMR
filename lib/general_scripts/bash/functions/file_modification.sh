@@ -91,8 +91,8 @@ construct_sh_wolf() {
 	local dir=$1 name=$2
 	local full_name="${dir}/${name}.sh"
 
-	#Create the resulting file
-	touch "$full_name"
+	#Create the resulting file (truncate if it already exists)
+	: > "$full_name"
 
 	#Add the start
 	cat "${dir}/start.txt" >> "$full_name"
@@ -114,8 +114,8 @@ construct_sh_meta() {
 	local dir=$1 name=$2
 	local full_name="${dir}/${name}.sh"
 
-	#Create the resulting file
-	touch "$full_name"
+	#Create the resulting file (truncate if it already exists)
+	: > "$full_name"
 
 	{
 		#Add the start
