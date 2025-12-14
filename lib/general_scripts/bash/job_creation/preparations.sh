@@ -197,8 +197,7 @@ frcmod_files LIG.frcmod
 large_opt 0
 EOF
 
-
-	# Build job script (avoid quoting issues; avoid relying on broken template substitutions)
+	# Build job script
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "$directory" ""
 	else
@@ -207,7 +206,14 @@ EOF
 
 	cat > "$JOB_DIR/job_file.txt" <<EOF
 module add ${amber}
-MCPB.py -i ${name}_mcpb.in ${mcpb_cmd:-"-s 1"}
+if echo "${mcpb_cmd:-"-s 1"}" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*[234]'; then
+	if [[ ! -f "${name}_standard.fingerprint" ]]; then
+		echo "[INFO] MCPB prerequisites missing -> running MCPB.py step 1 (fingerprint generation)"
+		MCPB.py -i "${name}_mcpb.in" -s 1 || exit 1
+	fi
+fi
+
+MCPB.py -i "${name}_mcpb.in" ${mcpb_cmd:-"-s 1"} || exit 1
 EOF
 
 	if [[ $meta == "true" ]]; then
