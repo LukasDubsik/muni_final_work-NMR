@@ -158,7 +158,7 @@ run_mcpb() {
 		return 0
 	fi
 
-	info "Heavy metal detected in $in_mol2 – running MCPB.py"
+	info "Heavy metal detected in $in_mol2 - running MCPB.py"
 
 	rm -rf "$JOB_DIR"
 	ensure_dir "$JOB_DIR"
@@ -171,7 +171,7 @@ run_mcpb() {
 	# Sanitize MOL2 if it contains an extra element column in @<TRIPOS>ATOM
 	mol2_sanitize_atom_coords_inplace "$src_mol2"
 
-	# Identify the first metal (Au in your case)
+	# Identify the first metal
 	local metal_line
 	metal_line="$(mol2_first_metal "$src_mol2")"
 	[[ -n "$metal_line" ]] || die "Failed to detect metal in $src_mol2"
@@ -387,7 +387,6 @@ run_tleap() {
 			info "MCPB tleap file present but no load statements found – using ${in_file}.in"
 		fi
 	fi
-
 
 	#Construct the job file
 	if [[ $meta == "true" ]]; then
