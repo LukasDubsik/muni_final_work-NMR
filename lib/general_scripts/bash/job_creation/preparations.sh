@@ -364,15 +364,41 @@ run_tleap() {
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
+	# If MCPB produced a tleap input, reuse its parameter/library load statements
+	# so teLeap knows the metal atom type + metal-ligand bonded terms.
+	local tleap_in="${in_file}.in"
+	local MCPB_DIR="process/preparations/mcpb"
+
+	if [[ -f "${MCPB_DIR}/${name}_tleap.in" ]]; then
+		info "Detected MCPB output – importing metal parameters into tleap input"
+
+		# Copy MCPB artifacts that its tleap file may load
+		cp "${MCPB_DIR}"/*.frcmod "${MCPB_DIR}"/*.lib "${MCPB_DIR}"/*.off "${MCPB_DIR}"/*.dat \
+			"$JOB_DIR" 2>/dev/null || true
+
+		# Extract only load statements (avoid unit creation / save / quit)
+		grep -E '^(loadAmberParams|loadamberparams|loadoff|loadOff)[[:space:]]' \
+			"${MCPB_DIR}/${name}_tleap.in" \
+			| sed 's#^[[:space:]]*##; s#\./##g' > "$JOB_DIR/mcpb_params.in" || true
+
+		if [[ -s "$JOB_DIR/mcpb_params.in" ]]; then
+			cat "$JOB_DIR/mcpb_params.in" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"
+			tleap_in="tleap_run.in"
+		else
+			info "MCPB tleap file present but no load statements found – using ${in_file}.in"
+		fi
+	fi
+
+
 	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$tleap_in" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$tleap_in" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
