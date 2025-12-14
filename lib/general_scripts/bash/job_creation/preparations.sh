@@ -193,7 +193,7 @@ EOF
 	fi
 
 	cat > "$JOB_DIR/job_file.txt" <<EOF
-module add amber/${amber}
+module add ${amber}
 MCPB.py -i ${name}_mcpb.in -s 4
 EOF
 
