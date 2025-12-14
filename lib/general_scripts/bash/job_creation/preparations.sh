@@ -232,8 +232,7 @@ EOF
 	fi
 
 	# For -s 4, the expected artifact is ${group}_tleap.in
-	ccheck_res_file "${name}_tleap.in" "$mcpb_dir" "mcpb"
-	check_res_file "${name}_mcpbpy.frcmod" "$mcpb_dir" "mcpb"
+	check_res_file "${name}_tleap.in" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
 	add_to_log "$job_name" "$LOG"
