@@ -163,21 +163,25 @@ run_mcpb() {
 	rm -rf "$JOB_DIR"
 	ensure_dir "$JOB_DIR"
 
+	# Stage all MCPB inputs in JOB_DIR (so the job can just copy and run)
+	local src_mol2="$JOB_DIR/${name}_mcpb_source.mol2"
+	cp "$in_mol2" "$src_mol2"
+	cp "$lig_frcmod" "$JOB_DIR/LIG.frcmod"
+
+	# Sanitize MOL2 if it contains an extra element column in @<TRIPOS>ATOM
+	mol2_sanitize_atom_coords_inplace "$src_mol2"
+
 	# Identify the first metal (Au in your case)
 	local metal_line
-	metal_line="$(mol2_first_metal "$in_mol2")"
-	[[ -n "$metal_line" ]] || die "Failed to detect metal in $in_mol2"
+	metal_line="$(mol2_first_metal "$src_mol2")"
+	[[ -n "$metal_line" ]] || die "Failed to detect metal in $src_mol2"
 
 	local metal_id metal_elem metal_charge mx my mz
 	read -r metal_id metal_elem metal_charge mx my mz <<< "$metal_line"
 
-	# Stage all MCPB inputs in JOB_DIR (so the job can just copy and run)
-	cp "$in_mol2" "$JOB_DIR/${name}_mcpb_source.mol2"
-	cp "$lig_frcmod" "$JOB_DIR/LIG.frcmod"
-
 	# Generate PDB and split MOL2s
-	mol2_to_mcpb_pdb "$JOB_DIR/${name}_mcpb_source.mol2" "$JOB_DIR/${name}_mcpb.pdb" "$metal_id"
-	mol2_strip_atom "$JOB_DIR/${name}_mcpb_source.mol2" "$JOB_DIR/LIG.mol2" "$metal_id"
+	mol2_to_mcpb_pdb "$src_mol2" "$JOB_DIR/${name}_mcpb.pdb" "$metal_id"
+	mol2_strip_atom "$src_mol2" "$JOB_DIR/LIG.mol2" "$metal_id"
 	write_single_ion_mol2 "$JOB_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
 
 	# Generate MCPB input (resolved values; no runtime substitutions needed)
@@ -203,7 +207,7 @@ EOF
 
 	cat > "$JOB_DIR/job_file.txt" <<EOF
 module add ${amber}
-MCPB.py -i ${name}_mcpb.in -s 1
+MCPB.py -i ${name}_mcpb.in ${mcpb_cmd:-"-s 1"}
 EOF
 
 	if [[ $meta == "true" ]]; then
@@ -213,16 +217,6 @@ EOF
 		substitute_name_sh_wolf_end "$JOB_DIR" "$JOB_DIR"
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
-
-	# MCPB.py step 4 needs *_standard.fingerprint, which is generated in step 1
-	# So force step 1 to run before whatever the user requested (usually -s 4)
-	local job_sh="${JOB_DIR}/mcpb.sh"
-
-	# Insert only if it's not already there
-	if ! grep -Fq "MCPB.py -i ${name}_mcpb.in -s 1" "$job_sh"; then
-        sed -i "/^MCPB\.py /i MCPB.py -i ${name}_mcpb.in -s 1" "$job_sh" \
-            || die "Failed to patch MCPB job script: $job_sh"
-    fi
 
 	# Run
 	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"

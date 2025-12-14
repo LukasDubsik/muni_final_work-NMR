@@ -327,10 +327,44 @@ write_single_ion_mol2() {
 ${elem}
  1 0 0 0 0
 SMALL
-NO_CHARGES
+USER_CHARGES
 
 @<TRIPOS>ATOM
       1 ${elem}        ${x} ${y} ${z} ${elem} 1 ${elem} ${charge}
 @<TRIPOS>BOND
 EOF
+}
+
+
+# mol2_sanitize_atom_coords_inplace MOL2FILE
+# Fixes non-standard MOL2 where ATOM lines contain an extra "element" column:
+#   id name element x y z ...
+# Converts to standard Tripos:
+#   id name x y z ...
+# This is required for MCPB.py (pymsmt) which expects x,y,z in fields 3-5.
+mol2_sanitize_atom_coords_inplace() {
+	local mol2="$1"
+	local tmp="${mol2}.tmp"
+
+	awk '
+	function isnum(v) { return (v ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+	BEGIN { inatom=0 }
+	/^@<TRIPOS>ATOM/ { inatom=1; print; next }
+	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
+	{
+		if (!inatom) { print; next }
+
+		n=split($0, f, /[ \t]+/)
+		# If f[3] is not numeric but f[4..6] are, drop f[3] (the extra element token)
+		if (n >= 7 && !isnum(f[3]) && isnum(f[4]) && isnum(f[5]) && isnum(f[6])) {
+			printf "%s %s %s %s %s", f[1], f[2], f[4], f[5], f[6]
+			for (i=7;i<=n;i++) printf " %s", f[i]
+			printf "\n"
+		} else {
+			print
+		}
+	}
+	' "$mol2" > "$tmp" || die "Failed to sanitize MOL2: $mol2"
+
+	mv "$tmp" "$mol2" || die "Failed to replace MOL2: $mol2"
 }
