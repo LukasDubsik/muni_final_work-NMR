@@ -378,7 +378,7 @@ mol2_sanitize_atom_coords_inplace() {
 
 mol2_sanitize_for_mcpb() {
 	local in_mol2="$1"
-	local tmp="${mol2}.tmp"
+	local tmp="${in_mol2}.tmp"
 
 	    awk '
     function isnum(x) { return (x ~ /^-?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
