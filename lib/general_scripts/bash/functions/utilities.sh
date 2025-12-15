@@ -200,8 +200,9 @@ mol2_to_mcpb_pdb()
 {
     local mol2="$1"
     local pdb="$2"
+	local metal_id="${3:-0}"
 
-    awk '
+    awk -v mid="$metal_id" '
         function isnum(s) { return (s ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
 
         BEGIN { in_atoms=0 }
@@ -217,15 +218,24 @@ mol2_to_mcpb_pdb()
 
             # Support both MOL2 atom layouts (see mol2_first_metal)
             if (isnum($3)) {
-                x=$3; y=$4; z=$5
+                x=$3; y=$4; z=$5; type=$6
             } else if (isnum($4)) {
-                x=$4; y=$5; z=$6
+                x=$4; y=$5; z=$6; type=$7
             } else {
                 next
             }
 
-            # Keep the existing formatting approach
-            printf("HETATM%5d %-4s AU  AU%4d    %8.3f%8.3f%8.3f\n", id, atname, 1, x, y, z)
+            # Residue 1 = LIG, residue 2 = metal
+            resn="LIG"
+            resi=1
+            if (mid != 0 && id == mid) {
+                resn=toupper(type)
+                resi=2
+            }
+
+            # Keep the existing formatting approach, but keep strict PDB columns
+            # (MCPB.py parses resSeq as int from columns 23-26)
+            printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f\n", id, atname, resn, resi, x, y, z)
         }
         END { print "END" }
     ' "$mol2" > "$pdb"
