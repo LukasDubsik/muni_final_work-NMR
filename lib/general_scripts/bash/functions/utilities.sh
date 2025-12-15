@@ -418,57 +418,76 @@ mol2_sanitize_atom_coords_inplace() {
 
 mol2_sanitize_for_mcpb() {
 	local in_mol2="$1"
+	local subst_name="${2:-}"
 	local tmp="${in_mol2}.tmp"
 
-	    awk '
+	    awk -v subst="${subst_name}" '
     function isnum(x) { return (x ~ /^-?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
 
-    function emit(n,   i) {
-        printf "%s", f[1];
-        for (i = 2; i <= n; i++) printf " %s", f[i];
-        printf "\n";
+    function emit(n) {
+        for (i=1; i<=n; i++) {
+            if (i == 1) printf "%s", f[i]
+            else        printf " %s", f[i]
+        }
+        printf "\n"
     }
 
-    BEGIN { in_atom = 0 }
+    BEGIN { in_atom = 0; in_sub = 0 }
 
-    /^@<TRIPOS>ATOM/ { in_atom = 1; print; next }
-    /^@<TRIPOS>/     { in_atom = 0; print; next }
+    /^@<TRIPOS>ATOM/ { in_atom = 1; in_sub = 0; print; next }
+    /^@<TRIPOS>SUBSTRUCTURE/ { in_atom = 0; in_sub = 1; print; next }
+    /^@<TRIPOS>/     { in_atom = 0; in_sub = 0; print; next }
 
     {
-        if (!in_atom) { print; next }
-        if ($0 ~ /^[[:space:]]*$/) { print; next }
+        if (in_atom) {
+            n = split($0, f, /[ \t]+/)
 
-        # Copy fields
-        for (i = 1; i <= NF; i++) f[i] = $i
-        n = NF
+            # Keep only the canonical 9 fields: id name x y z type subst_id subst_name charge
+            if (n > 9) {
+                # Most common offender: an extra numeric "resid" at the end
+                if (isnum(f[n])) {
+                    # drop last field
+                    n = 9
+                } else {
+                    n = 9
+                }
+            }
 
-        # Drop extra element column if present:
-        # id name elem x y z type subst_id subst_name charge
-        if (n >= 6 && !isnum(f[3]) && isnum(f[4])) {
-            for (i = 3; i < n; i++) f[i] = f[i+1]
-            n--
-        }
-
-        # MCPB/pymsmt expects 9 fields:
-        # id name x y z type subst_id subst_name charge
-        if (n == 8) {
-            # If the last field is numeric, it is most likely charge and subst_name is missing
-            if (isnum(f[8])) {
-                f[9] = f[8]
-                f[8] = "LIG"
-                n = 9
-            } else {
-                # Otherwise charge is missing
-                f[9] = "0.0"
+            # If short, pad with sane defaults
+            if (n < 9) {
+                # Ensure subst_id and subst_name exist
+                if (n < 7) { f[7] = 1 }
+                if (n < 8) { f[8] = "LIG" }
+                if (n < 9) { f[9] = 0.0 }
                 n = 9
             }
-        } else if (n == 7) {
-            # Missing both subst_name and charge
-            f[8] = "LIG"
-            f[9] = "0.0"
-            n = 9
+
+            # Force subst_name if requested (used to align MOL2 with PDB resname)
+            if (subst != "") {
+                f[8] = subst
+            }
+
+            emit(9)
+            next
         }
 
-        emit(n)
-    }' "$in_mol2" > "$tmp" && mv "$tmp" "$in_mol2"
+        if (in_sub) {
+            # SUBSTRUCTURE format: <id> <name> <root_atom> ...
+            if (subst != "") {
+                n = split($0, f, /[ \t]+/)
+                if (n >= 2) {
+                    f[2] = subst
+                    emit(n)
+                    next
+                }
+            }
+            print
+            next
+        }
+
+        print
+    }
+    ' "$in_mol2" > "$tmp"
+
+	mv "$tmp" "$in_mol2"
 }

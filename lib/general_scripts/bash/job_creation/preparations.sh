@@ -186,8 +186,8 @@ run_mcpb() {
 	mol2_strip_atom "$src_mol2" "$JOB_DIR/LIG.mol2" "$metal_id"
 	write_single_ion_mol2 "$JOB_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
 
-	mol2_sanitize_for_mcpb "$JOB_DIR/LIG.mol2"
-    mol2_sanitize_for_mcpb "$JOB_DIR/${metal_elem}.mol2"
+	mol2_sanitize_for_mcpb "$JOB_DIR/LIG.mol2" "LIG"
+	mol2_sanitize_for_mcpb "$JOB_DIR/${metal_elem}.mol2" "$metal_elem"
 
 
 	# Generate MCPB input (resolved values; no runtime substitutions needed)
