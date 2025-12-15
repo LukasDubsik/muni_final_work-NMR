@@ -366,14 +366,22 @@ mol2_sanitize_atom_coords_inplace() {
 	local tmp="${mol2}.tmp"
 
 	awk '
-	function isnum(v) { return (v ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
-	BEGIN { inatom=0 }
+    function isnum(s) { return (s ~ /^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$/) }
+    BEGIN { inatom=0 }
 	/^@<TRIPOS>ATOM/ { inatom=1; print; next }
 	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
 	{
 		if (!inatom) { print; next }
 
 		n=split($0, f, /[ \t]+/)
+		# Some generators produce: id x y z type resid resname charge (missing atom_name)
+    # Convert to: id A<id> x y z type resid resname charge
+    if (n >= 8 && isnum(f[2]) && isnum(f[3]) && isnum(f[4]) && !isnum(f[5])) {
+        printf "%s %s %s %s %s", f[1], ("A" f[1]), f[2], f[3], f[4]
+        for (i = 5; i <= n; i++) printf " %s", f[i]
+        printf "\n"
+        next
+    }
 		# If f[3] is not numeric but f[4..6] are, drop f[3] (the extra element token)
 		if (n >= 7 && !isnum(f[3]) && isnum(f[4]) && isnum(f[5]) && isnum(f[6])) {
 			printf "%s %s %s %s %s", f[1], f[2], f[4], f[5], f[6]
