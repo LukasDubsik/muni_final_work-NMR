@@ -148,43 +148,45 @@ mol2_write_charge_file() {
 
 # mol2_first_metal MOL2FILE
 # Prints: "<atom_id> <elem> <charge> <x> <y> <z>"
-mol2_first_metal() {
-	local mol2="$1"
+mol2_first_metal()
+{
+    local mol2="$1"
+    awk '
+        function isnum(s) { return (s ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
 
-	awk '
-	BEGIN {
-		inatom=0
-		# Extend as needed
-		metals["AU"]=1; metals["AG"]=1; metals["PT"]=1; metals["PD"]=1; metals["HG"]=1;
-		metals["ZZ"]=1; metals["FE"]=1; metals["CU"]=1; metals["NI"]=1; metals["CO"]=1;
-	}
-	/^@<TRIPOS>ATOM/ { inatom=1; next }
-	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0 }
-	inatom {
-		id=$1; name=$2; x=$3; y=$4; z=$5; type=$6; charge=$9
+        BEGIN { in_atoms=0 }
 
-		elem=name
-		gsub(/[0-9]/,"",elem)
-		elem=toupper(elem)
+        /^@<TRIPOS>ATOM/ { in_atoms=1; next }
+        /^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atoms=0; next }
 
-		# also try from type (before any dot)
-		elem2=type
-		sub(/\..*/,"",elem2)
-		gsub(/[0-9]/,"",elem2)
-		elem2=toupper(elem2)
+        {
+            if (!in_atoms) next
+            if ($1 !~ /^[0-9]+$/) next
 
-		# also try from z
-		elem3=z
-		sub(/\..*/,"",elem3)
-		gsub(/[0-9]/,"",elem3)
-		elem3=toupper(elem3)
+            # Support both:
+            #  (A) id name x y z type resid resname charge
+            #  (B) id name elem x y z type resid resname charge
+            id=$1
+            name=$2
 
-		if (metals[elem])  { print id, elem, charge, x, y, z; exit }
-		if (metals[elem2]) { print id, elem2, charge, x, y, z; exit }
-		if (metals[elem3]) { print id, elem3, charge, x, y, z; exit }
-	}
-	' "$mol2"
+            if (isnum($3)) {
+                x=$3; y=$4; z=$5; type=$6; charge=$9
+            } else if (isnum($4)) {
+                x=$4; y=$5; z=$6; type=$7; charge=$10
+            } else {
+                next
+            }
+
+            if (!(charge ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/)) charge=0.0
+
+            if (type ~ /(Au|AU|Ag|AG|Cu|CU|Zn|ZN|Fe|FE|Co|CO|Ni|NI|Mn|MN|Hg|HG|Pt|PT|Pd|PD|Cd|CD)/) {
+                print id " " toupper(type) " " charge " " x " " y " " z
+                exit
+            }
+        }
+    ' "$mol2"
 }
+
 
 # mol2_has_metal MOL2FILE
 mol2_has_metal() {
@@ -194,32 +196,41 @@ mol2_has_metal() {
 
 # mol2_to_mcpb_pdb MOL2FILE OUTPDB METAL_ID
 # Writes a minimal PDB with residue 1=LIG and residue 2=<METAL> (metal is separate residue)
-mol2_to_mcpb_pdb() {
-	local mol2="$1"
-	local outpdb="$2"
-	local metal_id="$3"
+mol2_to_mcpb_pdb()
+{
+    local mol2="$1"
+    local pdb="$2"
 
-	awk -v mid="$metal_id" '
-	BEGIN { inatom=0 }
-	/^@<TRIPOS>ATOM/ { inatom=1; next }
-	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0 }
-	inatom {
-		id=$1; name=$2; x=$3; y=$4; z=$5
+    awk '
+        function isnum(s) { return (s ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
 
-		# residue assignment
-		if (id == mid) { res="AU"; resid=2 }
-		else          { res="LIG"; resid=1 }
+        BEGIN { in_atoms=0 }
+        /^@<TRIPOS>ATOM/ { in_atoms=1; next }
+        /^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atoms=0; next }
 
-		# PDB atom naming: keep up to 4 chars
-		aname=name
-		if (length(aname) > 4) aname=substr(aname,1,4)
+        {
+            if (!in_atoms) next
+            if ($1 !~ /^[0-9]+$/) next
 
-		printf "HETATM%5d %-4s %-3s A%4d    %8.3f%8.3f%8.3f  1.00  0.00\n",
-			id, aname, res, resid, x, y, z
-	}
-	END { print "END" }
-	' "$mol2" > "$outpdb"
+            id=$1
+            atname=$2
+
+            # Support both MOL2 atom layouts (see mol2_first_metal)
+            if (isnum($3)) {
+                x=$3; y=$4; z=$5
+            } else if (isnum($4)) {
+                x=$4; y=$5; z=$6
+            } else {
+                next
+            }
+
+            # Keep the existing formatting approach
+            printf("HETATM%5d %-4s AU  AU%4d    %8.3f%8.3f%8.3f\n", id, atname, 1, x, y, z)
+        }
+        END { print "END" }
+    ' "$mol2" > "$pdb"
 }
+
 
 # mol2_strip_atom MOL2FILE OUTMOL2 ATOM_ID
 # Removes one atom and all bonds to it; renumbers atoms and bonds.
@@ -324,6 +335,7 @@ mol2_strip_atom() {
 write_single_ion_mol2() {
 	local outmol2="$1"
 	local elem="$2"
+	elem=$(echo "$elem" | tr '[:lower:]' '[:upper:]')
 	local charge="$3"
 	local x="$4"
 	local y="$5"

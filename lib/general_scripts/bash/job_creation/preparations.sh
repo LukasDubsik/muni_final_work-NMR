@@ -178,6 +178,8 @@ run_mcpb() {
 
 	local metal_id metal_elem metal_charge mx my mz
 	read -r metal_id metal_elem metal_charge mx my mz <<< "$metal_line"
+	metal_charge="${metal_charge:-0.0}"
+	metal_elem=$(echo "$metal_elem" | tr '[:lower:]' '[:upper:]')
 
 	# Generate PDB and split MOL2s
 	mol2_to_mcpb_pdb "$src_mol2" "$JOB_DIR/${name}_mcpb.pdb" "$metal_id"
