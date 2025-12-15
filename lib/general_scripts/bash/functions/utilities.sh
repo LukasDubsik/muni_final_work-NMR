@@ -256,7 +256,9 @@ mol2_strip_atom() {
 			if (lines[i] ~ /^@<TRIPOS>ATOM/) { inatom=1; continue }
 			if (lines[i] ~ /^@<TRIPOS>/ && lines[i] !~ /^@<TRIPOS>ATOM/) { if (inatom) inatom=0 }
 			if (inatom) {
-				split(lines[i], f, /[ \t]+/)
+				line = lines[i]
+				sub(/^[ \t]+/, "", line)
+				split(line, f, /[ \t]+/)
 				old=f[1]
 				if (old == sid) continue
 				nat++
@@ -271,7 +273,9 @@ mol2_strip_atom() {
 			if (lines[i] ~ /^@<TRIPOS>BOND/) { inbond=1; continue }
 			if (lines[i] ~ /^@<TRIPOS>/ && lines[i] !~ /^@<TRIPOS>BOND/) { if (inbond) inbond=0 }
 			if (inbond) {
-				split(lines[i], f, /[ \t]+/)
+				line = lines[i]
+				sub(/^[ \t]+/, "", line)
+				split(line, f, /[ \t]+/)
 				a=f[2]; b=f[3]
 				if (a == sid || b == sid) continue
 				nb++
@@ -300,7 +304,9 @@ mol2_strip_atom() {
 				print lines[i]
 				for (k=1;k<=nat;k++) {
 					# rewrite atom index
-					split(atomline[k], f, /[ \t]+/)
+					aline = atomline[k]
+					sub(/^[ \t]+/, "", aline)
+					split(aline, f, /[ \t]+/)
 					old=f[1]
 					sub("^" old "[ \t]+", k " ", atomline[k])
 					print atomline[k]
@@ -314,7 +320,9 @@ mol2_strip_atom() {
 			if (lines[i] ~ /^@<TRIPOS>BOND/) {
 				print lines[i]
 				for (k=1;k<=nb;k++) {
-					split(bondline[k], f, /[ \t]+/)
+					bline = bondline[k]
+					sub(/^[ \t]+/, "", bline)
+					split(bline, f, /[ \t]+/)
 					old=f[1]; a=f[2]; b=f[3]
 					newa=map[a]; newb=map[b]
 					printf "%d %d %d %s\n", k, newa, newb, f[4]
@@ -366,22 +374,24 @@ mol2_sanitize_atom_coords_inplace() {
 	local tmp="${mol2}.tmp"
 
 	awk '
-    function isnum(s) { return (s ~ /^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$/) }
-    BEGIN { inatom=0 }
+	function isnum(v) { return (v ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+	BEGIN { inatom=0 }
 	/^@<TRIPOS>ATOM/ { inatom=1; print; next }
 	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
 	{
 		if (!inatom) { print; next }
 
-		n=split($0, f, /[ \t]+/)
-		# Some generators produce: id x y z type resid resname charge (missing atom_name)
-    # Convert to: id A<id> x y z type resid resname charge
-    if (n >= 8 && isnum(f[2]) && isnum(f[3]) && isnum(f[4]) && !isnum(f[5])) {
-        printf "%s %s %s %s %s", f[1], ("A" f[1]), f[2], f[3], f[4]
-        for (i = 5; i <= n; i++) printf " %s", f[i]
-        printf "\n"
-        next
-    }
+		n=NF
+		for (i=1;i<=n;i++) f[i]=$i
+
+		# If the atom name is missing (id x y z type ...), synthesize one (A<id>)
+		if (n >= 8 && isnum(f[2]) && isnum(f[3]) && isnum(f[4]) && !isnum(f[5])) {
+			printf "%s A%s %s %s %s", f[1], f[1], f[2], f[3], f[4]
+			for (i=5;i<=n;i++) printf " %s", f[i]
+			printf "\n"
+			next
+		}
+
 		# If f[3] is not numeric but f[4..6] are, drop f[3] (the extra element token)
 		if (n >= 7 && !isnum(f[3]) && isnum(f[4]) && isnum(f[5]) && isnum(f[6])) {
 			printf "%s %s %s %s %s", f[1], f[2], f[4], f[5], f[6]
