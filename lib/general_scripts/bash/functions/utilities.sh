@@ -418,76 +418,84 @@ mol2_sanitize_atom_coords_inplace() {
 
 mol2_sanitize_for_mcpb() {
 	local in_mol2="$1"
-	local subst_name="${2:-}"
+	local subst="${2:-LIG}"
 	local tmp="${in_mol2}.tmp"
 
-	    awk -v subst="${subst_name}" '
-    function isnum(x) { return (x ~ /^-?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+	awk -v subst="$subst" '
+		function isnum(s) { return (s ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
 
-    function emit(n) {
-        for (i=1; i<=n; i++) {
-            if (i == 1) printf "%s", f[i]
-            else        printf " %s", f[i]
-        }
-        printf "\n"
-    }
+		BEGIN { sect = "" }
 
-    BEGIN { in_atom = 0; in_sub = 0 }
+		/^@<TRIPOS>ATOM/         { sect = "ATOM"; print; next }
+		/^@<TRIPOS>SUBSTRUCTURE/ { sect = "SUB";  print; next }
+		/^@<TRIPOS>/             { sect = "";     print; next }
 
-    /^@<TRIPOS>ATOM/ { in_atom = 1; in_sub = 0; print; next }
-    /^@<TRIPOS>SUBSTRUCTURE/ { in_atom = 0; in_sub = 1; print; next }
-    /^@<TRIPOS>/     { in_atom = 0; in_sub = 0; print; next }
+		{
+			# Passthrough unless in ATOM/SUBSTRUCTURE sections
+			if (sect != "ATOM" && sect != "SUB") { print; next }
 
-    {
-        if (in_atom) {
-            n = split($0, f, /[ \t]+/)
+			# Keep blank lines as-is
+			if ($0 ~ /^[ \t]*$/) { print; next }
 
-            # Keep only the canonical 9 fields: id name x y z type subst_id subst_name charge
-            if (n > 9) {
-                # Most common offender: an extra numeric "resid" at the end
-                if (isnum(f[n])) {
-                    # drop last field
-                    n = 9
-                } else {
-                    n = 9
-                }
-            }
+			# ----------------
+			# ATOM section
+			# ----------------
+			if (sect == "ATOM") {
+				# Copy fields
+				for (i = 1; i <= NF; i++) f[i] = $i
+				n = NF
 
-            # If short, pad with sane defaults
-            if (n < 9) {
-                # Ensure subst_id and subst_name exist
-                if (n < 7) { f[7] = 1 }
-                if (n < 8) { f[8] = "LIG" }
-                if (n < 9) { f[9] = 0.0 }
-                n = 9
-            }
+				# If element symbol is present as column 3 (id name elem x y z ...), drop it.
+				if (n >= 7 && !isnum(f[3]) && isnum(f[4])) {
+					for (i = 3; i < n; i++) f[i] = f[i+1]
+					n--
+				}
 
-            # Force subst_name if requested (used to align MOL2 with PDB resname)
-            if (subst != "") {
-                f[8] = subst
-            }
+				# Require at least the base 6 columns: id name x y z type
+				if (n < 6) { print; next }
 
-            emit(9)
-            next
-        }
+				# Base columns
+				id   = f[1]
+				name = f[2]
+				x    = f[3]
+				y    = f[4]
+				z    = f[5]
+				type = f[6]
 
-        if (in_sub) {
-            # SUBSTRUCTURE format: <id> <name> <root_atom> ...
-            if (subst != "") {
-                n = split($0, f, /[ \t]+/)
-                if (n >= 2) {
-                    f[2] = subst
-                    emit(n)
-                    next
-                }
-            }
-            print
-            next
-        }
+				# Fallback if coords are still not numeric (leave line untouched)
+				if (!isnum(x) || !isnum(y) || !isnum(z)) { print; next }
 
-        print
-    }
-    ' "$in_mol2" > "$tmp"
+				# Substructure id/name and charge
+				sid = 1
+				if (n >= 7 && isnum(f[7])) sid = int(f[7])
 
-	mv "$tmp" "$in_mol2"
+				# Charge: standard MOL2 is column 9, but sometimes an element column is appended.
+				q = 0.0
+				if (n >= 9 && isnum(f[9])) q = f[9]
+				else if (n >= 10 && isnum(f[10])) q = f[10]
+				else if (n == 8 && isnum(f[8])) q = f[8]
+
+				# Always force subst name to match the PDB residue name MCPB.py uses
+				printf(" %d %s %.4f %.4f %.4f %s %d %s %.6f\n", id, name, x, y, z, type, sid, subst, q)
+				next
+			}
+
+			# ----------------
+			# SUBSTRUCTURE section
+			# ----------------
+			if (sect == "SUB") {
+				# Expect: subst_id subst_name root_atom ...
+				if ($1 ~ /^[0-9]+$/) {
+					$2 = subst
+					print
+					next
+				}
+				# If malformed, emit a minimal valid record
+				printf("     1 %s         1 TEMP              0 ****  ****    0 ROOT\n", subst)
+				next
+			}
+		}
+	' "$in_mol2" > "$tmp"
+
+	mv "$tmp" "$in_mol2" || die "Failed to sanitize: $in_mol2"
 }
