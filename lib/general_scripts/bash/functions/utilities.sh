@@ -229,9 +229,11 @@ mol2_to_mcpb_pdb()
             resn="LIG"
             resi=1
             if (mid != 0 && id == mid) {
-                resn=toupper(type)
-                resi=2
-            }
+				resn=toupper(type)
+				# canonical atom name for element parsing (Au, Zn, Fe, ...)
+				atname = substr(resn,1,1) tolower(substr(resn,2))
+				resi=2
+			}
 
             # Keep the existing formatting approach, but keep strict PDB columns
             # (MCPB.py parses resSeq as int from columns 23-26)
@@ -352,25 +354,34 @@ mol2_strip_atom() {
 # write_single_ion_mol2 OUTMOL2 ELEM CHARGE X Y Z
 write_single_ion_mol2() {
 	local outmol2="$1"
-	local elem="$2"
-	elem=$(echo "$elem" | tr '[:lower:]' '[:upper:]')
+	local elem_in="$2"
 	local charge="$3"
 	local x="$4"
 	local y="$5"
 	local z="$6"
 
+	# Residue/substructure label: keep uppercase (e.g., AU, ZN)
+	local elem_u
+	elem_u="$(echo "$elem_in" | tr '[:lower:]' '[:upper:]')"
+
+	# Atom name/type: canonical element symbol (Au, Zn, Fe, ...)
+	# This avoids MCPB/pymsmt inferring element "A" from "AU".
+	local elem_sym
+	elem_sym="$(echo "$elem_u" | awk '{ printf("%s%s", substr($0,1,1), tolower(substr($0,2))) }')"
+
 	cat > "$outmol2" <<EOF
 @<TRIPOS>MOLECULE
-${elem}
+${elem_u}
  1 0 0 0 0
 SMALL
 USER_CHARGES
 
 @<TRIPOS>ATOM
-      1 ${elem}        ${x} ${y} ${z} ${elem} 1 ${elem} ${charge}
+      1 ${elem_sym}        ${x} ${y} ${z} ${elem_sym} 1 ${elem_u} ${charge}
 @<TRIPOS>BOND
 EOF
 }
+
 
 
 # mol2_sanitize_atom_coords_inplace MOL2FILE
