@@ -230,17 +230,19 @@ mol2_to_mcpb_pdb()
 			# Metal: residue name uppercase (AU), element as proper case (Au)
 			elem = cap(type);
 			resn = toupper(substr(elem,1,2));
-			atn  = toupper(elem);     # make atom name robust ("AU")
+			atn  = elem;             # keep as "Au" to match ion mol2 atom name
+			resi_out = 2;            # IMPORTANT: separate residue number from ligand
 		} else {
 			# Ligand: force residue name to LIG for MCPB consistency
 			elem = guess_elem(name);
 			resn = "LIG";
 			atn  = name;
+			resi_out = 1;
 		}
 
 		# PDB fixed-width, element in cols 77-78 (right-justified)
 		printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
-			id, atn, resn, resi, x, y, z, 1.00, 0.00, elem);
+			id, atn, resn, resi_out, x, y, z, 1.00, 0.00, elem);
 	}
 
 
