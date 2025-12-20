@@ -239,9 +239,10 @@ mol2_to_mcpb_pdb()
 			resi = 1;
 		}
 
-		# PDB fixed-width, element in cols 77-78 (right-justified)
-		printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
-			id, atn, resn, resi, x, y, z, 1.00, 0.00, elem);
+		# PDB fixed-width (MCPB parser is column-sensitive): keep element shifted 1 col left vs strict spec
+		printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f         %2s \n",
+			serial, atn, resn, resid, x, y, z, 1.00, 0.00, elem) >> outp
+
 	}
 
     END { print "END" }
