@@ -173,6 +173,7 @@ in_atoms {
     }
 }
 END {
+	print "-1";
 }
 ' "$mol2"
 }
