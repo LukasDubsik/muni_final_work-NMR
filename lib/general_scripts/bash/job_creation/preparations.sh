@@ -239,6 +239,15 @@ EOF
 
 	check_res_file "${name}_tleap.in" "$JOB_DIR" "$job_name"
 
+	# If the user requested step 4, they almost certainly intend to build a bonded model in LEaP.
+	# Step 4 does NOT generate the metal bonded parameter file; that comes from step 2.
+	# Refuse to continue if the frcmod is missing, otherwise tleap will fail with missing Au terms.
+	if echo "${mcpb_cmd:-"-s 1"}" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*4'; then
+		if [[ ! -f "$JOB_DIR/${name}_mcpbpy.frcmod" ]]; then
+			die "MCPB step 4 did not produce ${name}_mcpbpy.frcmod. Step 4 generates the LEaP input, but bonded metal parameters are produced in step 2 (after QM outputs exist). Run MCPB step 1 -> run QM -> MCPB step 2 -> then step 4."
+		fi
+	fi
+
 	success "$job_name has finished correctly"
 	add_to_log "$job_name" "$LOG"
 }
@@ -271,6 +280,23 @@ run_parmchk2() {
 	#Copy the data from antechamber
 	move_inp_file "${name}_charges.mol2" "$SRC_DIR" "$JOB_DIR"
 
+	# parmchk2 is for the organic part; heavy metals frequently break/poison the frcmod generation.
+	# If a metal is present, run parmchk2 on a ligand-only MOL2, but keep the full MOL2 for MCPB.
+	local full_mol2="$JOB_DIR/${name}_charges.mol2"
+	local mcpb_mol2="$full_mol2"
+
+	if mol2_has_metal "$full_mol2"; then
+		cp "$full_mol2" "$JOB_DIR/${name}_charges_full.mol2"
+		mcpb_mol2="$JOB_DIR/${name}_charges_full.mol2"
+
+		local metal_id
+		metal_id="$(mol2_first_metal "$mcpb_mol2" | awk '{print $1}')"
+		[[ -n "$metal_id" ]] || die "parmchk2: Failed to identify metal atom id"
+
+		# Overwrite the parmchk2 input MOL2 with ligand-only content
+		mol2_strip_atom "$mcpb_mol2" "$full_mol2" "$metal_id"
+	fi
+
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
@@ -290,7 +316,7 @@ run_parmchk2() {
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
 
 	# Run MCPB.py only if heavy metal is present (needed for metal-center parameters)
-    run_mcpb "$name" "$directory" "$meta" "$amber" "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}.frcmod"
+    run_mcpb "$name" "$directory" "$meta" "$amber" "$mcpb_mol2" "$JOB_DIR/${name}.frcmod"
 
 	success "$job_name has finished correctly"
 
@@ -327,6 +353,10 @@ run_nemesis_fix() {
 	fi
 
 	obabel -imol2 "$JOB_DIR/${name}_charges.mol2" -omol2 -O "$JOB_DIR/${name}_charges_fix.mol2" > /dev/null 2>&1
+
+	# OpenBabel may rewrite MOL2 metadata and metal atom types (e.g., Au -> Au).
+	# Normalize to GAFF/GAFF2 expectations.
+	mol2_normalize_obabel_output_inplace "$JOB_DIR/${name}_charges_fix.mol2" "$name"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges_fix.mol2" "$JOB_DIR" "$job_name"

@@ -518,3 +518,42 @@ mol2_sanitize_for_mcpb() {
 
 	mv "$tmp" "$in_mol2" || die "Failed to sanitize: $in_mol2"
 }
+
+
+# mol2_normalize_obabel_output_inplace FILE MOL_NAME
+# Fixes OpenBabel side-effects:
+#  - forces MOLECULE name to MOL_NAME
+#  - lowercases atom types in the ATOM section (GAFF/GAFF2 expects lowercase)
+# Globals: none
+# Returns: nothing
+mol2_normalize_obabel_output_inplace() {
+	local file="$1"
+	local mol_name="$2"
+
+	[[ -n "$file" && -f "$file" ]] || die "mol2_normalize_obabel_output_inplace: Missing file"
+	[[ -n "$mol_name" ]] || die "mol2_normalize_obabel_output_inplace: Missing MOL_NAME"
+
+	local tmp="${file}.tmp"
+
+	awk -v molname="$mol_name" '
+		BEGIN { in_mol=0; mol_line=0; in_atom=0; }
+
+		/^@<TRIPOS>MOLECULE/ { in_mol=1; mol_line=0; print; next; }
+
+		# First line after MOLECULE tag is the molecule name
+		in_mol && mol_line==0 { print molname; mol_line=1; next; }
+
+		# Leave MOLECULE section when a new section starts
+		in_mol && /^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>MOLECULE/ { in_mol=0; }
+
+		/^@<TRIPOS>ATOM/ { in_atom=1; print; next; }
+		/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atom=0; print; next; }
+
+		# Lowercase atom_type column (6) inside ATOM section
+		in_atom && NF>=6 { $6=tolower($6); print; next; }
+
+		{ print; }
+	' "$file" > "$tmp" || die "mol2_normalize_obabel_output_inplace: Failed to normalize mol2"
+
+	mv "$tmp" "$file" || die "mol2_normalize_obabel_output_inplace: Failed to replace mol2"
+}

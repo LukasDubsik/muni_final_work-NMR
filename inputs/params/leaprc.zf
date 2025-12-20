@@ -83,4 +83,6 @@ addAtomTypes {
 #
 #	Load the general force field parameter set.
 #
-gaff = loadamberparams gaff.zf
+# Load GAFF2 to match antechamber -at gaff2
+gaff2 = loadamberparams gaff2.dat
+loadamberparams frcmod.gaff2
