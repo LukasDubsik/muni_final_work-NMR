@@ -230,7 +230,7 @@ mol2_to_mcpb_pdb()
 			# Metal: residue name uppercase (AU), element as proper case (Au)
 			elem = cap(type);
 			resn = toupper(substr(elem,1,2));
-			atn  = elem;     # make atom name robust ("AU")
+			atn  = toupper(elem);     # make atom name robust ("AU")
 			resi_out = 2;            # IMPORTANT: separate residue number from ligand
 		} else {
 			# Ligand: force residue name to LIG for MCPB consistency
@@ -375,7 +375,7 @@ write_single_ion_mol2() {
 	# Atom name/type: canonical element symbol (Au, Zn, Fe, ...)
 	# This avoids MCPB/pymsmt inferring element "A" from "AU".
 	local elem_sym
-	elem_sym="$(echo "$elem_u" | awk '{ printf("%s%s", substr($0,1,1), tolower(substr($0,2))) }')"
+	elem_sym="$(echo "$elem_u" | awk '{ printf("%s%s", substr($0,1,1), toupper(substr($0,2))) }')"
 
 	cat > "$outmol2" <<EOF
 @<TRIPOS>MOLECULE
