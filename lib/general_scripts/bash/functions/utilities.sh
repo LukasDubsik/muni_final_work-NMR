@@ -152,39 +152,30 @@ mol2_first_metal()
 {
     local mol2="$1"
     awk '
-        function isnum(s) { return (s ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+function cap(sym,   a,b) {
+    gsub(/[^A-Za-z]/, "", sym);
+    if (length(sym) == 1) return toupper(sym);
+    a = toupper(substr(sym,1,1));
+    b = tolower(substr(sym,2,1));
+    return a b;
+}
+BEGIN{ in_atoms=0 }
+/^@<TRIPOS>ATOM/ { in_atoms=1; next }
+/^@<TRIPOS>/ { in_atoms=0 }
+in_atoms {
+    # mol2: id name x y z type resid resname charge
+    id=$1; type=$6; x=$3; y=$4; z=$5; charge=$9;
 
-        BEGIN { in_atoms=0 }
-
-        /^@<TRIPOS>ATOM/ { in_atoms=1; next }
-        /^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atoms=0; next }
-
-        {
-            if (!in_atoms) next
-            if ($1 !~ /^[0-9]+$/) next
-
-            # Support both:
-            #  (A) id name x y z type resid resname charge
-            #  (B) id name elem x y z type resid resname charge
-            id=$1
-            name=$2
-
-            if (isnum($3)) {
-                x=$3; y=$4; z=$5; type=$6; charge=$9
-            } else if (isnum($4)) {
-                x=$4; y=$5; z=$6; type=$7; charge=$10
-            } else {
-                next
-            }
-
-            if (!(charge ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/)) charge=0.0
-
-            if (type ~ /(Au|AU|Ag|AG|Cu|CU|Zn|ZN|Fe|FE|Co|CO|Ni|NI|Mn|MN|Hg|HG|Pt|PT|Pd|PD|Cd|CD)/) {
-                print id " " toupper(type) " " charge " " x " " y " " z
-                exit
-            }
-        }
-    ' "$mol2"
+    # Metals we want MCPB to recognize
+    if (type ~ /^(Au|AU|Ag|AG|Zn|ZN|Fe|FE|Cu|CU|Ni|NI|Co|CO|Mn|MN|Hg|HG|Cd|CD|Pt|PT|Ir|IR|Os|OS|Pb|PB|Sn|SN)$/) {
+        print id " " cap(type) " " charge " " x " " y " " z;
+        exit;
+    }
+}
+END {
+    print "-1";
+}
+' "$mol2"
 }
 
 
@@ -201,68 +192,56 @@ mol2_has_metal() {
 mol2_to_mcpb_pdb()
 {
     local mol2="$1"
-    local pdb="$2"
-    local metal_id="${3:-0}"
+    local out="$2"
+    local mid="$3"
 
-    awk -v mid="$metal_id" '
-        function isnum(s) { return (s ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+    awk -v mid="$mid" '
+    function cap(sym,   a,b) {
+        gsub(/[^A-Za-z]/, "", sym);
+        if (length(sym) == 0) return "X";
+        if (length(sym) == 1) return toupper(sym);
+        a = toupper(substr(sym,1,1));
+        b = tolower(substr(sym,2,1));
+        return a b;
+    }
+    function guess_elem(name,   s) {
+        s = name;
+        gsub(/[0-9]/, "", s);
 
-        function guess_elem(an,  s,e) {
-            s = an
-            gsub(/[^A-Za-z]/, "", s)
-            if (length(s) >= 2 && substr(s,2,1) ~ /[a-z]/) e = substr(s,1,2)
-            else e = substr(s,1,1)
-            return e
+        # Two-letter elements if atom name starts with known pattern (e.g., Cl, Br, Au)
+        if (length(s) >= 2 && substr(s,2,1) ~ /[a-z]/) return cap(substr(s,1,2));
+        if (length(s) >= 2 && substr(s,1,2) ~ /^(CL|BR|NA|MG|ZN|FE|AU|AG|SI|AL|CA|MN|CU|NI|CO|SE|HG|CD|PB|SN|PT|IR|OS)$/)
+            return cap(substr(s,1,2));
+
+        return cap(substr(s,1,1));
+    }
+
+    BEGIN { in_atoms=0; }
+    /^@<TRIPOS>ATOM/ { in_atoms=1; next }
+    /^@<TRIPOS>/ { in_atoms=0 }
+
+    in_atoms {
+        id=$1; name=$2; x=$3; y=$4; z=$5; type=$6; resi=$7; resid=$8;
+
+        if (id == mid) {
+            # Metal: residue name uppercase (AU), element as proper case (Au)
+            elem = cap(type);
+            resn = toupper(substr(elem,1,2));
+            atn  = toupper(elem);     # make atom name robust ("AU")
+        } else {
+            # Ligand: force residue name to LIG for MCPB consistency
+            elem = guess_elem(name);
+            resn = "LIG";
+            atn  = name;
         }
 
-        function canon_elem(e,  f,r) {
-            if (length(e) == 0) return ""
-            f = toupper(substr(e,1,1))
-            r = (length(e) > 1 ? tolower(substr(e,2)) : "")
-            return f r
-        }
+        # PDB fixed-width, element in cols 77-78 (right-justified)
+        printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
+               id, atn, resn, resi, x, y, z, 1.00, 0.00, elem);
+    }
 
-        BEGIN { in_atoms=0 }
-
-        /^@<TRIPOS>ATOM/ { in_atoms=1; next }
-        /^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atoms=0; next }
-
-        {
-            if (!in_atoms) next
-            if ($1 !~ /^[0-9]+$/) next
-
-            id=$1
-            atname=$2
-
-            # Support both MOL2 atom layouts
-            if (isnum($3)) {
-                x=$3; y=$4; z=$5; type=$6
-            } else if (isnum($4)) {
-                x=$4; y=$5; z=$6; type=$7
-            } else {
-                next
-            }
-
-            # Residue 1 = LIG, residue 2 = metal
-            resn="LIG"
-            resi=1
-            if (mid != 0 && id == mid) {
-                resn=toupper(type)
-                resi=2
-            }
-
-            # Element symbol (PDB cols 77-78). Prefer metal residue name for the metal line.
-            elem = guess_elem(atname)
-            if (mid != 0 && id == mid) elem = resn
-            elem = canon_elem(elem)
-
-            # Fixed-column PDB line with element field
-            # (cols 77-78: %2s element, right-justified)
-            printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
-                   id, atname, resn, resi, x, y, z, 1.00, 0.00, elem)
-        }
-        END { print "END" }
-    ' "$mol2" > "$pdb"
+    END { print "END" }
+    ' "$mol2" > "$out"
 }
 
 
