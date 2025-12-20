@@ -392,6 +392,42 @@ run_tleap() {
 			"${MCPB_DIR}/${name}_tleap.in" \
 			| sed 's#^[[:space:]]*##; s#\./##g' > "$JOB_DIR/mcpb_params.in" || true
 
+		# Filter out MCPB load statements that reference local files that are not present.
+		# (Common when MCPB step 4 is run without having generated step 2 outputs yet.)
+		if [[ -s "$JOB_DIR/mcpb_params.in" ]]; then
+			local mcpb_filtered="$JOB_DIR/mcpb_params.filtered.in"
+			: > "$mcpb_filtered"
+
+			while IFS= read -r line; do
+				# Normalize (strip leading spaces, remove leading "./")
+				line="$(printf '%s\n' "$line" | sed 's/^[[:space:]]*//; s#\./##g')"
+
+				# Skip empty/comment lines
+				[[ -z "$line" || "$line" == \#* ]] && continue
+
+				# shellcheck disable=SC2086
+				set -- $line
+				local cmd="$1"
+				local file="$2"
+
+				# Keep built-in Amber frcmods (resolved via AMBER data path)
+				if [[ "$cmd" =~ ^(loadAmberParams|loadamberparams|loadoff|loadOff)$ ]]; then
+					if [[ "$file" == frcmod.* ]]; then
+						printf '%s\n' "$line" >> "$mcpb_filtered"
+					elif [[ -f "$JOB_DIR/$file" ]]; then
+						printf '%s\n' "$line" >> "$mcpb_filtered"
+					else
+						info "Skipping MCPB load statement (missing file): $line"
+					fi
+				else
+					printf '%s\n' "$line" >> "$mcpb_filtered"
+				fi
+			done < "$JOB_DIR/mcpb_params.in"
+
+			mv "$mcpb_filtered" "$JOB_DIR/mcpb_params.in"
+		fi
+
+
 		if [[ -s "$JOB_DIR/mcpb_params.in" ]]; then
 			cat "$JOB_DIR/mcpb_params.in" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"
 			tleap_in="tleap_run.in"
