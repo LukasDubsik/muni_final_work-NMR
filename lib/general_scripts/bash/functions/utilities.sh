@@ -372,20 +372,20 @@ write_single_ion_mol2() {
 	local elem_u
 	elem_u="$(echo "$elem_in" | tr '[:lower:]' '[:upper:]')"
 
-	# Atom name/type: canonical element symbol (Au, Zn, Fe, ...)
-	# This avoids MCPB/pymsmt inferring element "A" from "AU".
+	# Atom name: match PDB atom name (uppercase, e.g., AU) so MCPB key is AU-AU.
+	# Atom type: canonical element symbol (Au, Zn, Fe, ...) for correct element inference.
 	local elem_sym
-	elem_sym="$(echo "$elem_u" | awk '{ printf("%s%s", substr($0,1,1), toupper(substr($0,2))) }')"
+	elem_sym="$(echo "$elem_u" | awk '{ printf("%s%s", substr($0,1,1), tolower(substr($0,2))) }')"
 
 	cat > "$outmol2" <<EOF
 @<TRIPOS>MOLECULE
 ${elem_u}
- 1 0 0 0 0
+1 0 0 0 0
 SMALL
 USER_CHARGES
 
 @<TRIPOS>ATOM
-      1 ${elem_sym}        ${x} ${y} ${z} ${elem_sym} 1 ${elem_u} ${charge}
+	1 ${elem_u}        ${x} ${y} ${z} ${elem_sym} 1 ${elem_u} ${charge}
 @<TRIPOS>BOND
 EOF
 }
