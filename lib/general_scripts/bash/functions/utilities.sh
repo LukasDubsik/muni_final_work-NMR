@@ -195,17 +195,35 @@ mol2_has_metal() {
 }
 
 # mol2_to_mcpb_pdb MOL2FILE OUTPDB METAL_ID
-# Writes a minimal PDB with residue 1=LIG and residue 2=<METAL> (metal is separate residue)
+# Writes a MCPB-friendly PDB:
+#   residue 1 = LIG, residue 2 = metal (separate residue)
+# IMPORTANT: include element symbol in columns 77-78 (MCPB/pymsmt uses it). 
 mol2_to_mcpb_pdb()
 {
     local mol2="$1"
     local pdb="$2"
-	local metal_id="${3:-0}"
+    local metal_id="${3:-0}"
 
     awk -v mid="$metal_id" '
         function isnum(s) { return (s ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
 
+        function guess_elem(an,  s,e) {
+            s = an
+            gsub(/[^A-Za-z]/, "", s)
+            if (length(s) >= 2 && substr(s,2,1) ~ /[a-z]/) e = substr(s,1,2)
+            else e = substr(s,1,1)
+            return e
+        }
+
+        function canon_elem(e,  f,r) {
+            if (length(e) == 0) return ""
+            f = toupper(substr(e,1,1))
+            r = (length(e) > 1 ? tolower(substr(e,2)) : "")
+            return f r
+        }
+
         BEGIN { in_atoms=0 }
+
         /^@<TRIPOS>ATOM/ { in_atoms=1; next }
         /^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atoms=0; next }
 
@@ -216,7 +234,7 @@ mol2_to_mcpb_pdb()
             id=$1
             atname=$2
 
-            # Support both MOL2 atom layouts (see mol2_first_metal)
+            # Support both MOL2 atom layouts
             if (isnum($3)) {
                 x=$3; y=$4; z=$5; type=$6
             } else if (isnum($4)) {
@@ -229,19 +247,24 @@ mol2_to_mcpb_pdb()
             resn="LIG"
             resi=1
             if (mid != 0 && id == mid) {
-				resn=toupper(type)
-				# canonical atom name for element parsing (Au, Zn, Fe, ...)
-				atname = substr(resn,1,1) tolower(substr(resn,2))
-				resi=2
-			}
+                resn=toupper(type)
+                resi=2
+            }
 
-            # Keep the existing formatting approach, but keep strict PDB columns
-            # (MCPB.py parses resSeq as int from columns 23-26)
-            printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f\n", id, atname, resn, resi, x, y, z)
+            # Element symbol (PDB cols 77-78). Prefer metal residue name for the metal line.
+            elem = guess_elem(atname)
+            if (mid != 0 && id == mid) elem = resn
+            elem = canon_elem(elem)
+
+            # Fixed-column PDB line with element field
+            # (cols 77-78: %2s element, right-justified)
+            printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
+                   id, atname, resn, resi, x, y, z, 1.00, 0.00, elem)
         }
         END { print "END" }
     ' "$mol2" > "$pdb"
 }
+
 
 
 # mol2_strip_atom MOL2FILE OUTMOL2 ATOM_ID
