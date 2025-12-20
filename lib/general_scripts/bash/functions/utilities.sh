@@ -230,7 +230,7 @@ mol2_to_mcpb_pdb()
 			# Metal: residue name uppercase (AU), element as proper case (Au)
 			elem = cap(type);
 			resn = toupper(substr(elem,1,2));
-			atn  = toupper(elem);     # make atom name robust ("AU")
+			atn  = elem;     # make atom name robust ("AU")
 			resi_out = 2;            # IMPORTANT: separate residue number from ligand
 		} else {
 			# Ligand: force residue name to LIG for MCPB consistency
