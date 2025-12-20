@@ -173,7 +173,6 @@ in_atoms {
     }
 }
 END {
-    print "-1";
 }
 ' "$mol2"
 }
@@ -182,8 +181,11 @@ END {
 # mol2_has_metal MOL2FILE
 mol2_has_metal() {
 	local mol2="$1"
-	[[ -n "$(mol2_first_metal "$mol2")" ]]
+	local line
+	line="$(mol2_first_metal "$mol2" | head -n1)"
+	[[ -n "$line" ]]
 }
+
 
 # mol2_to_mcpb_pdb MOL2FILE OUTPDB METAL_ID
 # Writes a MCPB-friendly PDB:
@@ -221,24 +223,26 @@ mol2_to_mcpb_pdb()
     /^@<TRIPOS>/ { in_atoms=0 }
 
     in_atoms {
-        id=$1; name=$2; x=$3; y=$4; z=$5; type=$6; resi=$7; resid=$8;
+		id=$1; name=$2; x=$3; y=$4; z=$5; type=$6; resi=$7; resid=$8;
 
-        if (id == mid) {
-            # Metal: residue name uppercase (AU), element as proper case (Au)
-            elem = cap(type);
-            resn = toupper(substr(elem,1,2));
-            atn  = toupper(elem);     # make atom name robust ("AU")
-        } else {
-            # Ligand: force residue name to LIG for MCPB consistency
-            elem = guess_elem(name);
-            resn = "LIG";
-            atn  = name;
-        }
+		if (id == mid) {
+			# Metal: put into a separate residue number to avoid "LIG-<metal>" KeyError
+			elem = cap(type);                 # "Au"
+			resn = toupper(substr(elem,1,2)); # "AU"
+			atn  = elem;                      # keep "Au" to match AU.mol2 atom name
+			resi = 2;
+		} else {
+			# Ligand: force residue name/number to LIG/1 for MCPB consistency
+			elem = guess_elem(name);
+			resn = "LIG";
+			atn  = name;
+			resi = 1;
+		}
 
-        # PDB fixed-width, element in cols 77-78 (right-justified)
-        printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
-               id, atn, resn, resi, x, y, z, 1.00, 0.00, elem);
-    }
+		# PDB fixed-width, element in cols 77-78 (right-justified)
+		printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
+			id, atn, resn, resi, x, y, z, 1.00, 0.00, elem);
+	}
 
     END { print "END" }
     ' "$mol2" > "$out"
