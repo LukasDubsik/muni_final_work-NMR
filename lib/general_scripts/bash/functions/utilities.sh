@@ -223,27 +223,26 @@ mol2_to_mcpb_pdb()
     /^@<TRIPOS>ATOM/ { in_atoms=1; next }
     /^@<TRIPOS>/ { in_atoms=0 }
 
-    in_atoms {
+   in_atoms {
 		id=$1; name=$2; x=$3; y=$4; z=$5; type=$6; resi=$7; resid=$8;
 
 		if (id == mid) {
-			# Metal: put into a separate residue number to avoid "LIG-<metal>" KeyError
-			elem = cap(type);                 # "Au"
-			resn = toupper(substr(elem,1,2)); # "AU"
-			atn  = elem;                      # keep "Au" to match AU.mol2 atom name
-			resi = 2;
+			# Metal: residue name uppercase (AU), element as proper case (Au)
+			elem = cap(type);
+			resn = toupper(substr(elem,1,2));
+			atn  = toupper(elem);     # make atom name robust ("AU")
 		} else {
-			# Ligand: force residue name/number to LIG/1 for MCPB consistency
+			# Ligand: force residue name to LIG for MCPB consistency
 			elem = guess_elem(name);
 			resn = "LIG";
 			atn  = name;
-			resi = 1;
 		}
 
 		# PDB fixed-width, element in cols 77-78 (right-justified)
-		printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s \n",
+		printf("HETATM%5d %-4s %3s A%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
 			id, atn, resn, resi, x, y, z, 1.00, 0.00, elem);
 	}
+
 
     END { print "END" }
     ' "$mol2" > "$out"
