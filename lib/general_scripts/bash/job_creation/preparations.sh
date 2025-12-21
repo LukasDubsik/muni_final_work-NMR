@@ -139,16 +139,17 @@ run_antechamber() {
 # run_mcpb NAME DIRECTORY META AMBER
 # Runs MCPB.py metal-center parametrization and merges the resulting frcmod
 # into the standard parmchk2 frcmod.
-# Globals: mcpb_cmd
+# Globals: none
 # Returns: Nothing
-# run_mcpb NAME DIRECTORY META AMBER IN_MOL2 LIG_FRCMOD
+# run_mcpb NAME DIRECTORY META AMBER MCPB_CMD IN_MOL2 LIG_FRCMOD
 run_mcpb() {
 	local name="$1"
 	local directory="$2"
 	local meta="$3"
 	local amber="$4"
-	local in_mol2="$5"
-	local lig_frcmod="$6"
+	local mcpb_cmd="$5"
+	local in_mol2="$6"
+	local lig_frcmod="$7"
 
 	local job_name="mcpb"
 	local JOB_DIR="process/preparations/$job_name"
@@ -162,6 +163,15 @@ run_mcpb() {
 
 	rm -rf "$JOB_DIR"
 	ensure_dir "$JOB_DIR"
+
+	# Default to step 4 for metal systems (step 4 alone is NOT sufficient; we will run prereqs)
+	local mcpb_cmd_resolved="${mcpb_cmd:-"-s 4"}"
+
+	# Gaussian module name depends on cluster
+	local gauss_mod="gaussian"
+	if [[ $meta == "true" ]]; then
+		gauss_mod="g16"
+	fi
 
 	# Stage all MCPB inputs in JOB_DIR (so the job can just copy and run)
 	local src_mol2="$JOB_DIR/${name}_mcpb_source.mol2"
@@ -210,16 +220,90 @@ EOF
 		substitute_name_sh_wolf_start "$JOB_DIR"
 	fi
 
-	cat > "$JOB_DIR/job_file.txt" <<EOF
+		cat > "$JOB_DIR/job_file.txt" <<EOF
 module add ${amber}
-if echo "${mcpb_cmd:-"-s 1"}" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*[234]'; then
+module add ${gauss_mod}
+
+# Make Gaussian happy on most clusters
+ulimit -s unlimited >/dev/null 2>&1 || true
+export GAUSS_SCRDIR="\${SCRATCHDIR:-\${TMPDIR:-\${PWD}}}"
+
+REQ_CMD="${mcpb_cmd_resolved}"
+REQ_STEP=1
+if echo "\$REQ_CMD" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*4'; then
+	REQ_STEP=4
+elif echo "\$REQ_CMD" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*3'; then
+	REQ_STEP=3
+elif echo "\$REQ_CMD" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*2'; then
+	REQ_STEP=2
+fi
+
+run_g16() {
+	local base="\$1"
+
+	[[ -f "\${base}.com" ]] || { echo "[ERR] Missing Gaussian input: \${base}.com"; exit 1; }
+
+	if [[ -f "\${base}.log" ]]; then
+		echo "[INFO] Gaussian output already present: \${base}.log"
+		return 0
+	fi
+
+	echo "[INFO] Running Gaussian: \${base}.com"
+	g16 < "\${base}.com" > "\${base}.log" || exit 1
+}
+
+# ----------------------------------------------------------------------
+# MCPB execution plan:
+#   step 4 requires step 2
+#   step 2 requires step 1 + QM (small_opt + small_fc + formchk)
+#   step 3 (if requested) additionally needs QM for RESP (large_mk)
+# ----------------------------------------------------------------------
+
+if (( REQ_STEP >= 2 )); then
+	# Step 1: build models + generate QM inputs
 	if [[ ! -f "${name}_standard.fingerprint" ]]; then
 		echo "[INFO] MCPB prerequisites missing -> running MCPB.py step 1 (fingerprint generation)"
 		MCPB.py -i "${name}_mcpb.in" -s 1 || exit 1
 	fi
-fi
 
-MCPB.py -i "${name}_mcpb.in" ${mcpb_cmd:-"-s 1"} || exit 1
+	# QM required for step 2 (Seminario)
+	run_g16 "${name}_small_opt"
+	run_g16 "${name}_small_fc"
+
+	# MCPB.py step 2 expects a formatted checkpoint from the OPT
+	if [[ -f "${name}_small_opt.chk" && ! -f "${name}_small_opt.fchk" ]]; then
+		echo "[INFO] Running formchk: ${name}_small_opt.chk -> ${name}_small_opt.fchk"
+		formchk "${name}_small_opt.chk" "${name}_small_opt.fchk" || exit 1
+	fi
+
+	# Step 2: generate metal-site parameters (this produces ${name}_mcpbpy.frcmod)
+	echo "[INFO] Running MCPB.py step 2 (parameter generation)"
+	MCPB.py -i "${name}_mcpb.in" -s 2 || exit 1
+
+	[[ -f "${name}_mcpbpy.frcmod" ]] || { echo "[ERR] MCPB.py step 2 did not generate ${name}_mcpbpy.frcmod"; exit 1; }
+
+	# Optional Step 3 (only if user requested it)
+	if (( REQ_STEP >= 3 )); then
+		# QM required for RESP charge fitting (if MCPB is configured to do it)
+		if [[ -f "${name}_large_mk.com" ]]; then
+			run_g16 "${name}_large_mk"
+		fi
+
+		echo "[INFO] Running MCPB.py step 3 (charge model generation)"
+		MCPB.py -i "${name}_mcpb.in" -s 3 || exit 1
+	fi
+
+	# Step 4: generate tleap include file (loads libs/frcmods/off as needed)
+	if (( REQ_STEP >= 4 )); then
+		echo "[INFO] Running MCPB.py step 4 (tleap input generation)"
+		MCPB.py -i "${name}_mcpb.in" -s 4 || exit 1
+	fi
+
+else
+	# Step 1 only (legacy behaviour)
+	echo "[INFO] Running MCPB.py with: \$REQ_CMD"
+	MCPB.py -i "${name}_mcpb.in" \$REQ_CMD || exit 1
+fi
 EOF
 
 	if [[ $meta == "true" ]]; then
@@ -231,13 +315,32 @@ EOF
 	fi
 
 	# Run
-	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
+	# If we need QM (step >= 2), give it more time/memory
+	local mcpb_ncpu=8
+	local mcpb_mem=8
+	local mcpb_wall="01:00:00"
+
+	if echo "$mcpb_cmd_resolved" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*[234]'; then
+		mcpb_mem=32
+		mcpb_wall="12:00:00"
+	fi
+
+	submit_job "$meta" "$job_name" "$JOB_DIR" "$mcpb_ncpu" "$mcpb_mem" 0 "$mcpb_wall"
+
 
 	if [[ ! -f "$JOB_DIR/${name}_tleap.in" && -f "$JOB_DIR/tleap.in" ]]; then
 		cp "$JOB_DIR/tleap.in" "$JOB_DIR/${name}_tleap.in"
 	fi
 
-	check_res_file "${name}_tleap.in" "$JOB_DIR" "$job_name"
+	# Step 2 must produce the metal parameter frcmod
+	if echo "$mcpb_cmd_resolved" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*[234]'; then
+		check_res_file "${name}_mcpbpy.frcmod" "$JOB_DIR" "$job_name"
+	fi
+
+	# Step 4 must produce the tleap include (some versions name it tleap.in)
+	if echo "$mcpb_cmd_resolved" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*4'; then
+		check_res_file "${name}_tleap.in" "$JOB_DIR" "$job_name"
+	fi
 
 	# If the user requested step 4, they almost certainly intend to build a bonded model in LEaP.
 	# Step 4 does NOT generate the metal bonded parameter file; that comes from step 2.
@@ -316,7 +419,7 @@ run_parmchk2() {
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
 
 	# Run MCPB.py only if heavy metal is present (needed for metal-center parameters)
-    run_mcpb "$name" "$directory" "$meta" "$amber" "$mcpb_mol2" "$JOB_DIR/${name}.frcmod"
+    run_mcpb "$name" "$directory" "$meta" "$amber" "$mcpb_cmd" "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}.frcmod"
 
 	success "$job_name has finished correctly"
 
