@@ -23,6 +23,13 @@ submit_job() {
 	else
 		# PBS select spec; add ngpus if present via env NGPU (optional)
 		local select="select=1:ncpus=${ncpus}:ngpus=${ngpus}:mem=${mem_gb}gb"
+		# Optional extra chunk resources for MetaCentrum (e.g., host_licenses, scratch_local)
+		# Example: JOB_META_SELECT_EXTRA="host_licenses=g16:scratch_local=50gb"
+		local extra="${JOB_META_SELECT_EXTRA:-}"
+		if [[ -n "$extra" ]]; then
+			extra="${extra#:}"
+			select="${select}:${extra}"
+		fi
 		out=$(qsub -q default -l "${select}" -l "walltime=${walltime}" "$script" || true)
 	fi
 

@@ -264,108 +264,142 @@ gauss_ok() {
 }
 
 run_gaussian() {
-	local com="$1"
-	local stem="${com%.com}"
-	local out="${stem}.log"
+    local com="$1"
+    local stem="${com%.com}"
+    local out="${stem}.log"
 
-	[ -f "$com" ] || { echo "[ERR] Gaussian input missing: $com"; JOB_STATUS=1; return 1; }
+    if [ ! -f "$com" ]; then
+        echo "[ERR] Gaussian input missing: $com"
+        return 1
+    fi
 
-	need_cmd g16 || return 1
+    if ! command -v g16 >/dev/null 2>&1; then
+        echo "[ERR] g16 not found in PATH"
+        return 1
+    fi
 
-	# Respect scheduler CPU allocation to avoid full-node oversubscription/spin
-	local ncpus="${PBS_NCPUS:-${NCPUS:-${OMP_NUM_THREADS:-2}}}"
-	[ -n "$ncpus" ] || ncpus=2
+    # Threads (PBS > fallback)
+    local ncpus="${PBS_NCPUS:-${OMP_NUM_THREADS:-1}}"
+    if [ "$ncpus" -lt 1 ]; then ncpus=1; fi
+    export OMP_NUM_THREADS="$ncpus"
+    export MKL_NUM_THREADS="$ncpus"
+    export OPENBLAS_NUM_THREADS="$ncpus"
 
-	export OMP_NUM_THREADS="$ncpus"
-	export MKL_NUM_THREADS="$ncpus"
-	export OPENBLAS_NUM_THREADS="$ncpus"
-	export VECLIB_MAXIMUM_THREADS="$ncpus"
-	export NUMEXPR_NUM_THREADS="$ncpus"
+    # Scratch
+    export GAUSS_SCRDIR="${SCRATCHDIR:-${GAUSS_SCRDIR:-$PWD}}"
+    mkdir -p "$GAUSS_SCRDIR" || true
 
-	# Ensure Gaussian uses a writable scratch directory
-	export GAUSS_SCRDIR="${GAUSS_SCRDIR:-${SCRATCHDIR:-$PWD}}"
-	export TMPDIR="${TMPDIR:-$GAUSS_SCRDIR}"
-	mkdir -p "$GAUSS_SCRDIR" >/dev/null 2>&1 || true
+    # Ensure trailing newline
+    printf "\n" >> "$com" 2>/dev/null || true
 
-	# Make sure the input deck ends cleanly (avoids edge parsing issues)
-	printf "\n" >> "$com" 2>/dev/null || true
+    # Run g16-prepare only when SCRATCHDIR exists (it uses reserved scratch to size %RWF)
+    if command -v g16-prepare >/dev/null 2>&1 && [ -n "${SCRATCHDIR:-}" ]; then
+        g16-prepare "$com" >> "$out" 2>&1 || true
+    fi
 
-	# If present, MetaCentrum helper can rewrite %Mem/%NProcShared/%RWF appropriately
-	if command -v g16-prepare >/dev/null 2>&1; then
-		g16-prepare "$com" >> "$out" 2>&1 || true
-	fi
+    # Sum sizes of all Gau-*.rwf in scratch (robust vs PID mismatch)
+    rwf_total_size() {
+        find "$GAUSS_SCRDIR" -maxdepth 1 -type f -name 'Gau-*.rwf' -printf '%s\n' 2>/dev/null | awk '{s+=$1} END{print s+0}'
+    }
 
-	echo "[INFO] Running Gaussian: $com (ncpus=$ncpus, scrdir=$GAUSS_SCRDIR)"
-	g16 "$com" > "$out" 2>&1 &
-	local pid=$!
+    chk_size() {
+        stat -c %s "${stem}.chk" 2>/dev/null || echo 0
+    }
 
-	# Watchdog: if neither log nor RWF grows for too long, dump diagnostics and abort
-	local idle=0
-	local idle_limit=20   # minutes
-	local last_out_sz=0
-	local last_rwf_sz=0
-	local rwf_a="$GAUSS_SCRDIR/Gau-${pid}.rwf"
-	local rwf_b="./Gau-${pid}.rwf"
+    tree_pcpu() {
+        local root="$1"
+        local kids pids
+        kids="$(pgrep -P "$root" 2>/dev/null | tr '\n' ' ')"
+        pids="$root $kids"
+        ps -o pcpu= -p $pids 2>/dev/null | awk '{s+=$1} END{printf "%.1f\n", s+0}'
+    }
 
-	last_out_sz=$(stat -c %s "$out" 2>/dev/null || echo 0)
-	last_rwf_sz=$(stat -c %s "$rwf_a" 2>/dev/null || stat -c %s "$rwf_b" 2>/dev/null || echo 0)
+    fix_rwf_0mb() {
+        # If %RWF ends with ,0MB (bad), replace with a cap based on free space.
+        if grep -qiE '^%[Rr][Ww][Ff]=.*,[[:space:]]*0MB' "$com"; then
+            local avail_gb use_gb
+            avail_gb=$(df -BG "$GAUSS_SCRDIR" 2>/dev/null | awk 'NR==2{gsub(/G/,"",$4); print $4}')
+            if [ -z "$avail_gb" ]; then avail_gb=20; fi
+            use_gb=$((avail_gb>10 ? avail_gb-5 : avail_gb))
+            if [ "$use_gb" -lt 10 ]; then use_gb=10; fi
+            if [ "$use_gb" -gt 200 ]; then use_gb=200; fi
+            sed -i -E "s#^(%[Rr][Ww][Ff]=[^,]*),[[:space:]]*0MB#\\1,${use_gb}GB#I" "$com" || true
+            echo "[INFO] Patched %RWF size from 0MB -> ${use_gb}GB" >> "$out"
+        fi
+    }
 
-	while kill -0 "$pid" >/dev/null 2>&1; do
-		sleep 60
+    fix_au_basis() {
+        # 6-31G* is not applicable to Au; use a basis covering Au (def2 family is a common choice).
+        # If you don't want auto-switching, comment this whole block out.
+        if grep -qE '^[[:space:]]*Au[[:space:]]' "$com" && grep -qE '^#.*\/6-31G\*' "$com"; then
+            sed -i -E 's@/6-31G\*@/def2SVP@g' "$com" || true
+            echo "[INFO] Detected Au + 6-31G*: switched to def2SVP for Au-capable basis/ECP." >> "$out"
+        fi
+    }
 
-		local out_sz rwf_sz
-		out_sz=$(stat -c %s "$out" 2>/dev/null || echo 0)
-		rwf_sz=$(stat -c %s "$rwf_a" 2>/dev/null || stat -c %s "$rwf_b" 2>/dev/null || echo 0)
+    fix_rwf_0mb
+    fix_au_basis
 
-		if [ "$out_sz" -gt "$last_out_sz" ] || [ "$rwf_sz" -gt "$last_rwf_sz" ]; then
-			idle=0
-			last_out_sz="$out_sz"
-			last_rwf_sz="$rwf_sz"
-		else
-			idle=$((idle + 1))
-			if [ "$idle" -ge "$idle_limit" ]; then
-				echo "[ERR] Gaussian appears hung: no log/rwf growth for ${idle_limit} minutes: $com" >> "$out"
-				ps -fp "$pid" >> "$out" 2>&1 || true
+    echo "[INFO] Running Gaussian: $(basename "$com") (ncpus=${ncpus}, scrdir=${GAUSS_SCRDIR})"
 
-				if command -v top >/dev/null 2>&1; then
-					echo "[INFO] top -H (threads) snapshot:" >> "$out"
-					top -b -n 1 -H -p "$pid" | head -n 60 >> "$out" 2>&1 || true
-				fi
+    # Start in its own process group so timeout kills the entire Gaussian tree
+    setsid g16 "$com" > "$out" 2>&1 &
+    local pid=$!
 
-				if command -v timeout >/dev/null 2>&1 && command -v strace >/dev/null 2>&1; then
-					echo "[INFO] Capturing strace (10s) -> ${stem}.strace.txt" >> "$out"
-					timeout 10 strace -tt -f -p "$pid" -o "${stem}.strace.txt" >> "$out" 2>&1 || true
-				fi
+    local idle=0
+    local idle_limit=20
 
-				kill -TERM "$pid" >/dev/null 2>&1 || true
-				sleep 10
-				kill -KILL "$pid" >/dev/null 2>&1 || true
+    local last_out_sz last_rwf_sz last_chk_sz
+    last_out_sz=$(stat -c %s "$out" 2>/dev/null || echo 0)
+    last_rwf_sz=$(rwf_total_size)
+    last_chk_sz=$(chk_size)
 
-				JOB_STATUS=1
-				return 1
-			fi
-		fi
-	done
+    while kill -0 "$pid" 2>/dev/null; do
+        sleep 60
 
-	wait "$pid"
-	local rc=$?
-	if [ "$rc" -ne 0 ]; then
-		echo "[ERR] Gaussian failed (rc=$rc): $com"
-		JOB_STATUS="$rc"
-		return "$rc"
-	fi
+        local out_sz rwf_sz chk_sz pcpu
+        out_sz=$(stat -c %s "$out" 2>/dev/null || echo 0)
+        rwf_sz=$(rwf_total_size)
+        chk_sz=$(chk_size)
+        pcpu=$(tree_pcpu "$pid")
 
-	if [ -f "${stem}.chk" ] && command -v formchk >/dev/null 2>&1; then
-		formchk "${stem}.chk" "${stem}.fchk" >> "$out" 2>&1 || true
-	fi
+        if [ "$out_sz" -gt "$last_out_sz" ] || [ "$rwf_sz" -gt "$last_rwf_sz" ] || [ "$chk_sz" -gt "$last_chk_sz" ] || awk -v p="$pcpu" 'BEGIN{exit !(p>=0.5)}'; then
+            idle=0
+            last_out_sz="$out_sz"
+            last_rwf_sz="$rwf_sz"
+            last_chk_sz="$chk_sz"
+            continue
+        fi
 
-	if ! gauss_ok "$out"; then
-		echo "[ERR] Gaussian did not terminate normally: $out"
-		JOB_STATUS=1
-		return 1
-	fi
+        idle=$((idle+1))
+        if [ "$idle" -ge "$idle_limit" ]; then
+            echo "[ERR] Gaussian appears hung: no output/rwf/chk growth and near-zero CPU for ${idle_limit} minutes: $(basename "$com")" >> "$out"
+            echo "[INFO] ps snapshot:" >> "$out"
+            ps -o pid,ppid,stat,pcpu,pmem,etime,cmd -p "$pid" --ppid "$pid" >> "$out" 2>&1 || true
 
-	return 0
+            local child
+            child="$(pgrep -P "$pid" 2>/dev/null | head -n1 || true)"
+            if [ -n "$child" ]; then
+                echo "[INFO] Capturing strace (10s) of child $child -> ${stem}.strace.txt" >> "$out"
+                timeout 10 strace -tt -f -p "$child" -o "${stem}.strace.txt" 2>/dev/null || true
+            fi
+
+            kill -TERM -- -"$pid" 2>/dev/null || true
+            sleep 10
+            kill -KILL -- -"$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            return 1
+        fi
+    done
+
+    wait "$pid"
+    local rc=$?
+    if [ "$rc" -ne 0 ]; then
+        echo "[ERR] Gaussian failed: $(basename "$com") (rc=$rc)" >> "$out"
+        return "$rc"
+    fi
+
+    return 0
 }
 
 # Step 1: build models + generate QM inputs
@@ -411,8 +445,20 @@ EOF
 		mcpb_wall="12:00:00"
 	fi
 
+	# MetaCentrum: Gaussian needs licensed nodes + reserved scratch
+	local old_extra="${JOB_META_SELECT_EXTRA:-}"
+	if [[ "$meta" == "true" ]]; then
+		# Conservative scratch; increase if you see disk-full in Gaussian
+		local scratch_gb=20
+		if [[ "$mcpb_mem" -ge 32 ]]; then
+			scratch_gb=50
+		fi
+		JOB_META_SELECT_EXTRA="host_licenses=g16:scratch_local=${scratch_gb}gb"
+	fi
+
 	submit_job "$meta" "$job_name" "$JOB_DIR" "$mcpb_mem" "$mcpb_ncpu" 0 "$mcpb_wall"
 
+	JOB_META_SELECT_EXTRA="$old_extra"
 
 	if [[ ! -f "$JOB_DIR/${name}_tleap.in" && -f "$JOB_DIR/tleap.in" ]]; then
 		cp "$JOB_DIR/tleap.in" "$JOB_DIR/${name}_tleap.in"
