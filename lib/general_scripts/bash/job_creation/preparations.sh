@@ -251,142 +251,119 @@ run_mcpb_step() {
 }
 
 gauss_ok() {
-	# Gaussian success is indicated by "Normal termination ..." at the end of the output. :contentReference[oaicite:2]{index=2}
-	local out="\$1"
+	# Gaussian success is indicated by "Normal termination ..." in the output.
+	local out="$1"
 	[ -f "\$out" ] || return 1
-	tail -n 5 "\$out" | grep -q "Normal termination of Gaussian"
-}
-
-gauss_strip_overrides_inplace() {
-	local com="$1"
-	[ -f "$com" ] || return 1
-
-	# If %NProcShared is present, it OVERRIDES GAUSS_PDEF. Same for %Mem vs GAUSS_MDEF.
-	# Prefer controlling both from the job script.
-	sed -i -E '/^%NProcShared=/Id;/^%Mem=/Id' "$com"
-	return 0
-}
-
-gauss_setup_env() {
-	# Ensure scratch is local/job-specific (required/strongly recommended on many HPC setups).
-	# Gaussian uses GAUSS_SCRDIR for scratch. :contentReference[oaicite:4]{index=4}
-	export GAUSS_SCRDIR="${SCRATCHDIR}"
-	mkdir -p "${GAUSS_SCRDIR}" || true
-
-	# Use the PBS allocation for cores
-	export GAUSS_PDEF="${PBS_NCPUS:-1}"
-
-	# Use most of allocated memory, keep a safety margin (avoid OOM)
-	if [ -n "${PBS_RESC_MEM:-}" ]; then
-		# PBS_RESC_MEM is bytes; convert to MB and keep 85%
-		local mem_mb=$(( PBS_RESC_MEM / 1024 / 1024 ))
-		mem_mb=$(( mem_mb * 85 / 100 ))
-		export GAUSS_MDEF="${mem_mb}MB"
-	fi
-
-	# Prevent external threaded libs from oversubscribing
-	export OMP_NUM_THREADS=1
-	export MKL_NUM_THREADS=1
-	export OPENBLAS_NUM_THREADS=1
+	grep -q "Normal termination of Gaussian" "\$out"
 }
 
 run_gaussian() {
-	local com="$1"
-	local stem="${com%.com}"
-	local out="${stem}.log"
+	local com="\$1"
+	local stem="\${com%.com}"
+	local out="\${stem}.log"
 
-	[ -f "$com" ] || { echo "[ERR] Gaussian input missing: $com"; JOB_STATUS=1; return 1; }
+	[ -f "\$com" ] || { echo "[ERR] Gaussian input missing: \$com"; JOB_STATUS=1; return 1; }
 
-	# Pick Gaussian binary
-	local gbin=""
-	if command -v g16 >/dev/null 2>&1; then
-		gbin="g16"
-	elif command -v g09 >/dev/null 2>&1; then
-		gbin="g09"
-	else
-		echo "[ERR] Required command 'g16' (or g09) not found in PATH."
-		JOB_STATUS=1
-		return 1
-	fi
+	need_cmd g16 || return 1
 
-	gauss_setup_env
-	gauss_strip_overrides_inplace "$com" || { echo "[ERR] Failed to sanitize: $com"; JOB_STATUS=1; return 1; }
+	# Respect scheduler CPU allocation to avoid full-node oversubscription/spin
+	local ncpus="\${PBS_NCPUS:-\${NCPUS:-\${OMP_NUM_THREADS:-2}}}"
+	[ -n "\$ncpus" ] || ncpus=2
 
-	# Optional helper
+	export OMP_NUM_THREADS="\$ncpus"
+	export MKL_NUM_THREADS="\$ncpus"
+	export OPENBLAS_NUM_THREADS="\$ncpus"
+	export VECLIB_MAXIMUM_THREADS="\$ncpus"
+	export NUMEXPR_NUM_THREADS="\$ncpus"
+
+	# Ensure Gaussian uses a writable scratch directory
+	export GAUSS_SCRDIR="\${GAUSS_SCRDIR:-\${SCRATCHDIR:-\$PWD}}"
+	export TMPDIR="\${TMPDIR:-\$GAUSS_SCRDIR}"
+	mkdir -p "\$GAUSS_SCRDIR" >/dev/null 2>&1 || true
+
+	# Make sure the input deck ends cleanly (avoids edge parsing issues)
+	printf "\n" >> "\$com" 2>/dev/null || true
+
+	# If present, MetaCentrum helper can rewrite %Mem/%NProcShared/%RWF appropriately
 	if command -v g16-prepare >/dev/null 2>&1; then
-		g16-prepare "$com" >/dev/null 2>&1 || true
+		g16-prepare "\$com" >> "\$out" 2>&1 || true
 	fi
 
-	echo "[INFO] Running Gaussian: $com (GAUSS_PDEF=${GAUSS_PDEF}, GAUSS_MDEF=${GAUSS_MDEF}, GAUSS_SCRDIR=${GAUSS_SCRDIR})"
-
-	# Run in background so we can detect "no-progress" hangs
-	"$gbin" < "$com" > "$out" 2>&1 &
+	echo "[INFO] Running Gaussian: \$com (ncpus=\$ncpus, scrdir=\$GAUSS_SCRDIR)"
+	# Run with filename argument (more robust than stdin redirection on clusters)
+	g16 "\$com" > "\$out" 2>&1 &
 	local pid=$!
 
-	# Stall watchdog: if log and /proc/io do not change for too long, kill and fail fast
-	local stall_limit=1800   # 30 minutes
-	local tick=60
-	local stalled=0
+	# Watchdog: if neither log nor RWF grows for too long, dump diagnostics and abort
+	local idle=0
+	local idle_limit=20   # minutes
+	local last_out_sz=0
+	local last_rwf_sz=0
+	local rwf_a="\$GAUSS_SCRDIR/Gau-\${pid}.rwf"
+	local rwf_b="./Gau-\${pid}.rwf"
 
-	local last_mtime=0
-	last_mtime=$(stat -c %Y "$out" 2>/dev/null || echo 0)
+	last_out_sz=$(stat -c %s "\$out" 2>/dev/null || echo 0)
+	last_rwf_sz=$(stat -c %s "\$rwf_a" 2>/dev/null || stat -c %s "\$rwf_b" 2>/dev/null || echo 0)
 
-	local last_rchar last_wchar
-	last_rchar=$(awk '/^rchar:/ {print $2}' "/proc/${pid}/io" 2>/dev/null || echo 0)
-	last_wchar=$(awk '/^wchar:/ {print $2}' "/proc/${pid}/io" 2>/dev/null || echo 0)
+	while kill -0 "\$pid" >/dev/null 2>&1; do
+		sleep 60
 
-	while kill -0 "$pid" >/dev/null 2>&1; do
-		sleep "$tick"
+		local out_sz rwf_sz
+		out_sz=$(stat -c %s "\$out" 2>/dev/null || echo 0)
+		rwf_sz=$(stat -c %s "\$rwf_a" 2>/dev/null || stat -c %s "\$rwf_b" 2>/dev/null || echo 0)
 
-		local mtime
-		mtime=$(stat -c %Y "$out" 2>/dev/null || echo "$last_mtime")
-
-		local rchar wchar
-		rchar=$(awk '/^rchar:/ {print $2}' "/proc/${pid}/io" 2>/dev/null || echo "$last_rchar")
-		wchar=$(awk '/^wchar:/ {print $2}' "/proc/${pid}/io" 2>/dev/null || echo "$last_wchar")
-
-		if [ "$mtime" -ne "$last_mtime" ] || [ "$rchar" -ne "$last_rchar" ] || [ "$wchar" -ne "$last_wchar" ]; then
-			stalled=0
-			last_mtime="$mtime"
-			last_rchar="$rchar"
-			last_wchar="$wchar"
+		if [ "\$out_sz" -gt "\$last_out_sz" ] || [ "\$rwf_sz" -gt "\$last_rwf_sz" ]; then
+			idle=0
+			last_out_sz="\$out_sz"
+			last_rwf_sz="\$rwf_sz"
 		else
-			stalled=$((stalled + tick))
-		fi
+			idle=$((idle + 1))
+			if [ "\$idle" -ge "\$idle_limit" ]; then
+				echo "[ERR] Gaussian appears hung: no log/rwf growth for \${idle_limit} minutes: \$com" >> "\$out"
+				ps -fp "\$pid" >> "\$out" 2>&1 || true
 
-		if [ "$stalled" -ge "$stall_limit" ]; then
-			echo "[ERR] Gaussian appears stalled (no log/proc-io progress for ${stall_limit}s): $com"
-			echo "[ERR] pid=$pid; dumping /proc/$pid/io:"
-			cat "/proc/${pid}/io" 2>/dev/null || true
-			kill -TERM "$pid" 2>/dev/null || true
-			sleep 10
-			kill -KILL "$pid" 2>/dev/null || true
-			JOB_STATUS=1
-			return 1
+				if command -v top >/dev/null 2>&1; then
+					echo "[INFO] top -H (threads) snapshot:" >> "\$out"
+					top -b -n 1 -H -p "\$pid" | head -n 60 >> "\$out" 2>&1 || true
+				fi
+
+				if command -v timeout >/dev/null 2>&1 && command -v strace >/dev/null 2>&1; then
+					echo "[INFO] Capturing strace (10s) -> \${stem}.strace.txt" >> "$out"
+					timeout 10 strace -tt -f -p "\$pid" -o "\${stem}.strace.txt" >> "$out" 2>&1 || true
+				fi
+
+				kill -TERM "\$pid" >/dev/null 2>&1 || true
+				sleep 10
+				kill -KILL "\$pid" >/dev/null 2>&1 || true
+
+				JOB_STATUS=1
+				return 1
+			fi
 		fi
 	done
 
-	wait "$pid"
+	wait "\$pid"
 	local rc=$?
-	if [ $rc -ne 0 ]; then
-		echo "[ERR] Gaussian failed (rc=$rc): $com"
-		JOB_STATUS=$rc
-		return $rc
+	if [ "\$rc" -ne 0 ]; then
+		echo "[ERR] Gaussian failed (rc=\$rc): \$com"
+		JOB_STATUS="\$rc"
+		return "\$rc"
 	fi
 
-	# Create fchk if possible
-	if [ -f "${stem}.chk" ] && command -v formchk >/dev/null 2>&1; then
-		formchk "${stem}.chk" "${stem}.fchk" >> "$out" 2>&1 || true
+	# If chk exists, create fchk (often needed downstream)
+	if [ -f "\${stem}.chk" ] && command -v formchk >/dev/null 2>&1; then
+		formchk "\${stem}.chk" "\${stem}.fchk" >> "\$out" 2>&1 || true
 	fi
 
-	if ! gauss_ok "$out"; then
-		echo "[ERR] Gaussian did not terminate normally: $out"
+	if ! gauss_ok "\$out"; then
+		echo "[ERR] Gaussian did not terminate normally: \$out"
 		JOB_STATUS=1
 		return 1
 	fi
 
 	return 0
 }
+
 
 # Step 1: build models + generate QM inputs
 run_mcpb_step 1
@@ -409,9 +386,6 @@ fi
 
 echo "[INFO] MCPB pipeline output files present in scratch:"
 ls -la
-
-# Never copy Gaussian scratch back (can be huge). :contentReference[oaicite:7]{index=7}
-rm -f Gau-*.rwf 2>/dev/null || true
 EOF
 
 
