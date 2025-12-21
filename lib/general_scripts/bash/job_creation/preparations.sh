@@ -202,24 +202,6 @@ run_mcpb() {
 
 	# Generate MCPB input (resolved values; no runtime substitutions needed)
 		# Generate MCPB input (resolved values; no runtime substitutions needed)
-	cat > "$JOB_DIR/${name}_mcpb.in" <<EOF
-original_pdb ${name}_mcpb.pdb
-group_name ${name}
-cut_off 2.8
-ion_ids ${metal_id}
-ion_mol2files ${metal_elem}.mol2
-naa_mol2files LIG.mol2
-frcmod_files LIG.frcmod
-large_opt 0
-EOF
-
-	# Build job script
-	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "$directory" ""
-	else
-		substitute_name_sh_wolf_start "$JOB_DIR"
-	fi
-
 	cat > "$JOB_DIR/job_file.txt" <<EOF
 # Amber tools (MCPB.py) live here
 module add ${amber}
@@ -227,71 +209,75 @@ module add ${amber}
 # Gaussian (MetaCentrum: module is typically g16; keep fallback for portability)
 module add g16 2>/dev/null || module add gaussian 2>/dev/null || true
 
+# Pass resolved name into the job environment (so we can quote the heredoc below)
+NAME="${name}"
+
 echo "[INFO] MCPB pipeline requested: step 1 -> QM (opt+freq) -> step 2 -> step 4"
 JOB_STATUS=0
+EOF
+
+cat >> "$JOB_DIR/job_file.txt" <<'EOF'
 
 need_cmd() {
-	command -v "\$1" >/dev/null 2>&1 && return 0
-	echo "[ERR] Required command '\$1' not found in PATH."
+	command -v "$1" >/dev/null 2>&1 && return 0
+	echo "[ERR] Required command '$1' not found in PATH."
 	JOB_STATUS=1
 	return 1
 }
 
 run_mcpb_step() {
-	local step="\$1"
-	echo "[INFO] Running MCPB.py step \${step}"
-	MCPB.py -i ${name}_mcpb.in -s "\${step}"
-	local rc=\$?
-	if [ \$rc -ne 0 ]; then
-		echo "[ERR] MCPB.py step \${step} failed (rc=\$rc)"
-		JOB_STATUS=\$rc
-		return \$rc
+	local step="$1"
+	echo "[INFO] Running MCPB.py step ${step}"
+	MCPB.py -i "${NAME}_mcpb.in" -s "${step}"
+	local rc=$?
+	if [ $rc -ne 0 ]; then
+		echo "[ERR] MCPB.py step ${step} failed (rc=$rc)"
+		JOB_STATUS=$rc
+		return $rc
 	fi
 	return 0
 }
 
 gauss_ok() {
-	# Gaussian success is indicated by "Normal termination ..." in the output.
 	local out="$1"
-	[ -f "\$out" ] || return 1
-	grep -q "Normal termination of Gaussian" "\$out"
+	[ -f "$out" ] || return 1
+	grep -q "Normal termination of Gaussian" "$out"
 }
 
 run_gaussian() {
-	local com="\$1"
-	local stem="\${com%.com}"
-	local out="\${stem}.log"
+	local com="$1"
+	local stem="${com%.com}"
+	local out="${stem}.log"
 
-	[ -f "\$com" ] || { echo "[ERR] Gaussian input missing: \$com"; JOB_STATUS=1; return 1; }
+	[ -f "$com" ] || { echo "[ERR] Gaussian input missing: $com"; JOB_STATUS=1; return 1; }
 
 	need_cmd g16 || return 1
 
 	# Respect scheduler CPU allocation to avoid full-node oversubscription/spin
-	local ncpus="\${PBS_NCPUS:-\${NCPUS:-\${OMP_NUM_THREADS:-2}}}"
-	[ -n "\$ncpus" ] || ncpus=2
+	local ncpus="${PBS_NCPUS:-${NCPUS:-${OMP_NUM_THREADS:-2}}}"
+	[ -n "$ncpus" ] || ncpus=2
 
-	export OMP_NUM_THREADS="\$ncpus"
-	export MKL_NUM_THREADS="\$ncpus"
-	export OPENBLAS_NUM_THREADS="\$ncpus"
-	export VECLIB_MAXIMUM_THREADS="\$ncpus"
-	export NUMEXPR_NUM_THREADS="\$ncpus"
+	export OMP_NUM_THREADS="$ncpus"
+	export MKL_NUM_THREADS="$ncpus"
+	export OPENBLAS_NUM_THREADS="$ncpus"
+	export VECLIB_MAXIMUM_THREADS="$ncpus"
+	export NUMEXPR_NUM_THREADS="$ncpus"
 
 	# Ensure Gaussian uses a writable scratch directory
-	export GAUSS_SCRDIR="\${GAUSS_SCRDIR:-\${SCRATCHDIR:-\$PWD}}"
-	export TMPDIR="\${TMPDIR:-\$GAUSS_SCRDIR}"
-	mkdir -p "\$GAUSS_SCRDIR" >/dev/null 2>&1 || true
+	export GAUSS_SCRDIR="${GAUSS_SCRDIR:-${SCRATCHDIR:-$PWD}}"
+	export TMPDIR="${TMPDIR:-$GAUSS_SCRDIR}"
+	mkdir -p "$GAUSS_SCRDIR" >/dev/null 2>&1 || true
 
 	# Make sure the input deck ends cleanly (avoids edge parsing issues)
-	printf "\n" >> "\$com" 2>/dev/null || true
+	printf "\n" >> "$com" 2>/dev/null || true
 
 	# If present, MetaCentrum helper can rewrite %Mem/%NProcShared/%RWF appropriately
 	if command -v g16-prepare >/dev/null 2>&1; then
-		g16-prepare "\$com" >> "\$out" 2>&1 || true
+		g16-prepare "$com" >> "$out" 2>&1 || true
 	fi
 
-	echo "[INFO] Running Gaussian: \$com (ncpus=\$ncpus, scrdir=\$GAUSS_SCRDIR)"
-	# Run with filename argument (more robust than stdin redirection on clusters)
-	g16 "\$com" > "\$out" 2>&1 &
+	echo "[INFO] Running Gaussian: $com (ncpus=$ncpus, scrdir=$GAUSS_SCRDIR)"
+	g16 "$com" > "$out" 2>&1 &
 	local pid=$!
 
 	# Watchdog: if neither log nor RWF grows for too long, dump diagnostics and abort
@@ -299,42 +285,42 @@ run_gaussian() {
 	local idle_limit=20   # minutes
 	local last_out_sz=0
 	local last_rwf_sz=0
-	local rwf_a="\$GAUSS_SCRDIR/Gau-\${pid}.rwf"
-	local rwf_b="./Gau-\${pid}.rwf"
+	local rwf_a="$GAUSS_SCRDIR/Gau-${pid}.rwf"
+	local rwf_b="./Gau-${pid}.rwf"
 
-	last_out_sz=$(stat -c %s "\$out" 2>/dev/null || echo 0)
-	last_rwf_sz=$(stat -c %s "\$rwf_a" 2>/dev/null || stat -c %s "\$rwf_b" 2>/dev/null || echo 0)
+	last_out_sz=$(stat -c %s "$out" 2>/dev/null || echo 0)
+	last_rwf_sz=$(stat -c %s "$rwf_a" 2>/dev/null || stat -c %s "$rwf_b" 2>/dev/null || echo 0)
 
-	while kill -0 "\$pid" >/dev/null 2>&1; do
+	while kill -0 "$pid" >/dev/null 2>&1; do
 		sleep 60
 
 		local out_sz rwf_sz
-		out_sz=$(stat -c %s "\$out" 2>/dev/null || echo 0)
-		rwf_sz=$(stat -c %s "\$rwf_a" 2>/dev/null || stat -c %s "\$rwf_b" 2>/dev/null || echo 0)
+		out_sz=$(stat -c %s "$out" 2>/dev/null || echo 0)
+		rwf_sz=$(stat -c %s "$rwf_a" 2>/dev/null || stat -c %s "$rwf_b" 2>/dev/null || echo 0)
 
-		if [ "\$out_sz" -gt "\$last_out_sz" ] || [ "\$rwf_sz" -gt "\$last_rwf_sz" ]; then
+		if [ "$out_sz" -gt "$last_out_sz" ] || [ "$rwf_sz" -gt "$last_rwf_sz" ]; then
 			idle=0
-			last_out_sz="\$out_sz"
-			last_rwf_sz="\$rwf_sz"
+			last_out_sz="$out_sz"
+			last_rwf_sz="$rwf_sz"
 		else
 			idle=$((idle + 1))
-			if [ "\$idle" -ge "\$idle_limit" ]; then
-				echo "[ERR] Gaussian appears hung: no log/rwf growth for \${idle_limit} minutes: \$com" >> "\$out"
-				ps -fp "\$pid" >> "\$out" 2>&1 || true
+			if [ "$idle" -ge "$idle_limit" ]; then
+				echo "[ERR] Gaussian appears hung: no log/rwf growth for ${idle_limit} minutes: $com" >> "$out"
+				ps -fp "$pid" >> "$out" 2>&1 || true
 
 				if command -v top >/dev/null 2>&1; then
-					echo "[INFO] top -H (threads) snapshot:" >> "\$out"
-					top -b -n 1 -H -p "\$pid" | head -n 60 >> "\$out" 2>&1 || true
+					echo "[INFO] top -H (threads) snapshot:" >> "$out"
+					top -b -n 1 -H -p "$pid" | head -n 60 >> "$out" 2>&1 || true
 				fi
 
 				if command -v timeout >/dev/null 2>&1 && command -v strace >/dev/null 2>&1; then
-					echo "[INFO] Capturing strace (10s) -> \${stem}.strace.txt" >> "$out"
-					timeout 10 strace -tt -f -p "\$pid" -o "\${stem}.strace.txt" >> "$out" 2>&1 || true
+					echo "[INFO] Capturing strace (10s) -> ${stem}.strace.txt" >> "$out"
+					timeout 10 strace -tt -f -p "$pid" -o "${stem}.strace.txt" >> "$out" 2>&1 || true
 				fi
 
-				kill -TERM "\$pid" >/dev/null 2>&1 || true
+				kill -TERM "$pid" >/dev/null 2>&1 || true
 				sleep 10
-				kill -KILL "\$pid" >/dev/null 2>&1 || true
+				kill -KILL "$pid" >/dev/null 2>&1 || true
 
 				JOB_STATUS=1
 				return 1
@@ -342,21 +328,20 @@ run_gaussian() {
 		fi
 	done
 
-	wait "\$pid"
+	wait "$pid"
 	local rc=$?
-	if [ "\$rc" -ne 0 ]; then
-		echo "[ERR] Gaussian failed (rc=\$rc): \$com"
-		JOB_STATUS="\$rc"
-		return "\$rc"
+	if [ "$rc" -ne 0 ]; then
+		echo "[ERR] Gaussian failed (rc=$rc): $com"
+		JOB_STATUS="$rc"
+		return "$rc"
 	fi
 
-	# If chk exists, create fchk (often needed downstream)
-	if [ -f "\${stem}.chk" ] && command -v formchk >/dev/null 2>&1; then
-		formchk "\${stem}.chk" "\${stem}.fchk" >> "\$out" 2>&1 || true
+	if [ -f "${stem}.chk" ] && command -v formchk >/dev/null 2>&1; then
+		formchk "${stem}.chk" "${stem}.fchk" >> "$out" 2>&1 || true
 	fi
 
-	if ! gauss_ok "\$out"; then
-		echo "[ERR] Gaussian did not terminate normally: \$out"
+	if ! gauss_ok "$out"; then
+		echo "[ERR] Gaussian did not terminate normally: $out"
 		JOB_STATUS=1
 		return 1
 	fi
@@ -364,22 +349,21 @@ run_gaussian() {
 	return 0
 }
 
-
 # Step 1: build models + generate QM inputs
 run_mcpb_step 1
 
 # QM (generated by step 1)
-if [ \$JOB_STATUS -eq 0 ]; then run_gaussian "${name}_small_opt.com"; fi
-if [ \$JOB_STATUS -eq 0 ]; then run_gaussian "${name}_small_fc.com";  fi
+if [ $JOB_STATUS -eq 0 ]; then run_gaussian "${NAME}_small_opt.com"; fi
+if [ $JOB_STATUS -eq 0 ]; then run_gaussian "${NAME}_small_fc.com";  fi
 
 # Step 2: generate force field parameters (expects QM results)
-if [ \$JOB_STATUS -eq 0 ]; then run_mcpb_step 2; fi
+if [ $JOB_STATUS -eq 0 ]; then run_mcpb_step 2; fi
 
 # Step 4: generate LEaP input
-if [ \$JOB_STATUS -eq 0 ]; then run_mcpb_step 4; fi
+if [ $JOB_STATUS -eq 0 ]; then run_mcpb_step 4; fi
 
-if [ \$JOB_STATUS -ne 0 ]; then
-	echo "[ERR] MCPB pipeline finished with errors (JOB_STATUS=\$JOB_STATUS). Files will still be copied back for debugging."
+if [ $JOB_STATUS -ne 0 ]; then
+	echo "[ERR] MCPB pipeline finished with errors (JOB_STATUS=$JOB_STATUS). Files will still be copied back for debugging."
 else
 	echo "[INFO] MCPB pipeline finished successfully."
 fi
@@ -387,7 +371,6 @@ fi
 echo "[INFO] MCPB pipeline output files present in scratch:"
 ls -la
 EOF
-
 
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_end "$JOB_DIR" "$JOB_DIR"
