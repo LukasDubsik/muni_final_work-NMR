@@ -247,7 +247,7 @@ run_mcpb_step() {
 	local step="$1"
 	echo "[INFO] Running MCPB.py step ${step}"
 	[ -s "${NAME}_mcpb.in" ] || { echo "[ERR] Missing MCPB input: ${NAME}_mcpb.in"; JOB_STATUS=1; return 1; }
-	MCPB.py -i "${NAME}_mcpb.in" -s "\${step}"
+	MCPB.py -i "${NAME}_mcpb.in" -s "${step}"
 	local rc=$?
 	if [ $rc -ne 0 ]; then
 		echo "[ERR] MCPB.py step ${step} failed (rc=$rc)"
