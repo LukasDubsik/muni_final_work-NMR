@@ -373,6 +373,7 @@ ls -la
 EOF
 
 	if [[ $meta == "true" ]]; then
+		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR" "$JOB_DIR"
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
