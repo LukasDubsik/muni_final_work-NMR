@@ -257,37 +257,130 @@ gauss_ok() {
 	tail -n 5 "\$out" | grep -q "Normal termination of Gaussian"
 }
 
+gauss_strip_overrides_inplace() {
+	local com="$1"
+	[ -f "$com" ] || return 1
+
+	# If %NProcShared is present, it OVERRIDES GAUSS_PDEF. Same for %Mem vs GAUSS_MDEF.
+	# Prefer controlling both from the job script.
+	sed -i -E '/^%NProcShared=/Id;/^%Mem=/Id' "$com"
+	return 0
+}
+
+gauss_setup_env() {
+	# Ensure scratch is local/job-specific (required/strongly recommended on many HPC setups).
+	# Gaussian uses GAUSS_SCRDIR for scratch. :contentReference[oaicite:4]{index=4}
+	export GAUSS_SCRDIR="${SCRATCHDIR}"
+	mkdir -p "${GAUSS_SCRDIR}" || true
+
+	# Use the PBS allocation for cores
+	export GAUSS_PDEF="${PBS_NCPUS:-1}"
+
+	# Use most of allocated memory, keep a safety margin (avoid OOM)
+	if [ -n "${PBS_RESC_MEM:-}" ]; then
+		# PBS_RESC_MEM is bytes; convert to MB and keep 85%
+		local mem_mb=$(( PBS_RESC_MEM / 1024 / 1024 ))
+		mem_mb=$(( mem_mb * 85 / 100 ))
+		export GAUSS_MDEF="${mem_mb}MB"
+	fi
+
+	# Prevent external threaded libs from oversubscribing
+	export OMP_NUM_THREADS=1
+	export MKL_NUM_THREADS=1
+	export OPENBLAS_NUM_THREADS=1
+}
+
 run_gaussian() {
-	local com="\$1"
-	local stem="\${com%.com}"
-	local out="\${stem}.log"
+	local com="$1"
+	local stem="${com%.com}"
+	local out="${stem}.log"
 
-	[ -f "\$com" ] || { echo "[ERR] Gaussian input missing: \$com"; JOB_STATUS=1; return 1; }
+	[ -f "$com" ] || { echo "[ERR] Gaussian input missing: $com"; JOB_STATUS=1; return 1; }
 
-	need_cmd g16 || return 1
+	# Pick Gaussian binary
+	local gbin=""
+	if command -v g16 >/dev/null 2>&1; then
+		gbin="g16"
+	elif command -v g09 >/dev/null 2>&1; then
+		gbin="g09"
+	else
+		echo "[ERR] Required command 'g16' (or g09) not found in PATH."
+		JOB_STATUS=1
+		return 1
+	fi
 
-	# Optional helper recommended by MetaCentrum docs
+	gauss_setup_env
+	gauss_strip_overrides_inplace "$com" || { echo "[ERR] Failed to sanitize: $com"; JOB_STATUS=1; return 1; }
+
+	# Optional helper
 	if command -v g16-prepare >/dev/null 2>&1; then
-		g16-prepare "\$com" >/dev/null 2>&1 || true
+		g16-prepare "$com" >/dev/null 2>&1 || true
 	fi
 
-	echo "[INFO] Running Gaussian: \$com"
-	# Capture stderr into the same log so we always get a reason if it fails
-	g16 < "\$com" > "\$out" 2>&1
-	local rc=\$?
-	if [ \$rc -ne 0 ]; then
-		echo "[ERR] Gaussian failed (rc=\$rc): \$com"
-		JOB_STATUS=\$rc
-		return \$rc
+	echo "[INFO] Running Gaussian: $com (GAUSS_PDEF=${GAUSS_PDEF}, GAUSS_MDEF=${GAUSS_MDEF}, GAUSS_SCRDIR=${GAUSS_SCRDIR})"
+
+	# Run in background so we can detect "no-progress" hangs
+	"$gbin" < "$com" > "$out" 2>&1 &
+	local pid=$!
+
+	# Stall watchdog: if log and /proc/io do not change for too long, kill and fail fast
+	local stall_limit=1800   # 30 minutes
+	local tick=60
+	local stalled=0
+
+	local last_mtime=0
+	last_mtime=$(stat -c %Y "$out" 2>/dev/null || echo 0)
+
+	local last_rchar last_wchar
+	last_rchar=$(awk '/^rchar:/ {print $2}' "/proc/${pid}/io" 2>/dev/null || echo 0)
+	last_wchar=$(awk '/^wchar:/ {print $2}' "/proc/${pid}/io" 2>/dev/null || echo 0)
+
+	while kill -0 "$pid" >/dev/null 2>&1; do
+		sleep "$tick"
+
+		local mtime
+		mtime=$(stat -c %Y "$out" 2>/dev/null || echo "$last_mtime")
+
+		local rchar wchar
+		rchar=$(awk '/^rchar:/ {print $2}' "/proc/${pid}/io" 2>/dev/null || echo "$last_rchar")
+		wchar=$(awk '/^wchar:/ {print $2}' "/proc/${pid}/io" 2>/dev/null || echo "$last_wchar")
+
+		if [ "$mtime" -ne "$last_mtime" ] || [ "$rchar" -ne "$last_rchar" ] || [ "$wchar" -ne "$last_wchar" ]; then
+			stalled=0
+			last_mtime="$mtime"
+			last_rchar="$rchar"
+			last_wchar="$wchar"
+		else
+			stalled=$((stalled + tick))
+		fi
+
+		if [ "$stalled" -ge "$stall_limit" ]; then
+			echo "[ERR] Gaussian appears stalled (no log/proc-io progress for ${stall_limit}s): $com"
+			echo "[ERR] pid=$pid; dumping /proc/$pid/io:"
+			cat "/proc/${pid}/io" 2>/dev/null || true
+			kill -TERM "$pid" 2>/dev/null || true
+			sleep 10
+			kill -KILL "$pid" 2>/dev/null || true
+			JOB_STATUS=1
+			return 1
+		fi
+	done
+
+	wait "$pid"
+	local rc=$?
+	if [ $rc -ne 0 ]; then
+		echo "[ERR] Gaussian failed (rc=$rc): $com"
+		JOB_STATUS=$rc
+		return $rc
 	fi
 
-	# If chk exists, create fchk (often needed downstream)
-	if [ -f "\${stem}.chk" ] && command -v formchk >/dev/null 2>&1; then
-		formchk "\${stem}.chk" "\${stem}.fchk" >> "\$out" 2>&1 || true
+	# Create fchk if possible
+	if [ -f "${stem}.chk" ] && command -v formchk >/dev/null 2>&1; then
+		formchk "${stem}.chk" "${stem}.fchk" >> "$out" 2>&1 || true
 	fi
 
-	if ! gauss_ok "\$out"; then
-		echo "[ERR] Gaussian did not terminate normally: \$out"
+	if ! gauss_ok "$out"; then
+		echo "[ERR] Gaussian did not terminate normally: $out"
 		JOB_STATUS=1
 		return 1
 	fi
@@ -316,6 +409,9 @@ fi
 
 echo "[INFO] MCPB pipeline output files present in scratch:"
 ls -la
+
+# Never copy Gaussian scratch back (can be huge). :contentReference[oaicite:7]{index=7}
+rm -f Gau-*.rwf 2>/dev/null || true
 EOF
 
 
@@ -338,7 +434,7 @@ EOF
 		mcpb_wall="12:00:00"
 	fi
 
-	submit_job "$meta" "$job_name" "$JOB_DIR" "$mcpb_ncpu" "$mcpb_mem" 0 "$mcpb_wall"
+	submit_job "$meta" "$job_name" "$JOB_DIR" "$mcpb_mem" "$mcpb_ncpu" 0 "$mcpb_wall"
 
 
 	if [[ ! -f "$JOB_DIR/${name}_tleap.in" && -f "$JOB_DIR/tleap.in" ]]; then
