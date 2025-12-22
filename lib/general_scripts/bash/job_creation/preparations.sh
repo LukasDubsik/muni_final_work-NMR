@@ -242,7 +242,7 @@ run_mcpb() {
 	local lig_frcmod="$7"
 
 	# Optional: cap Gaussian opt cycles for MCPB small model
-	local gauss_opt_maxcycle=100
+	local gauss_opt_maxcycle=3
 
 	# If MCPB is not configured, do nothing
 	if [[ -z "${mcpb_cmd:-}" ]]; then
@@ -676,6 +676,7 @@ EOF
 		cp -f "$STAGE1_DIR/LIG.mol2" "$STAGE3_DIR/"
 		cp -f "$STAGE1_DIR/${metal_elem}.mol2" "$STAGE3_DIR/"
 		cp -f "$STAGE1_DIR/LIG.frcmod" "$STAGE3_DIR/"
+
 		# Needed by MCPB.py -s 2 and -s 4 (standard model + fingerprint)
 		cp -f "$STAGE1_DIR/${name}_standard.pdb" "$STAGE3_DIR/" 2>/dev/null || true
 		cp -f "$STAGE1_DIR/${name}_standard.fingerprint" "$STAGE3_DIR/" 2>/dev/null || true
@@ -684,6 +685,7 @@ EOF
 
 		cp -f "$STAGE2_DIR/${name}_small_opt.log" "$STAGE3_DIR/"
 		cp -f "$STAGE2_DIR/${name}_small_fc.log" "$STAGE3_DIR/"
+		cp -f "$STAGE2_DIR/${name}_small_opt.chk" "$STAGE3_DIR/"
 
 		local need_stage3="true"
 		if [[ -f "$STAGE3_OK" && -s "$STAGE3_DIR/${name}_mcpbpy.frcmod" ]]; then
@@ -723,6 +725,9 @@ fi
 if [[ -f "\${NAME}.lib" ]]; then
 	cp "\${NAME}.lib" "\${NAME}_mcpbpy.lib"
 fi
+
+# Generate the fchk file
+formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 
 if [[ "\$STEP" -ge 4 ]]; then
 	echo "[INFO] Running MCPB.py step 4"
