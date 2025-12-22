@@ -680,6 +680,7 @@ EOF
 		cp -f "$STAGE1_DIR/${name}_standard.pdb" "$STAGE3_DIR/" 2>/dev/null || true
 		cp -f "$STAGE1_DIR/${name}_standard.fingerprint" "$STAGE3_DIR/" 2>/dev/null || true
 		cp -f "$STAGE1_DIR/${name}_small.res" "$STAGE3_DIR/" 2>/dev/null || true
+		cp -f "$STAGE1_DIR/${name}_small.pdb" "$STAGE3_DIR/" 2>/dev/null || true
 
 		cp -f "$STAGE2_DIR/${name}_small_opt.log" "$STAGE3_DIR/"
 		cp -f "$STAGE2_DIR/${name}_small_fc.log" "$STAGE3_DIR/"
