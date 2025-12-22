@@ -171,9 +171,9 @@ main() {
 		fi
 
 		# Always attempt MCPB; run_mcpb is now self-resuming via stage marker files
-		run_mcpb "$name" "$directory" "$meta" "$amber_mod" "$mcpb_cmd" \
-			"process/preparations/parmchk2/${name}_charges.mol2" \
-			"process/preparations/parmchk2/${name}.frcmod"
+		# run_mcpb "$name" "$directory" "$meta" "$amber_mod" "$mcpb_cmd" \
+		# 	"process/preparations/parmchk2/${name}_charges.mol2" \
+		# 	"process/preparations/parmchk2/${name}.frcmod"
 
 
 		#Perform the nemesis fix
