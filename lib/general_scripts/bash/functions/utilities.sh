@@ -150,24 +150,32 @@ mol2_write_charge_file() {
 # Prints: "<atom_id> <elem> <charge> <x> <y> <z>"
 mol2_first_metal()
 {
-	# Print the first metal atom line from @<TRIPOS>ATOM (or print nothing if none)
-	local mol2="$1"
+    local mol2="$1"
+    awk '
+function cap(sym,   a,b) {
+    gsub(/[^A-Za-z]/, "", sym);
+    if (length(sym) == 1) return toupper(sym);
+    a = toupper(substr(sym,1,1));
+    b = tolower(substr(sym,2,1));
+    return a b;
+}
+BEGIN{ in_atoms=0 }
+/^@<TRIPOS>ATOM/ { in_atoms=1; next }
+/^@<TRIPOS>/ { in_atoms=0 }
+in_atoms {
+    # mol2: id name x y z type resid resname charge
+    id=$1; type=$6; x=$3; y=$4; z=$5; charge=$9;
 
-	awk '
-		BEGIN { in_atoms=0 }
-		/^@<TRIPOS>ATOM/ { in_atoms=1; next }
-		/^@<TRIPOS>/ { if (in_atoms) exit; next }
-		in_atoms {
-			split($6, parts, ".")
-			elem = tolower(parts[1])
-
-			# Common metals list (lowercase); keep this list conservative
-			if (elem ~ /^(li|na|k|rb|cs|mg|ca|sr|ba|zn|cu|fe|co|ni|mn|mo|w|v|cr|cd|hg|pb|sn|al|ga|in|au|ag|pt|pd|ru|rh|ir|os|ti|zr|hf|y|sc|la|ce|pr|nd|sm|eu|gd|tb|dy|ho|er|tm|yb|lu)$/) {
-				print $0
-				exit
-			}
-		}
-	' "$mol2"
+    # Metals we want MCPB to recognize
+    if (type ~ /^(Au|AU|Ag|AG|Zn|ZN|Fe|FE|Cu|CU|Ni|NI|Co|CO|Mn|MN|Hg|HG|Cd|CD|Pt|PT|Ir|IR|Os|OS|Pb|PB|Sn|SN)$/) {
+        print id " " cap(type) " " charge " " x " " y " " z;
+        exit;
+    }
+}
+END {
+	print "-1";
+}
+' "$mol2"
 }
 
 mol2_first_metal_id()
@@ -190,6 +198,7 @@ mol2_has_metal()
 	# True only if a real atom id was found
 	[[ "$metal_id" != "-1" ]]
 }
+
 
 
 # mol2_to_mcpb_pdb MOL2FILE OUTPDB METAL_ID
