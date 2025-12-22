@@ -151,6 +151,10 @@ run_mcpb() {
 	local in_mol2="$6"
 	local lig_frcmod="$7"
 
+	# Optional: cap Gaussian opt cycles for MCPB small model
+	# Example: export MCPB_GAUSS_OPT_MAXCYCLE=60
+	local gauss_opt_maxcycle=20
+
 	# If MCPB is not configured, do nothing
 	if [[ -z "${mcpb_cmd:-}" ]]; then
 		info "Skipping MCPB.py (no mcpb option set in config)"
@@ -310,8 +314,6 @@ EOF
 		fi
 	fi
 
-	touch "$STAGE1_DIR/.ok"
-
 	# Stop early if user requested only step 1
 	if [[ $mcpb_step -le 1 ]]; then
 		success "mcpb finished at requested step ${mcpb_step} (stage 1 only)"
@@ -325,6 +327,21 @@ EOF
 		# Ensure stage2 has the .com inputs (copy, do not move; keep stage1 intact)
 		cp -f "$STAGE1_DIR/${name}_small_opt.com" "$STAGE2_DIR/" || die "Missing ${name}_small_opt.com from stage1"
 		cp -f "$STAGE1_DIR/${name}_small_fc.com" "$STAGE2_DIR/"  || die "Missing ${name}_small_fc.com from stage1"
+
+		# Patch the optimization route line to cap cycles (and speed convergence with CalcFC)
+		if [[ -n "$gauss_opt_maxcycle" ]]; then
+			# Replace a bare " Opt" with Opt=(CalcFC,MaxCycle=N)
+			sed -i -E "0,/^[[:space:]]*#/{s/[[:space:]]+Opt([[:space:]]|\$)/ Opt=(CalcFC,MaxCycle=${gauss_opt_maxcycle})\\1/}" \
+				"$STAGE2_DIR/${name}_small_opt.com"
+
+			# If Opt is already Opt=(...), inject/replace MaxCycle
+			if grep -qE '^[[:space:]]*#.*\bOpt[[:space:]]*\(' "$STAGE2_DIR/${name}_small_opt.com"; then
+				# Remove any existing MaxCycle/MaxCycles, then add MaxCycle
+				sed -i -E \
+					"0,/^[[:space:]]*#/{s/\bMaxCycles?\s*=\s*[0-9]+\s*,?//Ig; s/\bOpt\s*\(([^)]*)\)/Opt(\\1,MaxCycle=${gauss_opt_maxcycle})/I}" \
+					"$STAGE2_DIR/${name}_small_opt.com"
+			fi
+		fi
 
 		local need_stage2="true"
 		if [[ -f "$STAGE2_OK" && -s "$STAGE2_DIR/${name}_small_opt.log" && -s "$STAGE2_DIR/${name}_small_fc.log" ]]; then
@@ -513,8 +530,6 @@ EOF
 		fi
 	fi
 
-	touch "$STAGE2_DIR/.ok"
-
 	# ---------------------------------------------------------------------
 	# Stage 3/3: MCPB.py -s 2 (+ -s 4 if requested)
 	# ---------------------------------------------------------------------
@@ -601,8 +616,6 @@ EOF
 			info "MCPB Stage 3/3 already done; skipping"
 		fi
 	fi
-
-	touch "$STAGE3_DIR/.ok"
 
 	success "mcpb finished correctly (stages preserved under ${BASE_DIR})"
 }
