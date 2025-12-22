@@ -152,8 +152,7 @@ run_mcpb() {
 	local lig_frcmod="$7"
 
 	# Optional: cap Gaussian opt cycles for MCPB small model
-	# Example: export MCPB_GAUSS_OPT_MAXCYCLE=60
-	local gauss_opt_maxcycle=20
+	local gauss_opt_maxcycle=60
 
 	# If MCPB is not configured, do nothing
 	if [[ -z "${mcpb_cmd:-}" ]]; then
@@ -487,11 +486,37 @@ run_gaussian() {
 	return 0
 }
 
-run_gaussian "NAME_small_opt.com" || exit 1
-run_gaussian "NAME_small_fc.com"  || exit 1
+# Do NOT let set -e / explicit exit prevent wrapper copy-back.
+# We will run both jobs, record status, and finish cleanly.
+JOB_STATUS=0
 
-gauss_ok "NAME_small_opt.log" || { echo "[ERR] small_opt not normally terminated"; exit 1; }
-gauss_ok "NAME_small_fc.log"  || { echo "[ERR] small_fc not normally terminated"; exit 1; }
+set +e
+
+run_gaussian "NAME_small_opt.com"
+rc_opt=$?
+
+if ! gauss_ok "NAME_small_opt.log"; then
+	echo "[WARN] small_opt not normally terminated (rc=${rc_opt}). Will still attempt small_fc using whatever chk exists."
+	# Do not hard-fail here; MCPB can still succeed if small_fc completes.
+	JOB_STATUS=1
+fi
+
+run_gaussian "NAME_small_fc.com"
+rc_fc=$?
+
+if ! gauss_ok "NAME_small_fc.log"; then
+	echo "[ERR] small_fc not normally terminated (rc=${rc_fc})."
+	JOB_STATUS=2
+fi
+
+set -e
+
+echo "[INFO] Gaussian exit codes: opt=${rc_opt} fc=${rc_fc} JOB_STATUS=${JOB_STATUS}"
+
+# IMPORTANT: do NOT 'exit 1' here; let the wrapper copy files back.
+# The driver (run_mcpb) will decide whether to proceed based on logs.
+true
+
 EOF
 
 			# Inject NAME into stage2 job body (no new helper functions; keep style)
@@ -519,10 +544,16 @@ EOF
 			JOB_META_SELECT_EXTRA="$old_extra"
 
 			check_res_file "${name}_small_opt.log" "$STAGE2_DIR" "$STAGE2_JOB"
-			check_res_file "${name}_small_fc.log" "$STAGE2_DIR" "$STAGE2_JOB"
+			check_res_file "${name}_small_fc.log"  "$STAGE2_DIR" "$STAGE2_JOB"
 
-			grep -q "Normal termination of Gaussian" "$STAGE2_DIR/${name}_small_opt.log" || die "Gaussian small_opt did not terminate normally"
-			grep -q "Normal termination of Gaussian" "$STAGE2_DIR/${name}_small_fc.log"  || die "Gaussian small_fc did not terminate normally"
+			# small_opt may legitimately stop early (MaxCycles / time). Warn, but do not fail.
+			if ! grep -q "Normal termination of Gaussian" "$STAGE2_DIR/${name}_small_opt.log"; then
+				warning "Gaussian small_opt did not terminate normally (allowed). Continuing as long as small_fc is OK."
+			fi
+
+			# small_fc must be valid for MCPB step 2
+			grep -q "Normal termination of Gaussian" "$STAGE2_DIR/${name}_small_fc.log" \
+				|| die "Gaussian small_fc did not terminate normally; cannot continue to MCPB step 2."
 
 			touch "$STAGE2_OK"
 		else
@@ -690,7 +721,7 @@ run_parmchk2() {
 	#Check that the final files are truly present
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
 
-		# MCPB.py step 2 crashes on an empty frcmod; ensure non-empty file
+	# MCPB.py step 2 crashes on an empty frcmod; ensure non-empty file
 	if [[ ! -s "$JOB_DIR/${name}.frcmod" ]]; then
 		warning "parmchk2 produced an empty frcmod ($JOB_DIR/${name}.frcmod). Creating a minimal stub so MCPB.py can proceed."
 		cat > "$JOB_DIR/${name}.frcmod" <<'EOF'
