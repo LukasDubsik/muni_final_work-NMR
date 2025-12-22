@@ -549,8 +549,21 @@ mol2_normalize_obabel_output_inplace() {
 		/^@<TRIPOS>ATOM/ { in_atom=1; print; next; }
 		/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atom=0; print; next; }
 
-		# Lowercase atom_type column (6) inside ATOM section
-		in_atom && NF>=6 { $6=tolower($6); print; next; }
+		# Lowercase atom_type column (6) inside ATOM section,
+		# but preserve metal atom types (MCPB/LEaP are case-sensitive; metals are not GAFF types).
+		in_atom && NF>=6 {
+			t = $6
+			u = toupper(t)
+
+			if (u ~ /^(AU|AG|ZN|FE|CU|NI|CO|MN|CR|V|TI|MO|W|RE|RU|RH|PD|CD|PT|IR|OS|HG|AL|GA|IN|TL|SN|PB|BI|ZR|HF)$/) {
+				$6 = t
+			} else {
+				$6 = tolower(t)
+			}
+
+			print
+			next
+		}
 
 		{ print; }
 	' "$file" > "$tmp" || die "mol2_normalize_obabel_output_inplace: Failed to normalize mol2"

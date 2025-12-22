@@ -858,17 +858,17 @@ run_tleap() {
 	if [[ -f "${MCPB_DIR}/${name}_tleap.in" ]]; then
 		info "Detected MCPB output – importing metal parameters into tleap input"
 
-		# Copy MCPB artifacts that its tleap file may load
+		# Copy MCPB artifacts that its tleap file may load (frcmod/lib/off + any aux PDB/MOL2).
 		cp "${MCPB_DIR}"/*.frcmod "${MCPB_DIR}"/*.lib "${MCPB_DIR}"/*.off "${MCPB_DIR}"/*.dat \
+			"${MCPB_DIR}"/*.mol2 "${MCPB_DIR}"/*.pdb \
 			"$JOB_DIR" 2>/dev/null || true
 
-		# Extract only load statements (avoid unit creation / save / quit)
-		grep -E '^(loadAmberParams|loadamberparams|loadoff|loadOff)[[:space:]]' \
+		# Extract MCPB load statements (including assignment forms like: LIG = loadMol2 LIG.mol2)
+		grep -E '^[[:space:]]*([A-Za-z0-9_]+[[:space:]]*=[[:space:]]*)?(loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2)[[:space:]]' \
 			"${MCPB_DIR}/${name}_tleap.in" \
 			| sed 's#^[[:space:]]*##; s#\./##g' > "$JOB_DIR/mcpb_params.in" || true
 
 		# Filter out MCPB load statements that reference local files that are not present.
-		# (Common when MCPB step 4 is run without having generated step 2 outputs yet.)
 		if [[ -s "$JOB_DIR/mcpb_params.in" ]]; then
 			local mcpb_filtered="$JOB_DIR/mcpb_params.filtered.in"
 			: > "$mcpb_filtered"
@@ -880,28 +880,74 @@ run_tleap() {
 				# Skip empty/comment lines
 				[[ -z "$line" || "$line" == \#* ]] && continue
 
-				# shellcheck disable=SC2086
-				set -- $line
-				local cmd="$1"
-				local file="$2"
+				# Tokenize and locate the actual LEaP command + its file argument
+				local cmd="" file=""
+				local -a toks=()
+				read -r -a toks <<< "$line"
 
-				# Keep built-in Amber frcmods (resolved via AMBER data path)
-				if [[ "$cmd" =~ ^(loadAmberParams|loadamberparams|loadoff|loadOff)$ ]]; then
-					if [[ "$file" == frcmod.* ]]; then
-						printf '%s\n' "$line" >> "$mcpb_filtered"
-					elif [[ -f "$JOB_DIR/$file" ]]; then
-						printf '%s\n' "$line" >> "$mcpb_filtered"
-					else
-						info "Skipping MCPB load statement (missing file): $line"
-					fi
-				else
+				for ((i=0; i<${#toks[@]}; i++)); do
+					case "${toks[$i]}" in
+						loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2)
+							cmd="${toks[$i]}"
+							file="${toks[$((i+1))]:-}"
+							break
+							;;
+					esac
+				done
+
+				# If unparsable, keep the line (better to be permissive here).
+				if [[ -z "$cmd" || -z "$file" ]]; then
 					printf '%s\n' "$line" >> "$mcpb_filtered"
+					continue
+				fi
+
+				# Strip simple quoting
+				file="${file%\"}"; file="${file#\"}"
+				file="${file%\'}"; file="${file#\'}"
+
+				# Built-in Amber frcmods are resolved via AMBER data path
+				if [[ "$cmd" =~ ^(loadAmberParams|loadamberparams)$ && "$file" == frcmod.* ]]; then
+					printf '%s\n' "$line" >> "$mcpb_filtered"
+					continue
+				fi
+
+				# Resolve file existence (absolute vs local-to-jobdir)
+				local fpath="$file"
+				if [[ "$file" != /* ]]; then
+					fpath="$JOB_DIR/$file"
+				fi
+
+				if [[ -f "$fpath" ]]; then
+					printf '%s\n' "$line" >> "$mcpb_filtered"
+				else
+					info "Skipping MCPB load statement (missing file): $line"
 				fi
 			done < "$JOB_DIR/mcpb_params.in"
 
 			mv "$mcpb_filtered" "$JOB_DIR/mcpb_params.in"
 		fi
 
+		# MCPB commonly emits *_mcpbpy_pre.frcmod with MASS/NONBON (vdW) terms; ensure it is loaded first if present.
+		if [[ -f "$JOB_DIR/${name}_mcpbpy_pre.frcmod" ]]; then
+			if ! grep -qi "${name}_mcpbpy_pre.frcmod" "$JOB_DIR/mcpb_params.in" 2>/dev/null; then
+				local tmp="$JOB_DIR/mcpb_params.tmp.in"
+				printf 'loadAmberParams %s_mcpbpy_pre.frcmod\n' "$name" > "$tmp"
+				cat "$JOB_DIR/mcpb_params.in" >> "$tmp" 2>/dev/null || true
+				mv "$tmp" "$JOB_DIR/mcpb_params.in"
+			fi
+		fi
+		if [[ -f "$JOB_DIR/${name}_mcpbpy.frcmod" ]]; then
+			if ! grep -qi "${name}_mcpbpy.frcmod" "$JOB_DIR/mcpb_params.in" 2>/dev/null; then
+				printf 'loadAmberParams %s_mcpbpy.frcmod\n' "$name" >> "$JOB_DIR/mcpb_params.in"
+			fi
+		fi
+
+		# Prefer MCPB's rebuilt PDB for the final load step (avoids MOL2 atom-type case-mismatch like "au").
+		if [[ -f "$JOB_DIR/${name}_mcpbpy.pdb" ]]; then
+			info "MCPB PDB detected (${name}_mcpbpy.pdb) – switching tleap to load it instead of the post-processed MOL2"
+			sed -i -E "s#loadMol2[[:space:]]+(\\./)?${name}_charges_fix\\.mol2#loadPdb ./${name}_mcpbpy.pdb#gI" "$JOB_DIR/${in_file}.in" || true
+			sed -i -E "s#loadMol2[[:space:]]+(\\./)?${name}_charges\\.mol2#loadPdb ./${name}_mcpbpy.pdb#gI" "$JOB_DIR/${in_file}.in" || true
+		fi
 
 		if [[ -s "$JOB_DIR/mcpb_params.in" ]]; then
 			cat "$JOB_DIR/mcpb_params.in" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"
