@@ -333,10 +333,6 @@ mol2_strip_atom() {
 				continue
 			}
 
-			# (rest unchanged)
-			# ...
-		}
-
 			if (lines[i] ~ /^@<TRIPOS>ATOM/) {
 				print lines[i]
 				for (k=1;k<=nat;k++) {
