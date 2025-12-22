@@ -153,9 +153,7 @@ mol2_first_metal()
 	local mol2="$1"
 
 	awk '
-		BEGIN {
-			in_atoms = 0
-		}
+		BEGIN { in_atoms = 0 }
 
 		$0 ~ /^@<TRIPOS>ATOM/ { in_atoms = 1; next }
 		$0 ~ /^@<TRIPOS>BOND/ { in_atoms = 0 }
@@ -163,24 +161,39 @@ mol2_first_metal()
 		in_atoms == 1 && $1 ~ /^[0-9]+$/ {
 			atom_id   = $1
 			atom_name = $2
+			x = $3
+			y = $4
+			z = $5
 			atom_type = $6
+			charge    = $NF
 
 			# Normalize to just leading letters (e.g., Au1+ -> Au)
-			sub(/[^A-Za-z].*$/, "", atom_name)
-			sub(/[^A-Za-z].*$/, "", atom_type)
+			sym_name = atom_name
+			sym_type = atom_type
+			sub(/[^A-Za-z].*$/, "", sym_name)
+			sub(/[^A-Za-z].*$/, "", sym_type)
 
-			u_name = toupper(atom_name)
-			u_type = toupper(atom_type)
+			u_name = toupper(sym_name)
+			u_type = toupper(sym_type)
+
+			# Validate numeric charge; default to 0.0 if missing/weird
+			if (charge !~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) {
+				charge = "0.0"
+			}
 
 			# Extend this list if needed
-			if (u_name ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/ ||
-			    u_type ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/) {
-				print atom_id
+			if (u_name ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/) {
+				print atom_id, sym_name, charge, x, y, z
+				exit 0
+			}
+			if (u_type ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/) {
+				print atom_id, sym_type, charge, x, y, z
 				exit 0
 			}
 		}
 	' "$mol2"
 }
+
 
 
 # mol2_has_metal MOL2FILE

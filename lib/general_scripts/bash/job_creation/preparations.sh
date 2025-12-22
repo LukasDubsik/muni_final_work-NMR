@@ -322,6 +322,7 @@ run_mcpb() {
 
 	local metal_id metal_elem metal_charge mx my mz
 	read -r metal_id metal_elem metal_charge mx my mz <<< "$metal_line"
+	[[ -n "${metal_elem:-}" ]] || die "Failed to parse metal element from MOL2 (mol2_first_metal returned: '$metal_line')"
 	metal_charge="${metal_charge:-0.0}"
 	metal_elem=$(echo "$metal_elem" | tr '[:lower:]' '[:upper:]')
 
