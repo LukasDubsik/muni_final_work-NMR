@@ -350,6 +350,7 @@ run_mcpb() {
 		addbpairs_line="add_bonded_pairs"
 		for bid in $bonded_ids; do
 			addbpairs_line="$addbpairs_line ${metal_id}-${bid}"
+			info $addbpairs_line
 		done
 	fi
 
