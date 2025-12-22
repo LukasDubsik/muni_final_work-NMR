@@ -699,6 +699,7 @@ EOF
 
 			cat > "$STAGE3_DIR/job_file.txt" <<EOF
 module add ${amber}
+module add g16 2>/dev/null || module add gaussian 2>/dev/null || true
 
 NAME="${name}"
 STEP="${mcpb_step}"
