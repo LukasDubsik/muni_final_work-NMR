@@ -858,103 +858,110 @@ run_tleap() {
 	if [[ -f "${MCPB_DIR}/${name}_tleap.in" ]]; then
 		info "Detected MCPB output – importing metal parameters into tleap input"
 
-		# Copy MCPB artifacts that its tleap file may load (frcmod/lib/off + any aux PDB/MOL2).
-		cp "${MCPB_DIR}"/*.frcmod "${MCPB_DIR}"/*.lib "${MCPB_DIR}"/*.off "${MCPB_DIR}"/*.dat \
-			"${MCPB_DIR}"/*.mol2 "${MCPB_DIR}"/*.pdb \
-			"$JOB_DIR" 2>/dev/null || true
+		# Copy MCPB outputs into tleap job dir
+		cp "${MCPB_DIR}"/*.{frcmod,lib,off,dat,mol2,pdb} "$JOB_DIR" 2>/dev/null || true
 
-		# Extract MCPB load statements (including assignment forms like: LIG = loadMol2 LIG.mol2)
-		grep -E '^[[:space:]]*([A-Za-z0-9_]+[[:space:]]*=[[:space:]]*)?(loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2)[[:space:]]' \
-			"${MCPB_DIR}/${name}_tleap.in" \
-			| sed 's#^[[:space:]]*##; s#\./##g' > "$JOB_DIR/mcpb_params.in" || true
+		local mcpb_tleap_in="${MCPB_DIR}/${name}_tleap.in"
+		local mcpb_params_in="$JOB_DIR/mcpb_params.in"
+		local mcpb_params_ok="$JOB_DIR/mcpb_params.ok.in"
 
-		# Filter out MCPB load statements that reference local files that are not present.
-		if [[ -s "$JOB_DIR/mcpb_params.in" ]]; then
-			local mcpb_filtered="$JOB_DIR/mcpb_params.filtered.in"
-			: > "$mcpb_filtered"
+		# Extract only MCPB load statements (including "VAR = loadmol2 file.mol2" forms)
+		grep -E '^[[:space:]]*([[:alnum:]_]+[[:space:]]*=[[:space:]]*)?(loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+' \
+			"$mcpb_tleap_in" \
+			| tr -d '\r' \
+			| sed -E 's/^[[:space:]]+//; s#[[:space:]]+$##; s#\./##g' \
+			> "$mcpb_params_in" || true
 
-			while IFS= read -r line; do
-				# Normalize (strip leading spaces, remove leading "./")
-				line="$(printf '%s\n' "$line" | sed 's/^[[:space:]]*//; s#\./##g')"
+		# Resolve/validate referenced files; never keep a loadPdb unless templates are present
+		local missing_templates="false"
+		: > "$mcpb_params_ok"
 
-				# Skip empty/comment lines
-				[[ -z "$line" || "$line" == \#* ]] && continue
+		while IFS= read -r line; do
+			[[ -z "$line" ]] && continue
 
-				# Tokenize and locate the actual LEaP command + its file argument
-				local cmd="" file=""
-				local -a toks=()
-				read -r -a toks <<< "$line"
+			local cmd="" file=""
+			if [[ "$line" =~ ^[[:alnum:]_]+[[:space:]]*=[[:space:]]*(loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+([^[:space:]]+) ]]; then
+				cmd="${BASH_REMATCH[1]}"
+				file="${BASH_REMATCH[2]}"
+			elif [[ "$line" =~ ^(loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+([^[:space:]]+) ]]; then
+				cmd="${BASH_REMATCH[1]}"
+				file="${BASH_REMATCH[2]}"
+			else
+				continue
+			fi
 
-				for ((i=0; i<${#toks[@]}; i++)); do
-					case "${toks[$i]}" in
-						loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2)
-							cmd="${toks[$i]}"
-							file="${toks[$((i+1))]:-}"
-							break
-							;;
-					esac
-				done
+			# strip quotes if present
+			file="${file#\"}"; file="${file%\"}"
+			file="${file#\'}"; file="${file%\'}"
 
-				# If unparsable, keep the line (better to be permissive here).
-				if [[ -z "$cmd" || -z "$file" ]]; then
-					printf '%s\n' "$line" >> "$mcpb_filtered"
-					continue
+			local base="${file##*/}"
+			base="${base#./}"
+
+			# Built-in frcmod.* is searched in AMBER paths; keep even if not local
+			if [[ "$cmd" =~ ^(loadAmberParams|loadamberparams)$ && "$base" == frcmod.* ]]; then
+				printf '%s\n' "$line" >> "$mcpb_params_ok"
+				continue
+			fi
+
+			# Absolute path: keep as-is
+			if [[ "$file" == /* ]]; then
+				printf '%s\n' "$line" >> "$mcpb_params_ok"
+				continue
+			fi
+
+			# If file exists in MCPB dir but not in job dir, copy it
+			if [[ ! -f "$JOB_DIR/$base" && -f "$MCPB_DIR/$base" ]]; then
+				cp -f "$MCPB_DIR/$base" "$JOB_DIR/" 2>/dev/null || true
+			fi
+
+			# Derive common MCPB naming mismatches (LG1/AU1) from available MOL2s
+			if [[ ! -f "$JOB_DIR/$base" ]]; then
+				if [[ "$base" =~ ^LG[0-9]+[.]mol2$ && -f "$JOB_DIR/LIG.mol2" ]]; then
+					cp -f "$JOB_DIR/LIG.mol2" "$JOB_DIR/$base"
+					mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
+					info "Derived missing MCPB template: $base <- LIG.mol2"
+				elif [[ "$base" =~ ^AU[0-9]+[.]mol2$ && -f "$JOB_DIR/AU.mol2" ]]; then
+					cp -f "$JOB_DIR/AU.mol2" "$JOB_DIR/$base"
+					mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
+					info "Derived missing MCPB template: $base <- AU.mol2"
+				elif [[ "$base" == "${name}_mcpbpy.pdb" && -f "$MCPB_DIR/${name}_mcpbpy.pdb" ]]; then
+					cp -f "$MCPB_DIR/${name}_mcpbpy.pdb" "$JOB_DIR/" 2>/dev/null || true
 				fi
+			fi
 
-				# Strip simple quoting
-				file="${file%\"}"; file="${file#\"}"
-				file="${file%\'}"; file="${file#\'}"
-
-				# Built-in Amber frcmods are resolved via AMBER data path
-				if [[ "$cmd" =~ ^(loadAmberParams|loadamberparams)$ && "$file" == frcmod.* ]]; then
-					printf '%s\n' "$line" >> "$mcpb_filtered"
-					continue
+			# If still missing:
+			if [[ ! -f "$JOB_DIR/$base" ]]; then
+				# Missing template => cannot safely load MCPB PDB
+				if [[ "$cmd" =~ ^(loadMol2|loadmol2)$ ]]; then
+					missing_templates="true"
 				fi
+				warning "Skipping MCPB load statement (missing file): ${line}"
+				continue
+			fi
 
-				# Resolve file existence (absolute vs local-to-jobdir)
-				local fpath="$file"
-				if [[ "$file" != /* ]]; then
-					fpath="$JOB_DIR/$file"
-				fi
+			# If templates are missing, do NOT keep loadPdb lines (prevents 'no type' fatal)
+			if [[ "$cmd" =~ ^(loadPdb|loadpdb)$ && "$missing_templates" == "true" ]]; then
+				warning "Skipping MCPB PDB load (templates missing earlier): ${line}"
+				continue
+			fi
 
-				if [[ -f "$fpath" ]]; then
-					printf '%s\n' "$line" >> "$mcpb_filtered"
-				else
-					info "Skipping MCPB load statement (missing file): $line"
-				fi
-			done < "$JOB_DIR/mcpb_params.in"
+			printf '%s\n' "$line" >> "$mcpb_params_ok"
+		done < "$mcpb_params_in"
 
-			mv "$mcpb_filtered" "$JOB_DIR/mcpb_params.in"
-		fi
-
-		# MCPB commonly emits *_mcpbpy_pre.frcmod with MASS/NONBON (vdW) terms; ensure it is loaded first if present.
-		if [[ -f "$JOB_DIR/${name}_mcpbpy_pre.frcmod" ]]; then
-			if ! grep -qi "${name}_mcpbpy_pre.frcmod" "$JOB_DIR/mcpb_params.in" 2>/dev/null; then
-				local tmp="$JOB_DIR/mcpb_params.tmp.in"
-				printf 'loadAmberParams %s_mcpbpy_pre.frcmod\n' "$name" > "$tmp"
-				cat "$JOB_DIR/mcpb_params.in" >> "$tmp" 2>/dev/null || true
-				mv "$tmp" "$JOB_DIR/mcpb_params.in"
+		# If MCPB PDB will be used, switch tleap input from the full MOL2 to MCPB PDB
+		if [[ "$missing_templates" == "false" && -f "$JOB_DIR/${name}_mcpbpy.pdb" ]]; then
+			if grep -qiE 'load[Mm]ol2[[:space:]]+(\./)?'"${name}"'(_charges_fix|_charges_full)?[.]mol2' "$JOB_DIR/${in_file}.in"; then
+				info "MCPB PDB detected (${name}_mcpbpy.pdb) – switching tleap to load it instead of the post-processed MOL2"
+				sed -i -E \
+					"s#load[Mm]ol2[[:space:]]+(\./)?${name}(_charges_fix|_charges_full)?[.]mol2#loadPdb ${name}_mcpbpy.pdb#g" \
+					"$JOB_DIR/${in_file}.in"
 			fi
 		fi
-		if [[ -f "$JOB_DIR/${name}_mcpbpy.frcmod" ]]; then
-			if ! grep -qi "${name}_mcpbpy.frcmod" "$JOB_DIR/mcpb_params.in" 2>/dev/null; then
-				printf 'loadAmberParams %s_mcpbpy.frcmod\n' "$name" >> "$JOB_DIR/mcpb_params.in"
-			fi
-		fi
 
-		# Prefer MCPB's rebuilt PDB for the final load step (avoids MOL2 atom-type case-mismatch like "au").
-		if [[ -f "$JOB_DIR/${name}_mcpbpy.pdb" ]]; then
-			info "MCPB PDB detected (${name}_mcpbpy.pdb) – switching tleap to load it instead of the post-processed MOL2"
-			sed -i -E "s#loadMol2[[:space:]]+(\\./)?${name}_charges_fix\\.mol2#loadPdb ./${name}_mcpbpy.pdb#gI" "$JOB_DIR/${in_file}.in" || true
-			sed -i -E "s#loadMol2[[:space:]]+(\\./)?${name}_charges\\.mol2#loadPdb ./${name}_mcpbpy.pdb#gI" "$JOB_DIR/${in_file}.in" || true
-		fi
-
-		if [[ -s "$JOB_DIR/mcpb_params.in" ]]; then
-			cat "$JOB_DIR/mcpb_params.in" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"
-			tleap_in="tleap_run.in"
-		else
-			info "MCPB tleap file present but no load statements found – using ${in_file}.in"
-		fi
+		# Prepend MCPB params into tleap script
+		cat "$mcpb_params_ok" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"
+	else
+		cp "$JOB_DIR/${in_file}.in" "$JOB_DIR/tleap_run.in"
 	fi
 
 	# -----------------------------------------------------------------
