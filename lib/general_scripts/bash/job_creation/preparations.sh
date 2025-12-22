@@ -964,6 +964,8 @@ run_tleap() {
 		cp "$JOB_DIR/${in_file}.in" "$JOB_DIR/tleap_run.in"
 	fi
 
+	cp -f "$JOB_DIR/tleap_run.in" "$JOB_DIR/${in_file}.in"
+
 	# -----------------------------------------------------------------
 	# teLeap sometimes fails to locate frcmod.gaff2 in certain installs.
 	# If your leaprc (or MCPB-derived load lines) requests it, ensure a local copy exists.
