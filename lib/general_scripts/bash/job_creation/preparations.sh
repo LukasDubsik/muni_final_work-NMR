@@ -452,6 +452,10 @@ EOF
 			fi
 		fi
 
+		if [[ ! -f "$STAGE2_OK" ]]; then
+			need_stage2="false"
+		fi
+
 		if [[ "$need_stage2" == "true" ]]; then
 			info "MCPB Stage 2/3: Gaussian QM (opt + freq)"
 
