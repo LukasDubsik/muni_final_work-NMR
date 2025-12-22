@@ -166,7 +166,12 @@ main() {
 
 		#Run parmchk2
 		if [[ 3 -gt $LOG_POSITION ]]; then
-			run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$parmchk2_cmd" "$mcpb_cmd"
+			run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$parmchk2_cmd"
+
+			# MCPB.py (3-stage, resumable): decoupled from parmchk2 so partial MCPB can be resumed
+			run_mcpb "$name" "$directory" "$meta" "$amber_mod" "$mcpb_cmd" \
+				"process/preparations/parmchk2/${name}_charges.mol2" \
+				"process/preparations/parmchk2/${name}.frcmod"
 		fi
 
 		#Perform the nemesis fix

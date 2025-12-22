@@ -143,351 +143,312 @@ run_antechamber() {
 # Returns: Nothing
 # run_mcpb NAME DIRECTORY META AMBER MCPB_CMD IN_MOL2 LIG_FRCMOD
 run_mcpb() {
-	local name="$1"
-	local directory="$2"
-	local meta="$3"
-	local amber="$4"
-	local mcpb_cmd="$5"
-	local in_mol2="$6"
-	local lig_frcmod="$7"
+	local name=$1 directory=$2 meta=$3 amber=$4 mcpb_cmd=$5 mol2=$6 frcmod=$7
 
-	local job_name="mcpb"
-	local JOB_DIR="process/preparations/$job_name"
-
-	# Only run if a heavy metal is present
-	if ! mol2_has_metal "$in_mol2"; then
+	# If MCPB is not configured, do nothing
+	if [[ -z "${mcpb_cmd:-}" ]]; then
+		info "Skipping MCPB.py (no mcpb option set in config)"
 		return 0
 	fi
 
-	info "Heavy metal detected in $in_mol2 - running MCPB.py"
-
-	rm -rf "$JOB_DIR"
-	ensure_dir "$JOB_DIR"
-
-	# Default to step 4 for metal systems (step 4 alone is NOT sufficient; we will run prereqs)
-	local mcpb_cmd_resolved="${mcpb_cmd:-"-s 4"}"
-
-	# Gaussian module name depends on cluster
-	local gauss_mod="gaussian"
-	if [[ $meta == "true" ]]; then
-		gauss_mod="g16"
+	# Backwards-compat: if the overall MCPB was logged previously, do not rerun
+	if check_log "mcpb" "$LOG"; then
+		info "mcpb already finished (log)"
+		return 0
 	fi
 
-	# Stage all MCPB inputs in JOB_DIR (so the job can just copy and run)
-	local src_mol2="$JOB_DIR/${name}_mcpb_source.mol2"
-	cp "$in_mol2" "$src_mol2"
-	cp "$lig_frcmod" "$JOB_DIR/LIG.frcmod"
+	# Run MCPB.py only if heavy metal is present (needed for metal-center parameters)
+	if ! mol2_has_metal "$mol2"; then
+		info "No metal detected in ${mol2}; skipping MCPB.py"
+		return 0
+	fi
 
-	# Sanitize MOL2 if it contains an extra element column in @<TRIPOS>ATOM
-	mol2_sanitize_atom_coords_inplace "$src_mol2"
+	# Resolve MCPB requested step (default to 4 if user gave something non-empty but without -s)
+	local mcpb_step
+	mcpb_step="$(printf '%s\n' "$mcpb_cmd" | sed -nE 's/.*-s[[:space:]]*([0-9]+).*/\1/p' | head -n 1)"
+	mcpb_step="${mcpb_step:-4}"
 
-	# Identify the first metal
-	local metal_line
-	metal_line="$(mol2_first_metal "$src_mol2")"
-	[[ -n "$metal_line" ]] || die "Failed to detect metal in $src_mol2"
+	# Base + stage dirs
+	local BASE_DIR="process/preparations/mcpb"
+	local STAGE1_DIR="$BASE_DIR/01_step1"
+	local STAGE2_DIR="$BASE_DIR/02_qm"
+	local STAGE3_DIR="$BASE_DIR/03_params"
 
-	local metal_id metal_elem metal_charge mx my mz
-	read -r metal_id metal_elem metal_charge mx my mz <<< "$metal_line"
-	metal_charge="${metal_charge:-0.0}"
-	metal_elem=$(echo "$metal_elem" | tr '[:lower:]' '[:upper:]')
+	# Stage job names (these go to $LOG individually)
+	local STAGE1_JOB="mcpb_step1"
+	local STAGE2_JOB="mcpb_qm"
+	local STAGE3_JOB="mcpb_params"
 
-	# Generate PDB and split MOL2s
-	mol2_to_mcpb_pdb "$src_mol2" "$JOB_DIR/${name}_mcpb.pdb" "$metal_id"
-	mol2_strip_atom "$src_mol2" "$JOB_DIR/LIG.mol2" "$metal_id"
-	write_single_ion_mol2 "$JOB_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
+	# Inputs from previous steps
+	local SRC_PDB_DIR="process/preparations/mol2"
+	local SRC_MOL2_DIR
+	SRC_MOL2_DIR="$(dirname "$mol2")"
+	local SRC_FRCMOD_DIR
+	SRC_FRCMOD_DIR="$(dirname "$frcmod")"
 
-	mol2_sanitize_for_mcpb "$JOB_DIR/LIG.mol2" "LIG"
-	mol2_sanitize_for_mcpb "$JOB_DIR/${metal_elem}.mol2" "$metal_elem"
+	local PDB_FILE="${name}.pdb"
+	local MOL2_FILE
+	MOL2_FILE="$(basename "$mol2")"
+	local FRCMOD_FILE
+	FRCMOD_FILE="$(basename "$frcmod")"
 
+	# -----------------------------
+	# Stage 1/3: MCPB.py -s 1
+	# -----------------------------
+	if [[ $mcpb_step -ge 1 ]]; then
+		if ! check_log "$STAGE1_JOB" "$LOG"; then
+			info "MCPB Stage 1/3: generating models + QM inputs (MCPB.py -s 1)"
 
-	# Generate MCPB input (resolved values; no runtime substitutions needed)
-		# Generate MCPB input (resolved values; no runtime substitutions needed)
-	cat > "$JOB_DIR/job_file.txt" <<EOF
-# Amber tools (MCPB.py) live here
-module add ${amber}
+			ensure_dir "$STAGE1_DIR"
 
-# Gaussian (MetaCentrum: module is typically g16; keep fallback for portability)
-module add g16 2>/dev/null || module add gaussian 2>/dev/null || true
+			# Bring inputs into stage dir so MetaCentrum scratch staging works
+			check_inp_file "$PDB_FILE" "$SRC_PDB_DIR"
+			move_inp_file "$PDB_FILE" "$SRC_PDB_DIR" "$STAGE1_DIR"
 
-# Pass resolved name into the job environment (so we can quote the heredoc below)
+			check_inp_file "$MOL2_FILE" "$SRC_MOL2_DIR"
+			move_inp_file "$MOL2_FILE" "$SRC_MOL2_DIR" "$STAGE1_DIR"
+
+			check_inp_file "$FRCMOD_FILE" "$SRC_FRCMOD_DIR"
+			move_inp_file "$FRCMOD_FILE" "$SRC_FRCMOD_DIR" "$STAGE1_DIR"
+
+			cp "$directory/inputs/simulation/${name}_mcpb.in" "$STAGE1_DIR/mcpb.in" || die "Couldn't copy ${name}_mcpb.in"
+
+			# Build stage-1 job
+			cat > "$STAGE1_DIR/job_file.txt" << EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "${directory}/inputs/simulation/modules.sh"
+load_module "amber/${amber}"
+load_module "python/3.9.16-gcc-10.2.1"
+
 NAME="${name}"
 
-echo "[INFO] MCPB pipeline requested: step 1 -> QM (opt+freq) -> step 2 -> step 4"
+PDB_PATH="${PDB_FILE}"
+MOL2_PATH="${MOL2_FILE}"
+FRCMOD_PATH="${FRCMOD_FILE}"
 
-# Ensure MCPB input exists in the execution directory (do not rely on copy filters)
-{
-	echo "original_pdb ${name}_mcpb.pdb"
-	echo "group_name ${name}"
-	echo "cut_off 2.8"
-	echo "ion_ids ${metal_id}"
-	echo "ion_mol2files ${metal_elem}.mol2"
-	echo "naa_mol2files LIG.mol2"
-	echo "frcmod_files LIG.frcmod"
-	echo "large_opt 0"
-} > "${name}_mcpb.in"
+# --- Read MCPB config from mcpb.in template
+ION_IDS="\$(grep -E '^[[:space:]]*ion_ids[[:space:]]*=' "mcpb.in" | head -n 1 | cut -d'=' -f2 | tr -d '[:space:]')"
+CUTOFF="\$(grep -E '^[[:space:]]*cutoff[[:space:]]*=' "mcpb.in" | head -n 1 | cut -d'=' -f2 | tr -d '[:space:]')"
+GROUP_NAME="\$(grep -E '^[[:space:]]*group_name[[:space:]]*=' "mcpb.in" | head -n 1 | cut -d'=' -f2 | tr -d '[:space:]')"
 
-if [ ! -s "${name}_mcpb.in" ]; then
-	echo "[ERR] Failed to create MCPB input: ${name}_mcpb.in"
-	JOB_STATUS=1
+MCPB_PARAMS="\$(grep -E '^[[:space:]]*mcpb_[a-zA-Z0-9_]+[[:space:]]*=' "mcpb.in" | sed -E 's/[[:space:]]+/ /g' || true)"
+
+# --- Write the actual MCPB input for this stage
+cat > "\${NAME}_mcpb.in" << EOI
+original_pdb = \${PDB_PATH}
+ion_ids = \${ION_IDS}
+cutoff = \${CUTOFF}
+group_name = \${GROUP_NAME}
+software_version = g16
+force_field = ff14SB
+mol2_file = \${MOL2_PATH}
+frcmod_file = \${FRCMOD_PATH}
+\${MCPB_PARAMS}
+EOI
+
+MCPB.py -i "\${NAME}_mcpb.in" -s 1
+
+if [[ -f "\${NAME}_small_opt.com" && -f "\${NAME}_small_fc.com" ]]; then
+	echo "[OK] MCPB stage1 produced QM inputs"
+else
+	echo "[ERROR] MCPB stage1 did not produce expected QM inputs"
+	exit 1
 fi
-
-JOB_STATUS=0
 EOF
 
-cat >> "$JOB_DIR/job_file.txt" <<'EOF'
+			if [[ "$meta" == "true" ]]; then
+				substitute_name_sh_meta_start "$STAGE1_DIR" "$directory" "$amber"
+				substitute_name_sh_meta_end "$STAGE1_DIR"
+				construct_sh_meta "$STAGE1_DIR" "$STAGE1_JOB"
+			else
+				substitute_name_sh_wolf_start "$STAGE1_DIR" "$directory" "$amber"
+				substitute_name_sh_meta_end "$STAGE1_DIR"
+				construct_sh_wolf "$STAGE1_DIR" "$STAGE1_JOB"
+			fi
 
-need_cmd() {
-	command -v "$1" >/dev/null 2>&1 && return 0
-	echo "[ERR] Required command '$1' not found in PATH."
-	JOB_STATUS=1
-	return 1
-}
+			# Submit stage 1
+			submit_job "$STAGE1_JOB" "$STAGE1_DIR" "$meta" "01:00:00" 8 4 0
 
-run_mcpb_step() {
-	local step="$1"
-	echo "[INFO] Running MCPB.py step ${step}"
-	[ -s "${NAME}_mcpb.in" ] || { echo "[ERR] Missing MCPB input: ${NAME}_mcpb.in"; JOB_STATUS=1; return 1; }
-	MCPB.py -i "${NAME}_mcpb.in" -s "${step}"
-	local rc=$?
-	if [ $rc -ne 0 ]; then
-		echo "[ERR] MCPB.py step ${step} failed (rc=$rc)"
-		JOB_STATUS=$rc
-		return $rc
+			# Verify stage 1 results
+			check_res_file "${name}_small_opt.com" "$STAGE1_DIR" "$STAGE1_JOB"
+			check_res_file "${name}_small_fc.com" "$STAGE1_DIR" "$STAGE1_JOB"
+			check_res_file "${name}_mcpb.in" "$STAGE1_DIR" "$STAGE1_JOB"
+
+			add_to_log "$STAGE1_JOB" "$LOG"
+			success "MCPB Stage 1/3 completed"
+		else
+			info "MCPB Stage 1/3 already completed (log)"
+		fi
 	fi
-	return 0
-}
+
+	# If user only wanted stage 1, we stop here
+	if [[ $mcpb_step -le 1 ]]; then
+		add_to_log "mcpb" "$LOG"
+		return 0
+	fi
+
+	# -----------------------------
+	# Stage 2/3: Gaussian QM runs
+	# -----------------------------
+	if ! check_log "$STAGE2_JOB" "$LOG"; then
+		info "MCPB Stage 2/3: running Gaussian QM (small_opt + small_fc)"
+
+		ensure_dir "$STAGE2_DIR"
+
+		# Stage inputs must be present inside stage dir before submission (scratch staging)
+		move_inp_file "${name}_small_opt.com" "$STAGE1_DIR" "$STAGE2_DIR"
+		move_inp_file "${name}_small_fc.com" "$STAGE1_DIR" "$STAGE2_DIR"
+
+		# Build stage-2 job
+		cat > "$STAGE2_DIR/job_file.txt" << EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "${directory}/inputs/simulation/modules.sh"
+load_module "gaussian/g16"
+
+NAME="${name}"
+
+# Align QM input headers with allocated resources
+sed -i "s/%mem=.*/%mem=32GB/g" "\${NAME}_small_opt.com" || true
+sed -i "s/%mem=.*/%mem=32GB/g" "\${NAME}_small_fc.com" || true
+sed -i "s/%nprocshared=.*/%nprocshared=8/g" "\${NAME}_small_opt.com" || true
+sed -i "s/%nprocshared=.*/%nprocshared=8/g" "\${NAME}_small_fc.com" || true
 
 gauss_ok() {
-	local out="$1"
-	[ -f "$out" ] || return 1
-	grep -q "Normal termination of Gaussian" "$out"
+	local log="\$1"
+	[[ -f "\$log" ]] || return 1
+	grep -q "Normal termination" "\$log"
 }
 
-run_gaussian() {
-    local com="$1"
-    local stem="${com%.com}"
-    local out="${stem}.log"
+g16 "\${NAME}_small_opt.com"
+g16 "\${NAME}_small_fc.com"
 
-    if [ ! -f "$com" ]; then
-        echo "[ERR] Gaussian input missing: $com"
-        return 1
-    fi
-
-    if ! command -v g16 >/dev/null 2>&1; then
-        echo "[ERR] g16 not found in PATH"
-        return 1
-    fi
-
-    # Threads (PBS > fallback)
-    local ncpus="${PBS_NCPUS:-${OMP_NUM_THREADS:-1}}"
-    if [ "$ncpus" -lt 1 ]; then ncpus=1; fi
-    export OMP_NUM_THREADS="$ncpus"
-    export MKL_NUM_THREADS="$ncpus"
-    export OPENBLAS_NUM_THREADS="$ncpus"
-
-    # Scratch
-    export GAUSS_SCRDIR="${SCRATCHDIR:-${GAUSS_SCRDIR:-$PWD}}"
-    mkdir -p "$GAUSS_SCRDIR" || true
-
-    # Ensure trailing newline
-    printf "\n" >> "$com" 2>/dev/null || true
-
-    # Run g16-prepare only when SCRATCHDIR exists (it uses reserved scratch to size %RWF)
-    if command -v g16-prepare >/dev/null 2>&1 && [ -n "${SCRATCHDIR:-}" ]; then
-        g16-prepare "$com" >> "$out" 2>&1 || true
-    fi
-
-    # Sum sizes of all Gau-*.rwf in scratch (robust vs PID mismatch)
-    rwf_total_size() {
-        find "$GAUSS_SCRDIR" -maxdepth 1 -type f -name 'Gau-*.rwf' -printf '%s\n' 2>/dev/null | awk '{s+=$1} END{print s+0}'
-    }
-
-    chk_size() {
-        stat -c %s "${stem}.chk" 2>/dev/null || echo 0
-    }
-
-    tree_pcpu() {
-        local root="$1"
-        local kids pids
-        kids="$(pgrep -P "$root" 2>/dev/null | tr '\n' ' ')"
-        pids="$root $kids"
-        ps -o pcpu= -p $pids 2>/dev/null | awk '{s+=$1} END{printf "%.1f\n", s+0}'
-    }
-
-    fix_rwf_0mb() {
-        # If %RWF ends with ,0MB (bad), replace with a cap based on free space.
-        if grep -qiE '^%[Rr][Ww][Ff]=.*,[[:space:]]*0MB' "$com"; then
-            local avail_gb use_gb
-            avail_gb=$(df -BG "$GAUSS_SCRDIR" 2>/dev/null | awk 'NR==2{gsub(/G/,"",$4); print $4}')
-            if [ -z "$avail_gb" ]; then avail_gb=20; fi
-            use_gb=$((avail_gb>10 ? avail_gb-5 : avail_gb))
-            if [ "$use_gb" -lt 10 ]; then use_gb=10; fi
-            if [ "$use_gb" -gt 200 ]; then use_gb=200; fi
-            sed -i -E "s#^(%[Rr][Ww][Ff]=[^,]*),[[:space:]]*0MB#\\1,${use_gb}GB#I" "$com" || true
-            echo "[INFO] Patched %RWF size from 0MB -> ${use_gb}GB" >> "$out"
-        fi
-    }
-
-    fix_au_basis() {
-        # 6-31G* is not applicable to Au; use a basis covering Au (def2 family is a common choice).
-        # If you don't want auto-switching, comment this whole block out.
-        if grep -qE '^[[:space:]]*Au[[:space:]]' "$com" && grep -qE '^#.*\/6-31G\*' "$com"; then
-            sed -i -E 's@/6-31G\*@/def2SVP@g' "$com" || true
-            echo "[INFO] Detected Au + 6-31G*: switched to def2SVP for Au-capable basis/ECP." >> "$out"
-        fi
-    }
-
-    fix_rwf_0mb
-    fix_au_basis
-
-    echo "[INFO] Running Gaussian: $(basename "$com") (ncpus=${ncpus}, scrdir=${GAUSS_SCRDIR})"
-
-    # Start in its own process group so timeout kills the entire Gaussian tree
-    setsid g16 "$com" > "$out" 2>&1 &
-    local pid=$!
-
-    local idle=0
-    local idle_limit=20
-
-    local last_out_sz last_rwf_sz last_chk_sz
-    last_out_sz=$(stat -c %s "$out" 2>/dev/null || echo 0)
-    last_rwf_sz=$(rwf_total_size)
-    last_chk_sz=$(chk_size)
-
-    while kill -0 "$pid" 2>/dev/null; do
-        sleep 60
-
-        local out_sz rwf_sz chk_sz pcpu
-        out_sz=$(stat -c %s "$out" 2>/dev/null || echo 0)
-        rwf_sz=$(rwf_total_size)
-        chk_sz=$(chk_size)
-        pcpu=$(tree_pcpu "$pid")
-
-        if [ "$out_sz" -gt "$last_out_sz" ] || [ "$rwf_sz" -gt "$last_rwf_sz" ] || [ "$chk_sz" -gt "$last_chk_sz" ] || awk -v p="$pcpu" 'BEGIN{exit !(p>=0.5)}'; then
-            idle=0
-            last_out_sz="$out_sz"
-            last_rwf_sz="$rwf_sz"
-            last_chk_sz="$chk_sz"
-            continue
-        fi
-
-        idle=$((idle+1))
-        if [ "$idle" -ge "$idle_limit" ]; then
-            echo "[ERR] Gaussian appears hung: no output/rwf/chk growth and near-zero CPU for ${idle_limit} minutes: $(basename "$com")" >> "$out"
-            echo "[INFO] ps snapshot:" >> "$out"
-            ps -o pid,ppid,stat,pcpu,pmem,etime,cmd -p "$pid" --ppid "$pid" >> "$out" 2>&1 || true
-
-            local child
-            child="$(pgrep -P "$pid" 2>/dev/null | head -n1 || true)"
-            if [ -n "$child" ]; then
-                echo "[INFO] Capturing strace (10s) of child $child -> ${stem}.strace.txt" >> "$out"
-                timeout 10 strace -tt -f -p "$child" -o "${stem}.strace.txt" 2>/dev/null || true
-            fi
-
-            kill -TERM -- -"$pid" 2>/dev/null || true
-            sleep 10
-            kill -KILL -- -"$pid" 2>/dev/null || true
-            wait "$pid" 2>/dev/null || true
-            return 1
-        fi
-    done
-
-    wait "$pid"
-    local rc=$?
-    if [ "$rc" -ne 0 ]; then
-        echo "[ERR] Gaussian failed: $(basename "$com") (rc=$rc)" >> "$out"
-        return "$rc"
-    fi
-
-    return 0
-}
-
-# Step 1: build models + generate QM inputs
-if [ $JOB_STATUS -eq 0 ]; then run_mcpb_step 1; fi
-
-# QM (generated by step 1)
-if [ $JOB_STATUS -eq 0 ]; then run_gaussian "${NAME}_small_opt.com"; fi
-if [ $JOB_STATUS -eq 0 ]; then run_gaussian "${NAME}_small_fc.com";  fi
-
-# Step 2: generate force field parameters (expects QM results)
-if [ $JOB_STATUS -eq 0 ]; then run_mcpb_step 2; fi
-
-# Step 4: generate LEaP input
-if [ $JOB_STATUS -eq 0 ]; then run_mcpb_step 4; fi
-
-if [ $JOB_STATUS -ne 0 ]; then
-	echo "[ERR] MCPB pipeline finished with errors (JOB_STATUS=$JOB_STATUS). Files will still be copied back for debugging."
+if gauss_ok "\${NAME}_small_opt.log" && gauss_ok "\${NAME}_small_fc.log"; then
+	echo "[OK] MCPB stage2 Gaussian finished (Normal termination)"
 else
-	echo "[INFO] MCPB pipeline finished successfully."
+	echo "[ERROR] MCPB stage2 Gaussian did not terminate normally"
+	exit 1
 fi
-
-echo "[INFO] MCPB pipeline output files present in scratch:"
-ls -la
 EOF
 
-	if [[ $meta == "true" ]]; then
-		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
-		substitute_name_sh_meta_end "$JOB_DIR" "$JOB_DIR"
-		construct_sh_meta "$JOB_DIR" "$job_name"
+		if [[ "$meta" == "true" ]]; then
+			substitute_name_sh_meta_start "$STAGE2_DIR" "$directory" "$amber"
+			substitute_name_sh_meta_end "$STAGE2_DIR"
+			construct_sh_meta "$STAGE2_DIR" "$STAGE2_JOB"
+		else
+			substitute_name_sh_wolf_start "$STAGE2_DIR" "$directory" "$amber"
+			substitute_name_sh_meta_end "$STAGE2_DIR"
+			construct_sh_wolf "$STAGE2_DIR" "$STAGE2_JOB"
+		fi
+
+		# Submit stage 2
+		submit_job "$STAGE2_JOB" "$STAGE2_DIR" "$meta" "12:00:00" 32 8 0
+
+		# Verify stage 2 results
+		check_res_file "${name}_small_opt.log" "$STAGE2_DIR" "$STAGE2_JOB"
+		check_res_file "${name}_small_fc.log" "$STAGE2_DIR" "$STAGE2_JOB"
+
+		add_to_log "$STAGE2_JOB" "$LOG"
+		success "MCPB Stage 2/3 completed"
 	else
-		substitute_name_sh_wolf_end "$JOB_DIR" "$JOB_DIR"
-		construct_sh_wolf "$JOB_DIR" "$job_name"
+		info "MCPB Stage 2/3 already completed (log)"
 	fi
 
-	# Run
-	# If we need QM (step >= 2), give it more time/memory
-	local mcpb_ncpu=8
-	local mcpb_mem=8
-	local mcpb_wall="01:00:00"
+	# -----------------------------
+	# Stage 3/3: MCPB.py -s 2 (+ -s 4 if requested)
+	# -----------------------------
+	if ! check_log "$STAGE3_JOB" "$LOG"; then
+		info "MCPB Stage 3/3: generating parameters (MCPB.py -s 2) and LEaP input (optional -s 4)"
 
-	if echo "$mcpb_cmd_resolved" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*[234]'; then
-		mcpb_mem=32
-		mcpb_wall="12:00:00"
+		ensure_dir "$STAGE3_DIR"
+
+		# Stage inputs must be present inside stage dir before submission (scratch staging)
+		# Copy everything from stage1 (models, generated MCPB input, etc.)
+		cp -a "$STAGE1_DIR/." "$STAGE3_DIR/" || die "Couldn't sync MCPB stage1 -> stage3"
+		# Copy Gaussian logs from stage2
+		move_inp_file "${name}_small_opt.log" "$STAGE2_DIR" "$STAGE3_DIR"
+		move_inp_file "${name}_small_fc.log" "$STAGE2_DIR" "$STAGE3_DIR"
+
+		# Build stage-3 job
+		cat > "$STAGE3_DIR/job_file.txt" << EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "${directory}/inputs/simulation/modules.sh"
+load_module "amber/${amber}"
+load_module "python/3.9.16-gcc-10.2.1"
+
+NAME="${name}"
+STEP="${mcpb_step}"
+
+GROUP_NAME="\$(grep -E '^[[:space:]]*group_name[[:space:]]*=' "mcpb.in" | head -n 1 | cut -d'=' -f2 | tr -d '[:space:]')"
+GNAME="\${GROUP_NAME}"
+
+# MCPB step2 (requires the Gaussian logs to be present)
+MCPB.py -i "\${NAME}_mcpb.in" -s 2
+
+if [[ -f "frcmod_\${GNAME}" ]]; then
+	cp "frcmod_\${GNAME}" "\${NAME}_mcpbpy.frcmod"
+else
+	echo "[ERROR] Missing frcmod_\${GNAME} after MCPB step2"
+	exit 1
+fi
+
+if [[ -f "\${GNAME}.lib" ]]; then
+	cp "\${GNAME}.lib" "\${NAME}_mcpbpy.lib"
+else
+	echo "[ERROR] Missing \${GNAME}.lib after MCPB step2"
+	exit 1
+fi
+
+# MCPB step4 only if requested
+if [[ "\${STEP}" -ge 4 ]]; then
+	MCPB.py -i "\${NAME}_mcpb.in" -s 4
+
+	if [[ -f "tleap.in" ]]; then
+		cp "tleap.in" "\${NAME}_tleap.in"
+	else
+		echo "[ERROR] Missing tleap.in after MCPB step4"
+		exit 1
 	fi
+fi
 
-	# MetaCentrum: Gaussian needs licensed nodes + reserved scratch
-	local old_extra="${JOB_META_SELECT_EXTRA:-}"
-	if [[ "$meta" == "true" ]]; then
-		# Conservative scratch; increase if you see disk-full in Gaussian
-		local scratch_gb=20
-		if [[ "$mcpb_mem" -ge 32 ]]; then
-			scratch_gb=50
+echo "[OK] MCPB stage3 finished"
+EOF
+
+		if [[ "$meta" == "true" ]]; then
+			substitute_name_sh_meta_start "$STAGE3_DIR" "$directory" "$amber"
+			substitute_name_sh_meta_end "$STAGE3_DIR"
+			construct_sh_meta "$STAGE3_DIR" "$STAGE3_JOB"
+		else
+			substitute_name_sh_wolf_start "$STAGE3_DIR" "$directory" "$amber"
+			substitute_name_sh_meta_end "$STAGE3_DIR"
+			construct_sh_wolf "$STAGE3_DIR" "$STAGE3_JOB"
 		fi
-		JOB_META_SELECT_EXTRA="host_licenses=g16:scratch_local=${scratch_gb}gb"
-	fi
 
-	submit_job "$meta" "$job_name" "$JOB_DIR" "$mcpb_mem" "$mcpb_ncpu" 0 "$mcpb_wall"
+		# Submit stage 3
+		submit_job "$STAGE3_JOB" "$STAGE3_DIR" "$meta" "06:00:00" 16 8 0
 
-	JOB_META_SELECT_EXTRA="$old_extra"
+		# Verify stage 3 results
+		check_res_file "${name}_mcpbpy.frcmod" "$STAGE3_DIR" "$STAGE3_JOB"
+		check_res_file "${name}_mcpbpy.lib" "$STAGE3_DIR" "$STAGE3_JOB"
 
-	if [[ ! -f "$JOB_DIR/${name}_tleap.in" && -f "$JOB_DIR/tleap.in" ]]; then
-		cp "$JOB_DIR/tleap.in" "$JOB_DIR/${name}_tleap.in"
-	fi
-
-	# Step 2 must produce the metal parameter frcmod
-	if echo "$mcpb_cmd_resolved" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*[234]'; then
-		check_res_file "${name}_mcpbpy.frcmod" "$JOB_DIR" "$job_name"
-	fi
-
-	# Step 4 must produce the tleap include (some versions name it tleap.in)
-	if echo "$mcpb_cmd_resolved" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*4'; then
-		check_res_file "${name}_tleap.in" "$JOB_DIR" "$job_name"
-	fi
-
-	# If the user requested step 4, they almost certainly intend to build a bonded model in LEaP.
-	# Step 4 does NOT generate the metal bonded parameter file; that comes from step 2.
-	# Refuse to continue if the frcmod is missing, otherwise tleap will fail with missing Au terms.
-	if echo "${mcpb_cmd:-"-s 1"}" | grep -Eq -- '(^|[[:space:]])(-s|--step)[[:space:]]*4'; then
-		if [[ ! -f "$JOB_DIR/${name}_mcpbpy.frcmod" ]]; then
-			die "MCPB step 4 did not produce ${name}_mcpbpy.frcmod. Step 4 generates the LEaP input, but bonded metal parameters are produced in step 2 (after QM outputs exist). Run MCPB step 1 -> run QM -> MCPB step 2 -> then step 4."
+		if [[ $mcpb_step -ge 4 ]]; then
+			check_res_file "${name}_tleap.in" "$STAGE3_DIR" "$STAGE3_JOB"
 		fi
+
+		add_to_log "$STAGE3_JOB" "$LOG"
+		success "MCPB Stage 3/3 completed"
+	else
+		info "MCPB Stage 3/3 already completed (log)"
 	fi
 
-	success "$job_name has finished correctly"
-	add_to_log "$job_name" "$LOG"
+	# Final “overall” marker for backwards compatibility / convenience
+	add_to_log "mcpb" "$LOG"
 }
-
-
 
 # run_parmchk2 NAME DIRECTORY META AMBER
 # Runs everything pertaining to parmchk2
@@ -500,7 +461,6 @@ run_parmchk2() {
 	local meta=$3
 	local amber=$4
 	local parmchk2_params=$5
-	local mcpb_cmd=$6
 
 	local job_name="parmchk2"
 
@@ -549,9 +509,6 @@ run_parmchk2() {
 
 	#Check that the final files are truly present
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
-
-	# Run MCPB.py only if heavy metal is present (needed for metal-center parameters)
-    run_mcpb "$name" "$directory" "$meta" "$amber" "$mcpb_cmd" "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}.frcmod"
 
 	success "$job_name has finished correctly"
 
@@ -643,7 +600,8 @@ run_tleap() {
 	# If MCPB produced a tleap input, reuse its parameter/library load statements
 	# so teLeap knows the metal atom type + metal-ligand bonded terms.
 	local tleap_in="${in_file}.in"
-	local MCPB_DIR="process/preparations/mcpb"
+	local MCPB_DIR="process/preparations/mcpb/03_params"
+	[[ -d "$MCPB_DIR" ]] || MCPB_DIR="process/preparations/mcpb"
 
 	if [[ -f "${MCPB_DIR}/${name}_tleap.in" ]]; then
 		info "Detected MCPB output – importing metal parameters into tleap input"
