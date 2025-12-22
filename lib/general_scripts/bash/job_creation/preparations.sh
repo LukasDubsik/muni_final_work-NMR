@@ -704,6 +704,9 @@ module add g16 2>/dev/null || module add gaussian 2>/dev/null || true
 NAME="${name}"
 STEP="${mcpb_step}"
 
+# Generate the fchk file
+formchk ${name}_small_opt.chk ${name}_small_opt.fchk
+
 # Recreate MCPB input (same as stage1; no external templates)
 {
 	echo "original_pdb ${name}_mcpb.pdb"
@@ -726,9 +729,6 @@ fi
 if [[ -f "\${NAME}.lib" ]]; then
 	cp "\${NAME}.lib" "\${NAME}_mcpbpy.lib"
 fi
-
-# Generate the fchk file
-formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 
 if [[ "\$STEP" -ge 4 ]]; then
 	echo "[INFO] Running MCPB.py step 4"
