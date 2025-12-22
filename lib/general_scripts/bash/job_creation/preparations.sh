@@ -352,6 +352,8 @@ run_mcpb() {
 		done
 	fi
 
+	info $addbpairs_line
+
 	# If preserved stages were created without add_bonded_pairs, they are not safe to reuse
 	if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
 		if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
