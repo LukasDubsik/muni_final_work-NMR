@@ -152,7 +152,7 @@ run_mcpb() {
 	local lig_frcmod="$7"
 
 	# Optional: cap Gaussian opt cycles for MCPB small model
-	local gauss_opt_maxcycle=60
+	local gauss_opt_maxcycle=3
 
 	# If MCPB is not configured, do nothing
 	if [[ -z "${mcpb_cmd:-}" ]]; then
@@ -307,6 +307,11 @@ EOF
 			check_res_file "${name}_small_opt.com" "$STAGE1_DIR" "$STAGE1_JOB"
 			check_res_file "${name}_small_fc.com" "$STAGE1_DIR" "$STAGE1_JOB"
 
+			if [[ "${metal_elem}" == "AU" ]]; then
+				sed -i -E '/^[[:space:]]*#/ s@/(6-31G\*|6-31G\(d\)|6-31G\(d,p\))@/def2SVP@Ig' \
+					"$STAGE1_DIR/${name}_small_fc.com"
+			fi
+
 			touch "$STAGE1_OK"
 		else
 			info "MCPB Stage 1/3 already done; skipping"
@@ -340,6 +345,13 @@ EOF
 					"0,/^[[:space:]]*#/{s/\bMaxCycles?\s*=\s*[0-9]+\s*,?//Ig; s/\bOpt\s*\(([^)]*)\)/Opt(\\1,MaxCycle=${gauss_opt_maxcycle})/I}" \
 					"$STAGE2_DIR/${name}_small_opt.com"
 			fi
+		fi
+
+		# Ensure FC uses a basis that supports the metal and matches the OPT checkpoint basis.
+		if [[ "${metal_elem}" == "AU" ]]; then
+			# Only touch route lines (start with #)
+			sed -i -E '/^[[:space:]]*#/ s@/(6-31G\*|6-31G\(d\)|6-31G\(d,p\))@/def2SVP@Ig' \
+				"$STAGE2_DIR/${name}_small_fc.com"
 		fi
 
 		local need_stage2="true"
