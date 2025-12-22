@@ -348,7 +348,7 @@ run_mcpb() {
 	if [[ -n "$bonded_ids" ]]; then
 		addbpairs_line="add_bonded_pairs"
 		for bid in $bonded_ids; do
-			echo "H"
+			echo " ${metal_id}-${bid}"
 			addbpairs_line+=" ${metal_id}-${bid}"
 		done
 	fi
