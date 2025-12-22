@@ -452,7 +452,7 @@ EOF
 			fi
 		fi
 
-		if [[ ! -f "$STAGE2_OK" ]]; then
+		if [[ -f "$STAGE2_OK" ]]; then
 			need_stage2="false"
 		fi
 
