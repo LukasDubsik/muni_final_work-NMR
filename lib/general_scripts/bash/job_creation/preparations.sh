@@ -992,6 +992,12 @@ run_tleap() {
 				fi
 			fi
 
+			# MCPB.py frcmod uses M1 as the metal atom type.
+			# Ensure AU*.mol2 residue templates use M1 so teLeap can match MASS/NONB parameters.
+			if [[ "$base" =~ ^AU[0-9]+[.]mol2$ && -f "$JOB_DIR/$base" ]]; then
+				mol2_force_atom_type_inplace "$JOB_DIR/$base" "M1"
+			fi
+
 			# Final safety: if we produced a MOL2 template, validate it before keeping loadMol2
 			if [[ -f "$JOB_DIR/$base" && "$base" == *.mol2 ]]; then
 				if ! mol2_quick_validate_for_tleap "$JOB_DIR/$base"; then

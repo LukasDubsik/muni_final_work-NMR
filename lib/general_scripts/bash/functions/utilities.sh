@@ -679,3 +679,30 @@ mol2_write_mcpb_typed_mol2()
 		{ print }
 	' "$src" > "$dst"
 }
+
+# mol2_force_atom_type_inplace MOL2FILE NEWTYPE
+# Forces the Tripos MOL2 ATOM type column (field 6) to NEWTYPE for all ATOM records.
+# Intended for single-ion residue templates (e.g., AU1.mol2) so teLeap matches MCPB types (M1).
+mol2_force_atom_type_inplace()
+{
+	local mol2="$1"
+	local newtype="$2"
+	local tmp="${mol2}.tmp"
+
+	awk -v t="$newtype" '
+		BEGIN { in_atoms = 0 }
+
+		$0 ~ /^@<TRIPOS>ATOM/ { in_atoms = 1; print; next }
+		$0 ~ /^@<TRIPOS>BOND/ { in_atoms = 0; print; next }
+
+		{
+			if (in_atoms == 1 && $1 ~ /^[0-9]+$/) {
+				# Tripos MOL2 ATOM: id name x y z type subst_id subst_name charge ...
+				$6 = t
+			}
+			print
+		}
+	' "$mol2" > "$tmp" || die "Failed to force MOL2 atom types: $mol2"
+
+	mv "$tmp" "$mol2" || die "Failed to replace MOL2: $mol2"
+}
