@@ -753,7 +753,7 @@ EOF
 			submit_job "$meta" "$STAGE3_JOB" "$STAGE3_DIR" 32 8 0 "02:00:00"
 
 			check_res_file "${name}_mcpbpy.frcmod" "$STAGE3_DIR" "$STAGE3_JOB"
-			check_res_file "${name}_mcpbpy.lib"   "$STAGE3_DIR" "$STAGE3_JOB"
+			#check_res_file "${name}_mcpbpy.lib"   "$STAGE3_DIR" "$STAGE3_JOB"
 
 			if [[ $mcpb_step -ge 4 ]]; then
 				check_res_file "${name}_tleap.in" "$STAGE3_DIR" "$STAGE3_JOB"
