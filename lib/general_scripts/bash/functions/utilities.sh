@@ -164,7 +164,7 @@ BEGIN{ in_atoms=0 }
 /^@<TRIPOS>/ { in_atoms=0 }
 in_atoms {
     # mol2: id name x y z type resid resname charge
-    id=$1; type=$6; x=$3; y=$4; z=$5; charge=$9;
+    id=$1; type=$6; x=$3; y=$4; z=$5; charge=$NF;
 
     # Metals we want MCPB to recognize
     if (type ~ /^(Au|AU|Ag|AG|Zn|ZN|Fe|FE|Cu|CU|Ni|NI|Co|CO|Mn|MN|Hg|HG|Cd|CD|Pt|PT|Ir|IR|Os|OS|Pb|PB|Sn|SN)$/) {
@@ -182,9 +182,9 @@ END {
 # mol2_has_metal MOL2FILE
 mol2_has_metal() {
 	local mol2="$1"
-	local line
-	line="$(mol2_first_metal "$mol2" | head -n1)"
-	[[ -n "$line" ]]
+	local id
+	id="$(mol2_first_metal "$mol2" | awk 'NR==1{print $1}')"
+	[[ -n "$id" && "$id" != "-1" ]]
 }
 
 
@@ -309,12 +309,20 @@ mol2_strip_atom() {
 		out=""
 		inmol=0; mol_line=0
 		for (i=1;i<=NR;i++) {
+
+			# Start molecule block
 			if (lines[i] ~ /^@<TRIPOS>MOLECULE/) { inmol=1; mol_line=0; print lines[i]; continue }
+
+			# End molecule block ONLY when next section starts (do not truncate it)
+			if (inmol && lines[i] ~ /^@<TRIPOS>/ && lines[i] !~ /^@<TRIPOS>MOLECULE/) {
+				inmol=0
+				# fall through to handle the section tag normally
+			}
+
 			if (inmol) {
 				mol_line++
 				if (mol_line == 2) {
 					printf "%d %d 0 0 0\n", nat, nb
-					inmol=0
 					continue
 				}
 				print lines[i]
@@ -571,118 +579,36 @@ mol2_normalize_obabel_output_inplace() {
 	mv "$tmp" "$file" || die "mol2_normalize_obabel_output_inplace: Failed to replace mol2"
 }
 
-mol2_ensure_sections_for_leap_inplace() {
-    local file="$1"
-    local resname="$2"
+# mol2_quick_validate_for_tleap MOL2FILE
+# Returns 0 if MOL2 has a sane MOLECULE header (name + counts + type + charge)
+# and an ATOM section. This prevents teLeap segfaults on malformed MOL2s.
+mol2_quick_validate_for_tleap() {
+	local mol2="$1"
+	[[ -f "$mol2" ]] || return 1
 
-    [[ -n "$file" && -f "$file" ]] || die "mol2_ensure_sections_for_leap_inplace: Missing file"
-    [[ -n "$resname" ]] || die "mol2_ensure_sections_for_leap_inplace: Missing RESNAME"
-
-    grep -q '^[[:space:]]*@<TRIPOS>MOLECULE' "$file" || die "mol2_ensure_sections_for_leap_inplace: Missing @<TRIPOS>MOLECULE in $file"
-    grep -q '^[[:space:]]*@<TRIPOS>ATOM'     "$file" || die "mol2_ensure_sections_for_leap_inplace: Missing @<TRIPOS>ATOM in $file"
-
-    local has_bond=0
-    local has_sub=0
-
-    grep -q '^[[:space:]]*@<TRIPOS>BOND'         "$file" && has_bond=1 || true
-    grep -q '^[[:space:]]*@<TRIPOS>SUBSTRUCTURE' "$file" && has_sub=1  || true
-
-    [[ $has_bond -eq 1 && $has_sub -eq 1 ]] && return 0
-
-    local tmp="${file}.tmp"
-
-    awk -v res="$resname" -v hasBond="$has_bond" -v hasSub="$has_sub" '
-        BEGIN { insertedBond=hasBond; insertedSub=hasSub; }
-
-        /^[[:space:]]*@<TRIPOS>SUBSTRUCTURE/ {
-            if (!insertedBond) {
-                print "@<TRIPOS>BOND"
-                insertedBond=1
-            }
-            print
-            next
-        }
-
-        { print }
-
-        END {
-            if (!insertedBond) {
-                print ""
-                print "@<TRIPOS>BOND"
-            }
-            if (!insertedSub) {
-                print ""
-                print "@<TRIPOS>SUBSTRUCTURE"
-                print "1 "res" 1 TEMP 0 **** 0 ROOT"
-            }
-        }
-    ' "$file" > "$tmp" || die "mol2_ensure_sections_for_leap_inplace: Failed to fix sections ($file)"
-
-    mv "$tmp" "$file" || die "mol2_ensure_sections_for_leap_inplace: Failed to replace mol2 ($file)"
-}
-
-mol2_fix_counts_inplace() {
-    local file="$1"
-
-    [[ -n "$file" && -f "$file" ]] || die "mol2_fix_counts_inplace: Missing file"
-
-    local atoms bonds
-
-    atoms=$(awk '
-        BEGIN{in=0;n=0}
-        /^[[:space:]]*@<TRIPOS>ATOM/{in=1;next}
-        /^[[:space:]]*@<TRIPOS>/{if(in) exit}
-        in && $1 ~ /^[0-9]+$/ {n++}
-        END{print n+0}
-    ' "$file") || die "mol2_fix_counts_inplace: Failed to count atoms ($file)"
-
-    bonds=$(awk '
-        BEGIN{in=0;n=0}
-        /^[[:space:]]*@<TRIPOS>BOND/{in=1;next}
-        /^[[:space:]]*@<TRIPOS>/{if(in) exit}
-        in && $1 ~ /^[0-9]+$/ {n++}
-        END{print n+0}
-    ' "$file") || die "mol2_fix_counts_inplace: Failed to count bonds ($file)"
-
-    [[ "$atoms" =~ ^[0-9]+$ ]] || die "mol2_fix_counts_inplace: Bad atom count ($atoms) for $file"
-    [[ "$bonds" =~ ^[0-9]+$ ]] || die "mol2_fix_counts_inplace: Bad bond count ($bonds) for $file"
-
-    local tmp="${file}.tmp"
-
-    awk -v a="$atoms" -v b="$bonds" '
-        BEGIN{in_m=0; ln=0}
-
-        /^[[:space:]]*@<TRIPOS>MOLECULE/ { in_m=1; ln=0; print; next }
-
-        in_m {
-            ln++
-            if (ln==2) {
-                nsub  = ($3 ~ /^[0-9]+$/) ? $3 : 1
-                nfeat = ($4 ~ /^[0-9]+$/) ? $4 : 0
-                nset  = ($5 ~ /^[0-9]+$/) ? $5 : 0
-                print a" "b" "nsub" "nfeat" "nset
-                next
-            }
-            print
-            if (ln>=4) in_m=0
-            next
-        }
-
-        { print }
-    ' "$file" > "$tmp" || die "mol2_fix_counts_inplace: Failed to rewrite counts ($file)"
-
-    mv "$tmp" "$file" || die "mol2_fix_counts_inplace: Failed to replace mol2 ($file)"
-}
-
-mol2_make_leap_safe_inplace() {
-    local file="$1"
-    local resname="$2"
-
-    [[ -n "$file" && -f "$file" ]] || die "mol2_make_leap_safe_inplace: Missing file"
-    [[ -n "$resname" ]] || die "mol2_make_leap_safe_inplace: Missing RESNAME"
-
-    mol2_ensure_sections_for_leap_inplace "$file" "$resname"
-    mol2_normalize_obabel_output_inplace "$file" "$resname"
-    mol2_sanitize_for_mcpb "$file" "$resname"
-    mol2_fix_counts_inplace "$file"
+	awk '
+	function isnum(v) { return (v ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+	BEGIN { in_m=0; l=0; ok_name=0; ok_counts=0; ok_type=0; ok_charge=0; ok_atom=0 }
+	/^@<TRIPOS>MOLECULE/ { in_m=1; l=0; next }
+	/^@<TRIPOS>ATOM/     { ok_atom=1; if (in_m) in_m=0; next }
+	/^@<TRIPOS>/         { if (in_m) in_m=0; next }
+	{
+		if (in_m) {
+			l++
+			if (l == 1) {
+				s=$0; gsub(/^[ \t]+|[ \t]+$/, "", s)
+				if (s != "" && !isnum($1)) ok_name=1
+			} else if (l == 2) {
+				if ($1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/) ok_counts=1
+			} else {
+				if ($1 ~ /^(SMALL|BIOPOLYMER|PROTEIN|NUCLEIC_ACID|SACCHARIDE)$/) ok_type=1
+				if ($1 ~ /(NO_CHARGES|_CHARGES)$/) ok_charge=1
+			}
+		}
+	}
+	END {
+		if (ok_name && ok_counts && ok_type && ok_charge && ok_atom) exit 0
+		exit 1
+	}
+	' "$mol2"
 }

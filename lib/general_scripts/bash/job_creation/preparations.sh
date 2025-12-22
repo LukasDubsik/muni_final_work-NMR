@@ -866,9 +866,11 @@ run_tleap() {
 		local mcpb_params_ok="$JOB_DIR/mcpb_params.ok.in"
 
 		# Extract only MCPB load statements (including "VAR = loadmol2 file.mol2" forms)
-		mcpb_params_in=$(grep -E '^[[:space:]]*(source[[:space:]]+|([[:alnum:]_]+[[:space:]]*=[[:space:]]*)?(loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+)' \
-    	"$MCPB_DIR/${name}_tleap.in" | sed -E 's/[[:space:]]+$//' || true)
-
+		grep -E '^[[:space:]]*([[:alnum:]_]+[[:space:]]*=[[:space:]]*)?(loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+' \
+			"$mcpb_tleap_in" \
+			| tr -d '\r' \
+			| sed -E 's/^[[:space:]]+//; s#[[:space:]]+$##; s#\./##g' \
+			> "$mcpb_params_in" || true
 
 		# Resolve/validate referenced files; never keep a loadPdb unless templates are present
 		local missing_templates="false"
@@ -876,12 +878,6 @@ run_tleap() {
 
 		while IFS= read -r line; do
 			[[ -z "$line" ]] && continue
-
-			# Keep MCPB "source leaprc..." lines; they must appear before loadMol2 for robustness
-			if [[ "$line" =~ ^[[:space:]]*source[[:space:]]+ ]]; then
-				printf '%s\n' "$line" >> "$mcpb_params_ok"
-				continue
-			fi
 
 			local cmd="" file=""
 			if [[ "$line" =~ ^[[:alnum:]_]+[[:space:]]*=[[:space:]]*(loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+([^[:space:]]+) ]]; then
@@ -901,6 +897,14 @@ run_tleap() {
 			local base="${file##*/}"
 			base="${base#./}"
 
+			# If a referenced MOL2 exists but is malformed, remove it so we regenerate it.
+			if [[ -f "$JOB_DIR/$base" && "$base" == *.mol2 ]]; then
+				if ! mol2_quick_validate_for_tleap "$JOB_DIR/$base"; then
+					warning "MCPB template appears malformed (will regenerate): $base"
+					rm -f "$JOB_DIR/$base"
+				fi
+			fi
+
 			# Built-in frcmod.* is searched in AMBER paths; keep even if not local
 			if [[ "$cmd" =~ ^(loadAmberParams|loadamberparams)$ && "$base" == frcmod.* ]]; then
 				printf '%s\n' "$line" >> "$mcpb_params_ok"
@@ -918,20 +922,63 @@ run_tleap() {
 				cp -f "$MCPB_DIR/$base" "$JOB_DIR/" 2>/dev/null || true
 			fi
 
-			# Derive common MCPB naming mismatches (LG1/AU1) from available MOL2s
+			# Derive common MCPB naming mismatches (LG1/AU1) from available sources
 			if [[ ! -f "$JOB_DIR/$base" ]]; then
-				if [[ "$base" =~ ^LG[0-9]+[.]mol2$ && -f "$JOB_DIR/LIG.mol2" ]]; then
-					cp -f "$JOB_DIR/LIG.mol2" "$JOB_DIR/$base"
-					mol2_make_leap_safe_inplace "$JOB_DIR/$base" "${base%.mol2}"
-					info "Derived missing MCPB template: $base <- LIG.mol2"
-				elif [[ "$base" =~ ^AU[0-9]+[.]mol2$ && -f "$JOB_DIR/AU.mol2" ]]; then
-					cp -f "$JOB_DIR/AU.mol2" "$JOB_DIR/$base"
-					mol2_make_leap_safe_inplace "$JOB_DIR/$base" "${base%.mol2}"
-					info "Derived missing MCPB template: $base <- AU.mol2"
+				if [[ "$base" =~ ^LG[0-9]+[.]mol2$ ]]; then
+					# Prefer regenerating from the current post-processed MOL2 (more reliable than stale MCPB LIG.mol2)
+					if [[ -f "$JOB_DIR/${name}_charges_fix.mol2" ]]; then
+						local mid
+						mid="$(mol2_first_metal "$JOB_DIR/${name}_charges_fix.mol2" | awk 'NR==1{print $1}')"
+						if [[ -n "$mid" && "$mid" != "-1" ]]; then
+							mol2_strip_atom "$JOB_DIR/${name}_charges_fix.mol2" "$JOB_DIR/$base" "$mid"
+						else
+							cp -f "$JOB_DIR/${name}_charges_fix.mol2" "$JOB_DIR/$base"
+						fi
+					elif [[ -f "$JOB_DIR/LIG.mol2" ]]; then
+						cp -f "$JOB_DIR/LIG.mol2" "$JOB_DIR/$base"
+					fi
+
+					if [[ -f "$JOB_DIR/$base" ]]; then
+						mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
+						info "Derived missing MCPB template: $base <- ${name}_charges_fix.mol2/LIG.mol2"
+					fi
+
+				elif [[ "$base" =~ ^AU[0-9]+[.]mol2$ ]]; then
+					# Prefer MCPB AU.mol2 if present; otherwise regenerate as a single-ion MOL2
+					if [[ -f "$JOB_DIR/AU.mol2" ]]; then
+						cp -f "$JOB_DIR/AU.mol2" "$JOB_DIR/$base"
+						mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
+						info "Derived missing MCPB template: $base <- AU.mol2"
+					elif [[ -f "$JOB_DIR/${name}_charges_fix.mol2" ]]; then
+						local meta mid elem q x y z
+						meta="$(mol2_first_metal "$JOB_DIR/${name}_charges_fix.mol2" | head -n1)"
+						mid="$(awk '{print $1}' <<<"$meta")"
+						elem="$(awk '{print $2}' <<<"$meta")"
+						q="$(awk '{print $3}' <<<"$meta")"
+						x="$(awk '{print $4}' <<<"$meta")"
+						y="$(awk '{print $5}' <<<"$meta")"
+						z="$(awk '{print $6}' <<<"$meta")"
+
+						if [[ -n "$mid" && "$mid" != "-1" ]]; then
+							write_single_ion_mol2 "$JOB_DIR/$base" "$elem" "$q" "$x" "$y" "$z"
+							mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
+							info "Derived missing MCPB template: $base <- ${name}_charges_fix.mol2 (single-ion)"
+						fi
+					fi
+
 				elif [[ "$base" == "${name}_mcpbpy.pdb" && -f "$MCPB_DIR/${name}_mcpbpy.pdb" ]]; then
 					cp -f "$MCPB_DIR/${name}_mcpbpy.pdb" "$JOB_DIR/" 2>/dev/null || true
 				fi
 			fi
+
+			# Final safety: if we produced a MOL2 template, validate it before keeping loadMol2
+			if [[ -f "$JOB_DIR/$base" && "$base" == *.mol2 ]]; then
+				if ! mol2_quick_validate_for_tleap "$JOB_DIR/$base"; then
+					warning "Template still malformed after derivation (will be treated as missing): $base"
+					rm -f "$JOB_DIR/$base"
+				fi
+			fi
+
 
 			# If still missing:
 			if [[ ! -f "$JOB_DIR/$base" ]]; then
@@ -941,10 +988,6 @@ run_tleap() {
 				fi
 				warning "Skipping MCPB load statement (missing file): ${line}"
 				continue
-			fi
-
-			if [[ "$cmd" =~ ^(loadMol2|loadmol2)$ && "$base" == *.mol2 ]]; then
-				mol2_make_leap_safe_inplace "$JOB_DIR/$base" "${base%.mol2}"
 			fi
 
 			# If templates are missing, do NOT keep loadPdb lines (prevents 'no type' fatal)
