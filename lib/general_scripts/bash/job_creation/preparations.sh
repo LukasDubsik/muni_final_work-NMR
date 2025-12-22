@@ -170,178 +170,96 @@ run_mcpb() {
 	fi
 
 	local job_name="mcpb"
-	local BASE_DIR="process/preparations/${job_name}"
-	local STAGE1_DIR="${BASE_DIR}/01_step1"
-	local STAGE2_DIR="${BASE_DIR}/02_qm"
-	local STAGE3_DIR="${BASE_DIR}/03_params"
+		# Base + stage dirs
+	local BASE_DIR="process/preparations/mcpb"
+	local STAGE1_DIR="$BASE_DIR/01_step1"
+	local STAGE2_DIR="$BASE_DIR/02_qm"
+	local STAGE3_DIR="$BASE_DIR/03_params"
 
-	# -----------------------------
-	# Stage cleanup / anti-accumulation
-	# Anything not explicitly marked OK is considered stale and must be rebuilt.
-	# -----------------------------
 	local STAGE1_OK="$STAGE1_DIR/.ok"
 	local STAGE2_OK="$STAGE2_DIR/.ok"
 	local STAGE3_OK="$STAGE3_DIR/.ok"
 
-	# If stage 1 isn't OK, nothing downstream is valid.
+	# If we are re-running and MCPB isn't completed, remove any incomplete stage outputs
+	# (prevents accumulation after failures)
+	if [[ ! -f "$STAGE1_OK" ]]; then rm -rf "$STAGE1_DIR"; fi
+	if [[ ! -f "$STAGE2_OK" ]]; then rm -rf "$STAGE2_DIR"; fi
+	if [[ ! -f "$STAGE3_OK" ]]; then rm -rf "$STAGE3_DIR"; fi
+
+	# ----------------------------
+	# Stage 1/3: MCPB step 1
+	# ----------------------------
 	if [[ ! -f "$STAGE1_OK" ]]; then
-		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
-	fi
+		rm -rf "$STAGE1_DIR"
+		ensure_dir "$STAGE1_DIR"
 
-	# If stage 1 is OK but stage 2 isn't, wipe stage 2 and 3.
-	if [[ -f "$STAGE1_OK" && ! -f "$STAGE2_OK" ]]; then
-		rm -rf "$STAGE2_DIR" "$STAGE3_DIR"
-	fi
+		# Stage all MCPB inputs in STAGE1_DIR (same behavior as the working all-in-one version)
+		local src_mol2="$STAGE1_DIR/${name}_mcpb_source.mol2"
+		cp "$mol2" "$src_mol2"
+		cp "$frcmod" "$STAGE1_DIR/LIG.frcmod"
 
-	# If stage 2 is OK but stage 3 isn't, wipe stage 3.
-	if [[ -f "$STAGE2_OK" && ! -f "$STAGE3_OK" ]]; then
-		rm -rf "$STAGE3_DIR"
-	fi
+		# Sanitize MOL2 if it contains an extra element column in @<TRIPOS>ATOM
+		mol2_sanitize_atom_coords_inplace "$src_mol2"
 
-	ensure_dir "$STAGE1_DIR"
-	ensure_dir "$STAGE2_DIR"
-	ensure_dir "$STAGE3_DIR"
+		# Identify the first metal (this is the known-good logic)
+		local metal_line
+		metal_line="$(mol2_first_metal "$src_mol2")"
+		[[ -n "$metal_line" ]] || { rm -rf "$STAGE1_DIR"; die "Failed to detect metal in $src_mol2"; }
 
-	local STAGE1_JOB="${job_name}_01_step1"
-	local STAGE2_JOB="${job_name}_02_qm"
-	local STAGE3_JOB="${job_name}_03_params"
+		local metal_id metal_elem metal_charge mx my mz
+		read -r metal_id metal_elem metal_charge mx my mz <<< "$metal_line"
+		metal_charge="${metal_charge:-0.0}"
+		metal_elem=$(echo "$metal_elem" | tr '[:lower:]' '[:upper:]')
 
-	local STAGE1_OK="${STAGE1_DIR}/.stage_ok"
-	local STAGE2_OK="${STAGE2_DIR}/.stage_ok"
-	local STAGE3_OK="${STAGE3_DIR}/.stage_ok"
-
-	ensure_dir "$STAGE1_DIR"
-	ensure_dir "$STAGE2_DIR"
-	ensure_dir "$STAGE3_DIR"
-
-	# ---------------------------------------------------------------------
-	# Stage 0: prepare MCPB inputs (done on login node; very fast)
-	# ---------------------------------------------------------------------
-	local src_mol2="$STAGE1_DIR/${name}_mcpb_source.mol2"
-	if [[ ! -f "$src_mol2" ]]; then
-		cp "$in_mol2" "$src_mol2"
-	fi
-
-	# Always ensure LIG.frcmod exists in stage1
-	if [[ ! -f "$STAGE1_DIR/LIG.frcmod" ]]; then
-		cp "$lig_frcmod" "$STAGE1_DIR/LIG.frcmod"
-	fi
-
-	# Sanitize MOL2 if it contains an extra element column in @<TRIPOS>ATOM
-	mol2_sanitize_atom_coords_inplace "$src_mol2"
-
-	# Identify the first metal line (from ATOM section)
-	local metal_line
-	metal_line="$(mol2_first_metal "$src_mol2")"
-	[[ -n "$metal_line" ]] || die "Failed to detect metal in $src_mol2"
-
-	# MOL2 ATOM line format (typical):
-	# id name x y z type subst_id subst_name charge
-	local metal_id metal_name mx my mz metal_type metal_charge
-	metal_id="$(printf '%s\n' "$metal_line" | awk '{print $1}')"
-	metal_name="$(printf '%s\n' "$metal_line" | awk '{print $2}')"
-	mx="$(printf '%s\n' "$metal_line" | awk '{print $3}')"
-	my="$(printf '%s\n' "$metal_line" | awk '{print $4}')"
-	mz="$(printf '%s\n' "$metal_line" | awk '{print $5}')"
-	metal_type="$(printf '%s\n' "$metal_line" | awk '{print $6}')"
-	metal_charge="$(printf '%s\n' "$metal_line" | awk '{print $NF}')"
-
-	# Charge might be missing or non-numeric in pathological MOL2s
-	if [[ -z "$metal_charge" || ! "$metal_charge" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
-		metal_charge="0.0"
-	fi
-
-	# Prefer element symbol from atom_type (split at '.'), fallback to atom name (strip digits)
-	local metal_elem
-	metal_elem="$(printf '%s\n' "$metal_type" | awk -F. '{print $1}')"
-	metal_elem="$(printf '%s\n' "$metal_elem" | sed -E 's/[^A-Za-z].*$//')"
-	if [[ -z "$metal_elem" ]]; then
-		metal_elem="$(printf '%s\n' "$metal_name" | sed -E 's/[0-9_]+$//; s/[^A-Za-z].*$//')"
-	fi
-	[[ -n "$metal_elem" ]] || die "Could not derive metal element symbol from MOL2: line=[$metal_line]"
-
-	local metal_elem_u
-	metal_elem_u="$(printf '%s\n' "$metal_elem" | tr '[:lower:]' '[:upper:]')"
-
-	# Generate PDB and split MOL2s (only if missing / empty)
-	if [[ ! -s "$STAGE1_DIR/${name}_mcpb.pdb" ]]; then
+		# Generate PDB and split MOL2s
 		mol2_to_mcpb_pdb "$src_mol2" "$STAGE1_DIR/${name}_mcpb.pdb" "$metal_id"
-	fi
-	if [[ ! -s "$STAGE1_DIR/LIG.mol2" ]]; then
 		mol2_strip_atom "$src_mol2" "$STAGE1_DIR/LIG.mol2" "$metal_id"
-	fi
-	if [[ ! -s "$STAGE1_DIR/${metal_elem_u}.mol2" ]]; then
-		write_single_ion_mol2 "$STAGE1_DIR/${metal_elem_u}.mol2" "$metal_elem_u" "$metal_charge" "$mx" "$my" "$mz"
-	fi
+		write_single_ion_mol2 "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
 
-	# MCPB-specific MOL2 sanitization (residue names, etc.)
-	mol2_sanitize_for_mcpb "$STAGE1_DIR/LIG.mol2" "LIG"
-	mol2_sanitize_for_mcpb "$STAGE1_DIR/${metal_elem_u}.mol2" "$metal_elem_u"
+		mol2_sanitize_for_mcpb "$STAGE1_DIR/LIG.mol2" "LIG"
+		mol2_sanitize_for_mcpb "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem"
 
-	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
-	# ---------------------------------------------------------------------
-	# Stage 1/3: MCPB.py -s 1  (generates QM inputs)
-	# ---------------------------------------------------------------------
-	if [[ $mcpb_step -ge 1 ]]; then
-		local need_stage1="true"
-		if [[ -f "$STAGE1_OK" && -s "$STAGE1_DIR/${name}_small_opt.com" && -s "$STAGE1_DIR/${name}_small_fc.com" ]]; then
-			need_stage1="false"
-		fi
+		# Generate MCPB input (resolved values; no runtime substitutions needed)
+		cat > "$STAGE1_DIR/${name}_mcpb.in" <<EOF
+original_pdb ${name}_mcpb.pdb
+group_name ${name}
+cut_off 2.8
+ion_ids ${metal_id}
+ion_mol2files ${metal_elem}.mol2
+naa_mol2files LIG.mol2
+frcmod_files LIG.frcmod
+large_opt 0
+EOF
 
-		if [[ "$need_stage1" == "true" ]]; then
-			info "MCPB Stage 1/3: MCPB.py -s 1 (generate QM inputs)"
-
-			# Build stage-1 job body
-			cat > "$STAGE1_DIR/job_file.txt" <<EOF
+		# Build stage-1 job: MCPB.py step 1 (only)
+		cat > "$STAGE1_DIR/job_file.txt" <<EOF
 module add ${amber}
-
-# Gaussian module (needed by some MCPB setups; harmless if unused here)
-module add g16 2>/dev/null || module add gaussian 2>/dev/null || true
-
 NAME="${name}"
+set -euo pipefail
 
-# Create MCPB input locally in the run dir (no external template dependency)
-{
-	echo "original_pdb ${name}_mcpb.pdb"
-	echo "group_name ${name}"
-	echo "cut_off 2.8"
-	echo "ion_ids ${metal_id}"
-	echo "ion_mol2files ${metal_elem_u}.mol2"
-	echo "naa_mol2files LIG.mol2"
-	echo "frcmod_files LIG.frcmod"
-	echo "large_opt 0"
-} > "\${NAME}_mcpb.in"
-
-[ -s "\${NAME}_mcpb.in" ] || { echo "[ERR] Missing MCPB input"; exit 1; }
-
-echo "[INFO] Running MCPB.py step 1"
 MCPB.py -i "\${NAME}_mcpb.in" -s 1
 EOF
 
-			# Construct job script
-			if [[ "$meta" == "true" ]]; then
-				substitute_name_sh_meta_start "$STAGE1_DIR" "${directory}" ""
-				substitute_name_sh_meta_end "$STAGE1_DIR"
-				construct_sh_meta "$STAGE1_DIR" "$STAGE1_JOB"
-			else
-				substitute_name_sh_wolf_start "$STAGE1_DIR"
-				construct_sh_wolf "$STAGE1_DIR" "$STAGE1_JOB"
-			fi
-
-			# Run (light resources)
-			submit_job "$meta" "$STAGE1_JOB" "$STAGE1_DIR" 8 8 0 "01:00:00"
-
-			# Check expected outputs
-			check_res_file "${name}_small_opt.com" "$STAGE1_DIR" "$STAGE1_JOB"
-			check_res_file "${name}_small_fc.com" "$STAGE1_DIR" "$STAGE1_JOB"
-
-			touch "$STAGE1_OK"
+		if [[ "$meta" == "true" ]]; then
+			substitute_name_sh_meta_start "$STAGE1_DIR" "${directory}" ""
+			substitute_name_sh_meta_end "$STAGE1_DIR" "$STAGE1_DIR"
+			construct_sh_meta "$STAGE1_DIR" "mcpb_s1"
 		else
-			info "MCPB Stage 1/3 already done; skipping"
+			substitute_name_sh_wolf_end "$STAGE1_DIR" "$STAGE1_DIR"
+			construct_sh_wolf "$STAGE1_DIR" "mcpb_s1"
 		fi
-	fi
 
-	touch "$STAGE1_DIR/.ok"
+		# Submit stage 1 (correct submit_job argument order)
+		submit_job "$meta" "mcpb_s1" "$STAGE1_DIR" 8 8 0 "01:00:00"
+
+		# Verify stage 1 results (manual checks so we can clean on failure)
+		if [[ ! -s "$STAGE1_DIR/${name}_small_opt.com" || ! -s "$STAGE1_DIR/${name}_small_fc.com" || ! -s "$STAGE1_DIR/${name}_mcpb.in" ]]; then
+			rm -rf "$STAGE1_DIR"
+			die "MCPB stage 1 failed: missing QM inputs or ${name}_mcpb.in"
+		fi
+
+		touch "$STAGE1_OK"
+	fi
 
 	# Stop early if user requested only step 1
 	if [[ $mcpb_step -le 1 ]]; then
