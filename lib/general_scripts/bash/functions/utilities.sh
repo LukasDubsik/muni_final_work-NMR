@@ -570,3 +570,119 @@ mol2_normalize_obabel_output_inplace() {
 
 	mv "$tmp" "$file" || die "mol2_normalize_obabel_output_inplace: Failed to replace mol2"
 }
+
+mol2_ensure_sections_for_leap_inplace() {
+    local file="$1"
+    local resname="$2"
+
+    [[ -n "$file" && -f "$file" ]] || die "mol2_ensure_sections_for_leap_inplace: Missing file"
+    [[ -n "$resname" ]] || die "mol2_ensure_sections_for_leap_inplace: Missing RESNAME"
+
+    grep -q '^[[:space:]]*@<TRIPOS>MOLECULE' "$file" || die "mol2_ensure_sections_for_leap_inplace: Missing @<TRIPOS>MOLECULE in $file"
+    grep -q '^[[:space:]]*@<TRIPOS>ATOM'     "$file" || die "mol2_ensure_sections_for_leap_inplace: Missing @<TRIPOS>ATOM in $file"
+
+    local has_bond=0
+    local has_sub=0
+
+    grep -q '^[[:space:]]*@<TRIPOS>BOND'         "$file" && has_bond=1 || true
+    grep -q '^[[:space:]]*@<TRIPOS>SUBSTRUCTURE' "$file" && has_sub=1  || true
+
+    [[ $has_bond -eq 1 && $has_sub -eq 1 ]] && return 0
+
+    local tmp="${file}.tmp"
+
+    awk -v res="$resname" -v hasBond="$has_bond" -v hasSub="$has_sub" '
+        BEGIN { insertedBond=hasBond; insertedSub=hasSub; }
+
+        /^[[:space:]]*@<TRIPOS>SUBSTRUCTURE/ {
+            if (!insertedBond) {
+                print "@<TRIPOS>BOND"
+                insertedBond=1
+            }
+            print
+            next
+        }
+
+        { print }
+
+        END {
+            if (!insertedBond) {
+                print ""
+                print "@<TRIPOS>BOND"
+            }
+            if (!insertedSub) {
+                print ""
+                print "@<TRIPOS>SUBSTRUCTURE"
+                print "1 "res" 1 TEMP 0 **** 0 ROOT"
+            }
+        }
+    ' "$file" > "$tmp" || die "mol2_ensure_sections_for_leap_inplace: Failed to fix sections ($file)"
+
+    mv "$tmp" "$file" || die "mol2_ensure_sections_for_leap_inplace: Failed to replace mol2 ($file)"
+}
+
+mol2_fix_counts_inplace() {
+    local file="$1"
+
+    [[ -n "$file" && -f "$file" ]] || die "mol2_fix_counts_inplace: Missing file"
+
+    local atoms bonds
+
+    atoms=$(awk '
+        BEGIN{in=0;n=0}
+        /^[[:space:]]*@<TRIPOS>ATOM/{in=1;next}
+        /^[[:space:]]*@<TRIPOS>/{if(in) exit}
+        in && $1 ~ /^[0-9]+$/ {n++}
+        END{print n+0}
+    ' "$file") || die "mol2_fix_counts_inplace: Failed to count atoms ($file)"
+
+    bonds=$(awk '
+        BEGIN{in=0;n=0}
+        /^[[:space:]]*@<TRIPOS>BOND/{in=1;next}
+        /^[[:space:]]*@<TRIPOS>/{if(in) exit}
+        in && $1 ~ /^[0-9]+$/ {n++}
+        END{print n+0}
+    ' "$file") || die "mol2_fix_counts_inplace: Failed to count bonds ($file)"
+
+    [[ "$atoms" =~ ^[0-9]+$ ]] || die "mol2_fix_counts_inplace: Bad atom count ($atoms) for $file"
+    [[ "$bonds" =~ ^[0-9]+$ ]] || die "mol2_fix_counts_inplace: Bad bond count ($bonds) for $file"
+
+    local tmp="${file}.tmp"
+
+    awk -v a="$atoms" -v b="$bonds" '
+        BEGIN{in_m=0; ln=0}
+
+        /^[[:space:]]*@<TRIPOS>MOLECULE/ { in_m=1; ln=0; print; next }
+
+        in_m {
+            ln++
+            if (ln==2) {
+                nsub  = ($3 ~ /^[0-9]+$/) ? $3 : 1
+                nfeat = ($4 ~ /^[0-9]+$/) ? $4 : 0
+                nset  = ($5 ~ /^[0-9]+$/) ? $5 : 0
+                print a" "b" "nsub" "nfeat" "nset
+                next
+            }
+            print
+            if (ln>=4) in_m=0
+            next
+        }
+
+        { print }
+    ' "$file" > "$tmp" || die "mol2_fix_counts_inplace: Failed to rewrite counts ($file)"
+
+    mv "$tmp" "$file" || die "mol2_fix_counts_inplace: Failed to replace mol2 ($file)"
+}
+
+mol2_make_leap_safe_inplace() {
+    local file="$1"
+    local resname="$2"
+
+    [[ -n "$file" && -f "$file" ]] || die "mol2_make_leap_safe_inplace: Missing file"
+    [[ -n "$resname" ]] || die "mol2_make_leap_safe_inplace: Missing RESNAME"
+
+    mol2_ensure_sections_for_leap_inplace "$file" "$resname"
+    mol2_normalize_obabel_output_inplace "$file" "$resname"
+    mol2_sanitize_for_mcpb "$file" "$resname"
+    mol2_fix_counts_inplace "$file"
+}

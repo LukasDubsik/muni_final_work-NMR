@@ -866,11 +866,9 @@ run_tleap() {
 		local mcpb_params_ok="$JOB_DIR/mcpb_params.ok.in"
 
 		# Extract only MCPB load statements (including "VAR = loadmol2 file.mol2" forms)
-		grep -E '^[[:space:]]*([[:alnum:]_]+[[:space:]]*=[[:space:]]*)?(loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+' \
-			"$mcpb_tleap_in" \
-			| tr -d '\r' \
-			| sed -E 's/^[[:space:]]+//; s#[[:space:]]+$##; s#\./##g' \
-			> "$mcpb_params_in" || true
+		mcpb_params_in=$(grep -E '^[[:space:]]*(source[[:space:]]+|([[:alnum:]_]+[[:space:]]*=[[:space:]]*)?(loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+)' \
+    	"$MCPB_DIR/${name}_tleap.in" | sed -E 's/[[:space:]]+$//' || true)
+
 
 		# Resolve/validate referenced files; never keep a loadPdb unless templates are present
 		local missing_templates="false"
@@ -878,6 +876,12 @@ run_tleap() {
 
 		while IFS= read -r line; do
 			[[ -z "$line" ]] && continue
+
+			# Keep MCPB "source leaprc..." lines; they must appear before loadMol2 for robustness
+			if [[ "$line" =~ ^[[:space:]]*source[[:space:]]+ ]]; then
+				printf '%s\n' "$line" >> "$mcpb_params_ok"
+				continue
+			fi
 
 			local cmd="" file=""
 			if [[ "$line" =~ ^[[:alnum:]_]+[[:space:]]*=[[:space:]]*(loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+([^[:space:]]+) ]]; then
@@ -918,11 +922,11 @@ run_tleap() {
 			if [[ ! -f "$JOB_DIR/$base" ]]; then
 				if [[ "$base" =~ ^LG[0-9]+[.]mol2$ && -f "$JOB_DIR/LIG.mol2" ]]; then
 					cp -f "$JOB_DIR/LIG.mol2" "$JOB_DIR/$base"
-					mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
+					mol2_make_leap_safe_inplace "$JOB_DIR/$base" "${base%.mol2}"
 					info "Derived missing MCPB template: $base <- LIG.mol2"
 				elif [[ "$base" =~ ^AU[0-9]+[.]mol2$ && -f "$JOB_DIR/AU.mol2" ]]; then
 					cp -f "$JOB_DIR/AU.mol2" "$JOB_DIR/$base"
-					mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
+					mol2_make_leap_safe_inplace "$JOB_DIR/$base" "${base%.mol2}"
 					info "Derived missing MCPB template: $base <- AU.mol2"
 				elif [[ "$base" == "${name}_mcpbpy.pdb" && -f "$MCPB_DIR/${name}_mcpbpy.pdb" ]]; then
 					cp -f "$MCPB_DIR/${name}_mcpbpy.pdb" "$JOB_DIR/" 2>/dev/null || true
@@ -937,6 +941,10 @@ run_tleap() {
 				fi
 				warning "Skipping MCPB load statement (missing file): ${line}"
 				continue
+			fi
+
+			if [[ "$cmd" =~ ^(loadMol2|loadmol2)$ && "$base" == *.mol2 ]]; then
+				mol2_make_leap_safe_inplace "$JOB_DIR/$base" "${base%.mol2}"
 			fi
 
 			# If templates are missing, do NOT keep loadPdb lines (prevents 'no type' fatal)
