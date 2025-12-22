@@ -64,6 +64,7 @@ trap 'on_error $? $LINENO' ERR
 # ----- Set Basic Variables -----
 # Set the basic values for the script
 
+# shellcheck disable=SC2034
 declare -A Params
 
 #Give global variables given in external functions default value here
