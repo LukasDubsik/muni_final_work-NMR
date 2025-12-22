@@ -334,7 +334,7 @@ mol2_strip_atom() {
 			}
 
 			# (rest unchanged)
-			...
+			# ...
 		}
 
 			if (lines[i] ~ /^@<TRIPOS>ATOM/) {
