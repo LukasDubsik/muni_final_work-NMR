@@ -340,6 +340,26 @@ run_mcpb() {
 	mol2_sanitize_for_mcpb "$STAGE1_DIR/LIG.mol2" "LIG"
 	mol2_sanitize_for_mcpb "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem"
 
+	# Explicitly tell MCPB which atoms are bonded to the metal (critical for e.g. Au–C)
+	local bonded_ids
+	bonded_ids="$(mol2_bonded_atoms "$src_mol2" "$metal_id")"
+
+	local addbpairs_line=""
+	if [[ -n "$bonded_ids" ]]; then
+		addbpairs_line="add_bonded_pairs"
+		for bid in $bonded_ids; do
+			addbpairs_line+=" ${metal_id}-${bid}"
+		done
+	fi
+
+	# If preserved stages were created without add_bonded_pairs, they are not safe to reuse
+	if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
+		if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
+			warning "MCPB preserved stages were generated without add_bonded_pairs; invalidating cached MCPB stages."
+			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
+		fi
+	fi
+
 	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
 	# ---------------------------------------------------------------------
 	# Stage 1/3: MCPB.py -s 1  (generates QM inputs)
@@ -368,6 +388,7 @@ NAME="${name}"
 	echo "group_name ${name}"
 	echo "cut_off 2.8"
 	echo "ion_ids ${metal_id}"
+	echo "${addbpairs_line}"
 	echo "ion_mol2files ${metal_elem}.mol2"
 	echo "naa_mol2files LIG.mol2"
 	echo "frcmod_files LIG.frcmod"
@@ -999,12 +1020,43 @@ run_tleap() {
 			printf '%s\n' "$line" >> "$mcpb_params_ok"
 		done < "$mcpb_params_in"
 
-		# If MCPB PDB will be used, switch tleap input from the full MOL2 to MCPB PDB
-		if [[ "$missing_templates" == "false" && -f "$JOB_DIR/${name}_mcpbpy.pdb" ]]; then
-			if grep -qiE 'load[Mm]ol2[[:space:]]+(\./)?'"${name}"'(_charges_fix|_charges_full)?[.]mol2' "$JOB_DIR/${in_file}.in"; then
-				info "MCPB PDB detected (${name}_mcpbpy.pdb) – switching tleap to load it instead of the post-processed MOL2"
+		local MCPB_FRCMOD="$MCPB_DIR/${name}_mcpbpy.frcmod"
+		if [[ -f "$MCPB_FRCMOD" ]]; then
+			info "Detected MCPB output – applying MCPB parameters via typed MOL2 (no MCPB PDB load)"
+			cp -f "$MCPB_FRCMOD" "$JOB_DIR/${name}_mcpbpy.frcmod"
+
+			# Create a typed MOL2: Au -> M1, coordinated halide(s) -> Y1
+			local src_mol2_for_tleap="$JOB_DIR/${name}_charges_fix.mol2"
+			local dst_mol2_for_tleap="$JOB_DIR/${name}_mcpbtypes.mol2"
+
+			local mid
+			mid="$(mol2_first_metal "$src_mol2_for_tleap")"
+
+			if [[ -z "$mid" ]]; then
+				warning "Could not detect metal in ${name}_charges_fix.mol2; MCPB typing will not be applied."
+			else
+				local bonded
+				bonded="$(mol2_bonded_atoms "$src_mol2_for_tleap" "$mid")"
+
+				local halide_ids=()
+				for bid in $bonded; do
+					if mol2_atom_is_halide_by_id "$src_mol2_for_tleap" "$bid"; then
+						halide_ids+=("$bid")
+					fi
+				done
+
+				mol2_write_mcpb_typed_mol2 "$src_mol2_for_tleap" "$dst_mol2_for_tleap" "$mid" "$name" "${halide_ids[@]}"
+
+				# Replace the loadMol2 line in the tleap input to use the typed MOL2
 				sed -i -E \
-					"s#load[Mm]ol2[[:space:]]+(\./)?${name}(_charges_fix|_charges_full)?[.]mol2#loadPdb ${name}_mcpbpy.pdb#g" \
+					"s#load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2#loadMol2 ${name}_mcpbtypes.mol2#g" \
+					"$JOB_DIR/${in_file}.in"
+			fi
+
+			# Ensure MCPB frcmod is loaded (insert after your ligand frcmod load)
+			if ! grep -qiE "\\b(loadAmberParams|loadamberparams)[[:space:]]+${name}_mcpbpy[.]frcmod\\b" "$JOB_DIR/${in_file}.in"; then
+				sed -i -E \
+					"/\\b(loadAmberParams|loadamberparams)[[:space:]]+${name}[.]frcmod\\b/a\\loadamberparams ${name}_mcpbpy.frcmod" \
 					"$JOB_DIR/${in_file}.in"
 			fi
 		fi

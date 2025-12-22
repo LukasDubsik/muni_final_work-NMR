@@ -150,42 +150,46 @@ mol2_write_charge_file() {
 # Prints: "<atom_id> <elem> <charge> <x> <y> <z>"
 mol2_first_metal()
 {
-    local mol2="$1"
-    awk '
-function cap(sym,   a,b) {
-    gsub(/[^A-Za-z]/, "", sym);
-    if (length(sym) == 1) return toupper(sym);
-    a = toupper(substr(sym,1,1));
-    b = tolower(substr(sym,2,1));
-    return a b;
-}
-BEGIN{ in_atoms=0 }
-/^@<TRIPOS>ATOM/ { in_atoms=1; next }
-/^@<TRIPOS>/ { in_atoms=0 }
-in_atoms {
-    # mol2: id name x y z type resid resname charge
-    id=$1; type=$6; x=$3; y=$4; z=$5; charge=$NF;
+	local mol2="$1"
 
-    # Metals we want MCPB to recognize
-    if (type ~ /^(Au|AU|Ag|AG|Zn|ZN|Fe|FE|Cu|CU|Ni|NI|Co|CO|Mn|MN|Hg|HG|Cd|CD|Pt|PT|Ir|IR|Os|OS|Pb|PB|Sn|SN)$/) {
-        print id " " cap(type) " " charge " " x " " y " " z;
-        exit;
-    }
-}
-END {
-	print "-1";
-}
-' "$mol2"
+	awk '
+		BEGIN {
+			in_atoms = 0
+		}
+
+		$0 ~ /^@<TRIPOS>ATOM/ { in_atoms = 1; next }
+		$0 ~ /^@<TRIPOS>BOND/ { in_atoms = 0 }
+
+		in_atoms == 1 && $1 ~ /^[0-9]+$/ {
+			atom_id   = $1
+			atom_name = $2
+			atom_type = $6
+
+			# Normalize to just leading letters (e.g., Au1+ -> Au)
+			sub(/[^A-Za-z].*$/, "", atom_name)
+			sub(/[^A-Za-z].*$/, "", atom_type)
+
+			u_name = toupper(atom_name)
+			u_type = toupper(atom_type)
+
+			# Extend this list if needed
+			if (u_name ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/ ||
+			    u_type ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/) {
+				print atom_id
+				exit 0
+			}
+		}
+	' "$mol2"
 }
 
 
 # mol2_has_metal MOL2FILE
-mol2_has_metal() {
+mol2_has_metal()
+{
 	local mol2="$1"
-	local id
-	id="$(mol2_first_metal "$mol2" | awk 'NR==1{print $1}')"
-	[[ -n "$id" && "$id" != "-1" ]]
+	[[ -n "$(mol2_first_metal "$mol2")" ]]
 }
+
 
 
 # mol2_to_mcpb_pdb MOL2FILE OUTPDB METAL_ID
@@ -328,6 +332,11 @@ mol2_strip_atom() {
 				print lines[i]
 				continue
 			}
+
+			# (rest unchanged)
+			...
+		}
+
 			if (lines[i] ~ /^@<TRIPOS>ATOM/) {
 				print lines[i]
 				for (k=1;k<=nat;k++) {
@@ -579,36 +588,94 @@ mol2_normalize_obabel_output_inplace() {
 	mv "$tmp" "$file" || die "mol2_normalize_obabel_output_inplace: Failed to replace mol2"
 }
 
-# mol2_quick_validate_for_tleap MOL2FILE
-# Returns 0 if MOL2 has a sane MOLECULE header (name + counts + type + charge)
-# and an ATOM section. This prevents teLeap segfaults on malformed MOL2s.
-mol2_quick_validate_for_tleap() {
+mol2_bonded_atoms()
+{
 	local mol2="$1"
-	[[ -f "$mol2" ]] || return 1
+	local atom_id="$2"
 
-	awk '
-	function isnum(v) { return (v ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
-	BEGIN { in_m=0; l=0; ok_name=0; ok_counts=0; ok_type=0; ok_charge=0; ok_atom=0 }
-	/^@<TRIPOS>MOLECULE/ { in_m=1; l=0; next }
-	/^@<TRIPOS>ATOM/     { ok_atom=1; if (in_m) in_m=0; next }
-	/^@<TRIPOS>/         { if (in_m) in_m=0; next }
-	{
-		if (in_m) {
-			l++
-			if (l == 1) {
-				s=$0; gsub(/^[ \t]+|[ \t]+$/, "", s)
-				if (s != "" && !isnum($1)) ok_name=1
-			} else if (l == 2) {
-				if ($1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/) ok_counts=1
-			} else {
-				if ($1 ~ /^(SMALL|BIOPOLYMER|PROTEIN|NUCLEIC_ACID|SACCHARIDE)$/) ok_type=1
-				if ($1 ~ /(NO_CHARGES|_CHARGES)$/) ok_charge=1
+	awk -v id="$atom_id" '
+		BEGIN { in_bonds = 0 }
+		$0 ~ /^@<TRIPOS>BOND/ { in_bonds = 1; next }
+		$0 ~ /^@<TRIPOS>/ && in_bonds == 1 { exit 0 }
+
+		in_bonds == 1 && NF >= 4 {
+			a = $2
+			b = $3
+			if (a == id) print b
+			else if (b == id) print a
+		}
+	' "$mol2" | sort -n | uniq
+}
+
+mol2_atom_name_by_id()
+{
+	local mol2="$1"
+	local atom_id="$2"
+
+	awk -v id="$atom_id" '
+		BEGIN { in_atoms = 0 }
+		$0 ~ /^@<TRIPOS>ATOM/ { in_atoms = 1; next }
+		$0 ~ /^@<TRIPOS>BOND/ { in_atoms = 0 }
+
+		in_atoms == 1 && $1 == id {
+			print $2
+			exit 0
+		}
+	' "$mol2"
+}
+
+mol2_atom_is_halide_by_id()
+{
+	local mol2="$1"
+	local atom_id="$2"
+
+	local aname
+	aname="$(mol2_atom_name_by_id "$mol2" "$atom_id")"
+	aname="${aname%%[^A-Za-z]*}"         # leading letters only
+	aname="$(echo "$aname" | tr '[:lower:]' '[:upper:]')"
+
+	# Extend if needed; for your case Cl is enough
+	[[ "$aname" == "CL" || "$aname" == "BR" || "$aname" == "I" || "$aname" == "F" ]]
+}
+
+mol2_write_mcpb_typed_mol2()
+{
+	local src="$1"
+	local dst="$2"
+	local metal_id="$3"
+	local resname="$4"
+	shift 4
+	local halide_ids=("$@")
+
+	local halide_set
+	halide_set="$(printf "%s " "${halide_ids[@]}")"
+
+	awk -v mid="$metal_id" -v res="$resname" -v hids="$halide_set" '
+		BEGIN {
+			in_atoms = 0
+			n = split(hids, a, " ")
+			for (i = 1; i <= n; i++) {
+				if (a[i] ~ /^[0-9]+$/) h[a[i]] = 1
 			}
 		}
-	}
-	END {
-		if (ok_name && ok_counts && ok_type && ok_charge && ok_atom) exit 0
-		exit 1
-	}
-	' "$mol2"
+
+		$0 ~ /^@<TRIPOS>ATOM/ { in_atoms = 1; print; next }
+		$0 ~ /^@<TRIPOS>BOND/ { in_atoms = 0; print; next }
+
+		in_atoms == 1 && $1 ~ /^[0-9]+$/ {
+			# force residue name
+			if (NF >= 8) $8 = res
+
+			# MCPB types:
+			#   M1 = Au
+			#   Y1 = Cl
+			if ($1 == mid)      $6 = "M1"
+			else if (h[$1] == 1) $6 = "Y1"
+
+			print
+			next
+		}
+
+		{ print }
+	' "$src" > "$dst"
 }
