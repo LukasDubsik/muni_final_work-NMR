@@ -240,12 +240,12 @@ run_mcpb() {
 		mol2_strip_atom "$src_mol2" "$STAGE1_DIR/LIG.mol2" "$metal_id"
 	fi
 	if [[ ! -s "$STAGE1_DIR/${metal_elem_u}.mol2" ]]; then
-		write_single_ion_mol2 "$STAGE1_DIR/${metal_elem_u}.mol2" "$metal_elem_u" "$metal_charge" "$mx" "$my" "$mz"
+		write_single_ion_mol2 "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
 	fi
 
 	# MCPB-specific MOL2 sanitization (residue names, etc.)
 	mol2_sanitize_for_mcpb "$STAGE1_DIR/LIG.mol2" "LIG"
-	mol2_sanitize_for_mcpb "$STAGE1_DIR/${metal_elem_u}.mol2" "$metal_elem_u"
+	mol2_sanitize_for_mcpb "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem"
 
 	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
 	# ---------------------------------------------------------------------
