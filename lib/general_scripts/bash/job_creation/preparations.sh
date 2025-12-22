@@ -175,6 +175,33 @@ run_mcpb() {
 	local STAGE2_DIR="${BASE_DIR}/02_qm"
 	local STAGE3_DIR="${BASE_DIR}/03_params"
 
+	# -----------------------------
+	# Stage cleanup / anti-accumulation
+	# Anything not explicitly marked OK is considered stale and must be rebuilt.
+	# -----------------------------
+	local STAGE1_OK="$STAGE1_DIR/.ok"
+	local STAGE2_OK="$STAGE2_DIR/.ok"
+	local STAGE3_OK="$STAGE3_DIR/.ok"
+
+	# If stage 1 isn't OK, nothing downstream is valid.
+	if [[ ! -f "$STAGE1_OK" ]]; then
+		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
+	fi
+
+	# If stage 1 is OK but stage 2 isn't, wipe stage 2 and 3.
+	if [[ -f "$STAGE1_OK" && ! -f "$STAGE2_OK" ]]; then
+		rm -rf "$STAGE2_DIR" "$STAGE3_DIR"
+	fi
+
+	# If stage 2 is OK but stage 3 isn't, wipe stage 3.
+	if [[ -f "$STAGE2_OK" && ! -f "$STAGE3_OK" ]]; then
+		rm -rf "$STAGE3_DIR"
+	fi
+
+	ensure_dir "$STAGE1_DIR"
+	ensure_dir "$STAGE2_DIR"
+	ensure_dir "$STAGE3_DIR"
+
 	local STAGE1_JOB="${job_name}_01_step1"
 	local STAGE2_JOB="${job_name}_02_qm"
 	local STAGE3_JOB="${job_name}_03_params"
@@ -313,6 +340,8 @@ EOF
 			info "MCPB Stage 1/3 already done; skipping"
 		fi
 	fi
+
+	touch "$STAGE1_DIR/.ok"
 
 	# Stop early if user requested only step 1
 	if [[ $mcpb_step -le 1 ]]; then
@@ -515,6 +544,8 @@ EOF
 		fi
 	fi
 
+	touch "$STAGE2_DIR/.ok"
+
 	# ---------------------------------------------------------------------
 	# Stage 3/3: MCPB.py -s 2 (+ -s 4 if requested)
 	# ---------------------------------------------------------------------
@@ -601,6 +632,8 @@ EOF
 			info "MCPB Stage 3/3 already done; skipping"
 		fi
 	fi
+
+	touch "$STAGE3_DIR/.ok"
 
 	success "mcpb finished correctly (stages preserved under ${BASE_DIR})"
 }

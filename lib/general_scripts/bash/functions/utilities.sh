@@ -178,27 +178,14 @@ END {
 ' "$mol2"
 }
 
-mol2_first_metal_id()
-{
+
+# mol2_has_metal MOL2FILE
+mol2_has_metal() {
+	local mol2="$1"
 	local line
-	line="$(mol2_first_metal "$1")"
-
-	if [[ -z "$line" ]]; then
-		echo "-1"
-	else
-		echo "$line" | awk '{print $1}'
-	fi
+	line="$(mol2_first_metal "$mol2" | head -n1)"
+	[[ -n "$line" ]]
 }
-
-mol2_has_metal()
-{
-	local metal_id
-	metal_id="$(mol2_first_metal_id "$1")"
-
-	# True only if a real atom id was found
-	[[ "$metal_id" != "-1" ]]
-}
-
 
 
 # mol2_to_mcpb_pdb MOL2FILE OUTPDB METAL_ID
