@@ -350,11 +350,8 @@ run_mcpb() {
 		addbpairs_line="add_bonded_pairs"
 		for bid in $bonded_ids; do
 			addbpairs_line="$addbpairs_line ${metal_id}-${bid}"
-			echo $addbpairs_line
 		done
 	fi
-
-	info $addbpairs_line
 
 	# If preserved stages were created without add_bonded_pairs, they are not safe to reuse
 	if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
