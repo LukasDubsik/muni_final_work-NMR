@@ -239,7 +239,7 @@ run_mcpb() {
 	if [[ ! -s "$STAGE1_DIR/LIG.mol2" ]]; then
 		mol2_strip_atom "$src_mol2" "$STAGE1_DIR/LIG.mol2" "$metal_id"
 	fi
-	if [[ ! -s "$STAGE1_DIR/${metal_elem_u}.mol2" ]]; then
+	if [[ ! -s "$STAGE1_DIR/${metal_elem}.mol2" ]]; then
 		write_single_ion_mol2 "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
 	fi
 
