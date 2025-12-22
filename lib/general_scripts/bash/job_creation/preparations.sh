@@ -344,21 +344,21 @@ run_mcpb() {
 	local bonded_ids
 	bonded_ids="$(mol2_bonded_atoms "$src_mol2" "$metal_id")"
 
-	local addbpairs_line=""
-	if [[ -n "$bonded_ids" ]]; then
-		addbpairs_line="add_bonded_pairs"
-		for bid in $bonded_ids; do
-			addbpairs_line+=" ${metal_id}-${bid}"
-		done
-	fi
+	# local addbpairs_line=""
+	# if [[ -n "$bonded_ids" ]]; then
+	# 	addbpairs_line="add_bonded_pairs"
+	# 	for bid in $bonded_ids; do
+	# 		addbpairs_line+=" ${metal_id}-${bid}"
+	# 	done
+	# fi
 
-	# If preserved stages were created without add_bonded_pairs, they are not safe to reuse
-	if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
-		if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
-			warning "MCPB preserved stages were generated without add_bonded_pairs; invalidating cached MCPB stages."
-			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
-		fi
-	fi
+	# # If preserved stages were created without add_bonded_pairs, they are not safe to reuse
+	# if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
+	# 	if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
+	# 		warning "MCPB preserved stages were generated without add_bonded_pairs; invalidating cached MCPB stages."
+	# 		rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
+	# 	fi
+	# fi
 
 	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
 	# ---------------------------------------------------------------------
