@@ -344,13 +344,13 @@ run_mcpb() {
 	local bonded_ids
 	bonded_ids="$(mol2_bonded_atoms "$src_mol2" "$metal_id")"
 
-	# local addbpairs_line=""
-	# if [[ -n "$bonded_ids" ]]; then
-	# 	addbpairs_line="add_bonded_pairs"
-	# 	for bid in $bonded_ids; do
-	# 		addbpairs_line+=" ${metal_id}-${bid}"
-	# 	done
-	# fi
+	local addbpairs_line=""
+	if [[ -n "$bonded_ids" ]]; then
+		addbpairs_line="add_bonded_pairs"
+		for bid in $bonded_ids; do
+			addbpairs_line+=" ${metal_id}-${bid}"
+		done
+	fi
 
 	# # If preserved stages were created without add_bonded_pairs, they are not safe to reuse
 	# if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
