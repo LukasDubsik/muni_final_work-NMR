@@ -1029,12 +1029,51 @@ run_tleap() {
 
 		local MCPB_FRCMOD="$MCPB_DIR/${name}_mcpbpy.frcmod"
 		if [[ -f "$MCPB_FRCMOD" ]]; then
-			# Always make the frcmod available locally
 			cp -f "$MCPB_FRCMOD" "$JOB_DIR/${name}_mcpbpy.frcmod"
 
-			# Only use the typed-MOL2 fallback when we *could not* keep MCPB templates
-			if [[ "$missing_templates" == "true" ]]; then
-				info "Detected MCPB output – templates missing; applying MCPB parameters via typed MOL2 (fallback)"
+			# If MCPB PDB is preserved in the prepended MCPB lines, we must use it as SYS.
+			# Otherwise teLeap will pick up Au/cl/cc atom types from ${name}_charges_fix.mol2 and fail.
+			local have_mcpb_pdb="false"
+			if grep -qiE "\\b(loadPdb|loadpdb)\\b[[:space:]]+.*${name}_mcpbpy[.]pdb\\b" "$mcpb_params_ok"; then
+				have_mcpb_pdb="true"
+			fi
+
+			if [[ "$missing_templates" == "false" && "$have_mcpb_pdb" == "true" ]]; then
+				info "Detected MCPB output – using MCPB PDB as the solute (do not load ${name}_charges_fix.mol2 as SYS)"
+
+				# Try to reuse the unit variable from MCPB tleap lines (e.g., mol = loadpdb ...).
+				local pdb_var=""
+				pdb_var="$(
+					grep -Ei "^[[:alnum:]_]+[[:space:]]*=[[:space:]]*(loadPdb|loadpdb)[[:space:]]+.*${name}_mcpbpy[.]pdb\\b" \
+						"$mcpb_params_ok" | head -n1 | sed -E 's/[[:space:]]*=.*$//'
+				)"
+
+				# Replace any SYS loadMol2 of the post-processed MOL2 with the MCPB PDB unit.
+				if [[ -n "$pdb_var" ]]; then
+					sed -i -E \
+						"s#^[[:space:]]*SYS[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2\\b#SYS = ${pdb_var}#g" \
+						"$JOB_DIR/${in_file}.in"
+
+					# If the input uses a different variable name for the solute, still force SYS to the MCPB unit.
+					sed -i -E \
+						"s#^[[:space:]]*[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2\\b#SYS = ${pdb_var}#g" \
+						"$JOB_DIR/${in_file}.in"
+				else
+					# No variable assignment in MCPB lines => safely reload and assign here.
+					sed -i -E \
+						"s#^[[:space:]]*SYS[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2\\b#SYS = loadPdb ${name}_mcpbpy.pdb#g" \
+						"$JOB_DIR/${in_file}.in"
+
+					sed -i -E \
+						"s#^[[:space:]]*[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2\\b#SYS = loadPdb ${name}_mcpbpy.pdb#g" \
+						"$JOB_DIR/${in_file}.in"
+				fi
+
+				# Remove any remaining bare loadMol2 calls of ${name}_charges_fix.mol2 (prevents accidental overwrite)
+				sed -i -E "/\\bload[Mm]ol2\\b[[:space:]]+(\\./)?${name}_charges_fix[.]mol2\\b/d" "$JOB_DIR/${in_file}.in"
+
+			else
+				info "Detected MCPB output – templates/PDB not usable; falling back to typed MOL2"
 
 				# Create a typed MOL2: metal -> M1, coordinated halide(s) -> Y1
 				local src_mol2_for_tleap="$JOB_DIR/${name}_charges_fix.mol2"
@@ -1043,7 +1082,7 @@ run_tleap() {
 				local mid
 				mid="$(mol2_first_metal "$src_mol2_for_tleap" | awk 'NR==1{print $1}')"
 
-				if [[ -z "$mid" ]]; then
+				if [[ -z "$mid" || "$mid" == "-1" ]]; then
 					warning "Could not detect metal in ${name}_charges_fix.mol2; MCPB typing will not be applied."
 				else
 					local bonded
@@ -1058,22 +1097,21 @@ run_tleap() {
 
 					mol2_write_mcpb_typed_mol2 "$src_mol2_for_tleap" "$dst_mol2_for_tleap" "$mid" "$name" "${halide_ids[@]}"
 
-					# Replace the loadMol2 line in the tleap input to use the typed MOL2
 					sed -i -E \
 						"s#load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2#loadMol2 ${name}_mcpbtypes.mol2#g" \
 						"$JOB_DIR/${in_file}.in"
 				fi
-			else
-				info "Detected MCPB output – templates present; using MCPB PDB load (no typed MOL2 fallback)"
 			fi
 
-			# Ensure MCPB frcmod is loaded (insert after your ligand frcmod load)
-			if ! grep -qiE "\\b(loadAmberParams|loadamberparams)[[:space:]]+${name}_mcpbpy[.]frcmod\\b" "$JOB_DIR/${in_file}.in"; then
+			# Ensure MCPB frcmod is loaded (insert after your ligand frcmod load).
+			# Check BOTH the main input and the prepended MCPB lines to avoid duplicates.
+			if ! grep -qiE "\\b(loadAmberParams|loadamberparams)[[:space:]]+${name}_mcpbpy[.]frcmod\\b" "$JOB_DIR/${in_file}.in" "$mcpb_params_ok"; then
 				sed -i -E \
 					"/\\b(loadAmberParams|loadamberparams)[[:space:]]+${name}[.]frcmod\\b/a\\loadamberparams ${name}_mcpbpy.frcmod" \
 					"$JOB_DIR/${in_file}.in"
 			fi
 		fi
+
 
 
 		# Prepend MCPB params into tleap script
