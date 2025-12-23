@@ -26,5 +26,3 @@
  iwrap=1,
 
 &end
-&wt type="TEMP0", istep1=1, istep2=100000, value1=1.0, value2=300.0, &end
-&wt type="END", &end
