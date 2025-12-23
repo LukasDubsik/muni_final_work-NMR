@@ -1163,6 +1163,21 @@ run_tleap() {
 	cp -f "$JOB_DIR/tleap_run.in" "$JOB_DIR/${in_file}.in"
 
 	# -----------------------------------------------------------------
+	# Sanitize tleap input: remove CRLF, strip inline comments, and remove
+	# any control characters / malformed check/charge fragments that break
+	# tleap's parser.
+	# -----------------------------------------------------------------
+	sed -i -E 's/\r$//' "$JOB_DIR/$tleap_in"
+	sed -i -E '/^[[:space:]]*#/! s/[[:space:]]+#.*$//' "$JOB_DIR/$tleap_in"
+
+	# Remove ASCII control chars except TAB and NL (fixes literal ^H, etc.)
+	perl -pi -e 's/[\x00-\x08\x0b\x0c\x0e-\x1f]//g' "$JOB_DIR/$tleap_in"
+
+	# Drop any (possibly corrupted) check/charge lines
+	sed -i -E '/^[[:space:]]*(check|charge|eck|arge)[[:space:]]+SYS([[:space:]]|$)/Id' "$JOB_DIR/$tleap_in"
+
+
+	# -----------------------------------------------------------------
 	# Ensure SYS is defined as a UNIT before solvateBox/addIons/saveAmberParm.
 	# When SYS is undefined, teLeap treats it as a String and solvateBox fails:
 	#   "solvateBox: Argument #1 is type String must be of type: [unit]"
@@ -1224,14 +1239,14 @@ EOF
 	sed -i -E '/^[[:space:]]*(check|charge)[[:space:]]+/Id' "$JOB_DIR/$tleap_in"
 
 	# Re-insert check/charge right after SYS is defined (only if SYS exists)
-	if grep -qiE '^[[:space:]]*SYS[[:space:]]*=' "$JOB_DIR/$tleap_in"; then
-		# Insert charge first, then check, so final order is:
-		#   SYS = ...
-		#   check SYS
-		#   charge SYS
-		sed -i -E '/^[[:space:]]*SYS[[:space:]]*=/a\\charge SYS' "$JOB_DIR/$tleap_in"
-		sed -i -E '/^[[:space:]]*SYS[[:space:]]*=/a\\check SYS' "$JOB_DIR/$tleap_in"
-	fi
+	# if grep -qiE '^[[:space:]]*SYS[[:space:]]*=' "$JOB_DIR/$tleap_in"; then
+	# 	# Insert charge first, then check, so final order is:
+	# 	#   SYS = ...
+	# 	#   check SYS
+	# 	#   charge SYS
+	# 	#sed -i -E '/^[[:space:]]*SYS[[:space:]]*=/a\\charge SYS' "$JOB_DIR/$tleap_in"
+	# 	#sed -i -E '/^[[:space:]]*SYS[[:space:]]*=/a\\check SYS' "$JOB_DIR/$tleap_in"
+	# fi
 
 	#Construct the job file
 	if [[ $meta == "true" ]]; then
