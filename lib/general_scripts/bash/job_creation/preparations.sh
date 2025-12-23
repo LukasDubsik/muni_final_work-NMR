@@ -1110,10 +1110,6 @@ run_tleap() {
 				# Remove any remaining bare loadMol2 calls of ${name}_charges_fix.mol2 (prevents accidental overwrite)
 				sed -i "/load[Mm]ol2[[:space:]]\+\(\.\?\/\)\?${name}_charges_fix[.]mol2/d" "$JOB_DIR/${in_file}.in"
 
-				# Force a stable solute handle for downstream code: SYS = mol (or the MCPB pdb var)
-				# 1) Remove any existing SYS assignments (avoids accidental overwrite)
-				sed -i "/^[[:space:]]*SYS[[:space:]]*=/d" "$JOB_DIR/${in_file}.in"
-
 				# 2) If MCPB used a variable assignment (e.g., mol = loadpdb ...), prefer it
 				#    Otherwise just refer to 'mol' (your MCPB line is 'mol = loadpdb ...' as shown by grep)
 				sed -i "/load[Pp]db[[:space:]]\+${name}_mcpbpy[.]pdb/a\\SYS = ${sys_var}" "$JOB_DIR/${in_file}.in"
@@ -1165,6 +1161,29 @@ run_tleap() {
 	fi
 
 	cp -f "$JOB_DIR/tleap_run.in" "$JOB_DIR/${in_file}.in"
+
+	# -----------------------------------------------------------------
+	# Ensure SYS is defined as a UNIT before solvateBox/addIons/saveAmberParm.
+	# When SYS is undefined, teLeap treats it as a String and solvateBox fails:
+	#   "solvateBox: Argument #1 is type String must be of type: [unit]"
+	# -----------------------------------------------------------------
+	if grep -qiE '^[[:space:]]*solvatebox[[:space:]]+SYS\\b' "$JOB_DIR/$tleap_in"; then
+		if ! grep -qiE '^[[:space:]]*SYS[[:space:]]*=' "$JOB_DIR/$tleap_in"; then
+			local sys_var=""
+			sys_var="$(
+				grep -Ei "^[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Pp]db[[:space:]]+.*${name}_mcpbpy[.]pdb\\b" \
+					"$JOB_DIR/$tleap_in" \
+				| head -n1 \
+				| sed -E 's/[[:space:]]*=.*$//'
+			)"
+
+			# MCPB usually uses: mol = loadpdb <name>_mcpbpy.pdb
+			[[ -n "$sys_var" ]] || sys_var="mol"
+
+			# Insert SYS right after the MCPB PDB load line (so sys_var exists)
+			sed -i -E "/load[Pp]db[[:space:]]+${name}_mcpbpy[.]pdb\\b/a\\SYS = ${sys_var}" "$JOB_DIR/$tleap_in"
+		fi
+	fi
 
 	# -----------------------------------------------------------------
 	# teLeap sometimes fails to locate frcmod.gaff2 in certain installs.
