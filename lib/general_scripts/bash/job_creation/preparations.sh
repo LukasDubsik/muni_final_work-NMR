@@ -174,9 +174,9 @@ run_parmchk2() {
 		cp "$full_mol2" "$mcpb_mol2"
 
 		local metal_id
-		metal_id="$(mol2_first_metal_id "$mcpb_mol2")"
+		metal_id="$(mol2_has_metal "$mcpb_mol2")"
 
-		if [[ "$metal_id" == "-1" ]]; then
+		if [[ "$metal_id" == "false" ]]; then
 			warning "Metal expected but could not be identified in MOL2; skipping strip. (This may break parmchk2.)"
 		else
 			info "Metal detected in MOL2 (atom_id=$metal_id). Stripping it for parmchk2 (MCPB will use the full MOL2)."
@@ -249,7 +249,7 @@ run_mcpb() {
 	local lig_frcmod="$7"
 
 	# Optional: cap Gaussian opt cycles for MCPB small model
-	local gauss_opt_maxcycle=2
+	local gauss_opt_maxcycle=100
 
 	# If MCPB is not configured, do nothing
 	if [[ -z "${mcpb_cmd:-}" ]]; then
