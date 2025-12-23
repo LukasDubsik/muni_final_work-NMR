@@ -133,7 +133,7 @@ run_antechamber() {
 			# This only affects the -nc passed to antechamber; final total charge is enforced later.
 			if [[ "${metal_elem^^}" == "AU" && "$total_charge" =~ ^-?[0-9]+$ ]]; then
 				local halides
-				halides="$(awk 'BEGIN{in=0;c=0}
+				halides="$(awk '
 					/^@<TRIPOS>ATOM/{in=1;next}
 					/^@<TRIPOS>/{if(in){in=0}}
 					in && $1~/^[0-9]+$/{
