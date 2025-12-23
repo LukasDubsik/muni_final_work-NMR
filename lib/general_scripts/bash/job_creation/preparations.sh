@@ -1069,7 +1069,7 @@ run_tleap() {
 				fi
 
 				# Remove any remaining bare loadMol2 calls of ${name}_charges_fix.mol2 (prevents accidental overwrite)
-				sed -i -E "/load[Mm]ol2[[:space:]]+(\\.|\\./)?${name}_charges_fix[.]mol2/d" "$JOB_DIR/${in_file}.in"
+				#sed -i -E "/load[Mm]ol2[[:space:]]+(\\.|\\./)?${name}_charges_fix[.]mol2/d" "$JOB_DIR/${in_file}.in"
 
 			else
 				info "Detected MCPB output – templates/PDB not usable; falling back to typed MOL2"
