@@ -759,7 +759,7 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 } > "\${NAME}_mcpb.in"
 
 echo "[INFO] Running MCPB.py step 2"
-MCPB.py -i "\${NAME}_mcpb.in" -s 2 --overwrite --no_preopt
+MCPB.py -i "\${NAME}_mcpb.in" -s 2
 
 # Normalize the MCPB-typed PDB name (required by tleap stage)
 if [[ -f "\${NAME}_mcpbpy.pdb" ]]; then
