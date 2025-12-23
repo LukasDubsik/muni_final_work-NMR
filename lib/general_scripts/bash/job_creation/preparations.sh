@@ -242,7 +242,7 @@ run_mcpb() {
 	local lig_frcmod="$7"
 
 	# Optional: cap Gaussian opt cycles for MCPB small model
-	local gauss_opt_maxcycle=100
+	local gauss_opt_maxcycle=2
 
 	# If MCPB is not configured, do nothing
 	if [[ -z "${mcpb_cmd:-}" ]]; then
