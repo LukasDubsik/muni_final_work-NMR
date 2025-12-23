@@ -68,6 +68,14 @@ run_antechamber() {
 	local antechamber_parms=$5
 	local charge=$6
 
+	local total_charge="$charge"
+
+	# Heavy-metal workflow state (used later after antechamber finishes)
+	local heavy_metal="false"
+	local complex_mol2=""
+	local metal_id=""
+	local metal_elem=""
+
 	local job_name="antechamber"
 
 	info "Started running $job_name"
@@ -81,33 +89,66 @@ run_antechamber() {
 	#Copy the data from crest
 	move_inp_file "${name}_crest.mol2" "$SRC_DIR" "$JOB_DIR"
 
-	# --- Heavy-metal handling --------------------------------------------
+		# --- Heavy-metal handling --------------------------------------------
 	# If the original structure contains a heavy metal (e.g. Au),
-	# AM1-BCC (sqm) will fail because it has no parameters for that element.
-	# In that case, tell antechamber to *reuse* the input charges (-c rc)
-	# and avoid calling sqm completely.
+	# do NOT force "-c rc" (that just preserves zeros). Instead:
+	#  1) keep a copy of the metal-containing MOL2
+	#  2) strip the metal ONLY for the charge-generation run (sqm)
+	#  3) after antechamber finishes, overlay ligand charges back onto the complex
 	local struct_file="${INPUTS}/structures/${name}.mol2"
 	if has_heavy_metal "$struct_file"; then
-		info "Heavy metal detected in $struct_file; forcing antechamber to use input charges (-c rc) instead of AM1-BCC."
+		heavy_metal="true"
+		complex_mol2="${JOB_DIR}/${name}_complex_crest.mol2"
 
-		# Generate a stable charge file from the ORIGINAL input mol2
-		# (crest/openbabel mol2 often does not preserve partial charges).
-		local chg_file="${JOB_DIR}/${name}.crg"
-		mol2_write_charge_file "$struct_file" "$chg_file"
+		# Preserve the original (metal-containing) crest MOL2 for later overlay
+		cp -f "${JOB_DIR}/${name}_crest.mol2" "$complex_mol2"
 
-		# Strip any existing "-c <...>", "-cf <...>", "-dr <...>" from user parameters
-		# and force:
-		#   -c rc   (read charges)
-		#   -cf ... (charge file)
-		#   -dr no  (disable unusual-element checking)
-		# Everything else (-at, etc.) stays as configured in sim.txt.
-		local base_parms
-		base_parms=$(printf '%s\n' "$antechamber_parms" | sed -E \
-			's/(^|[[:space:]])-c[[:space:]]+[[:alnum:]]+//g;
-			 s/(^|[[:space:]])-cf[[:space:]]+[^[:space:]]+//g;
-			 s/(^|[[:space:]])-dr[[:space:]]+[[:alnum:]]+//g')
-		antechamber_parms="${base_parms} -c rc -cf ${name}.crg -dr no"
+		# Identify the first metal atom (id + element) in the crest MOL2
+		local metal_line
+		metal_line="$(mol2_first_metal "$complex_mol2")" || true
+		read -r metal_id metal_elem _ _ _ _ <<< "$metal_line"
 
+		if [[ -z "${metal_id:-}" ]]; then
+			warning "Heavy metal detected in $struct_file, but mol2_first_metal failed on $complex_mol2; falling back to input charges (-c rc)."
+
+			# Fallback: original behavior (may still be zero if the input was zero)
+			local chg_file="${JOB_DIR}/${name}.crg"
+			mol2_write_charge_file "$struct_file" "$chg_file"
+
+			local base_parms
+			base_parms=$(printf '%s\n' "$antechamber_parms" | sed -E \
+				's/(^|[[:space:]])-c[[:space:]]+[[:alnum:]]+//g;
+				 s/(^|[[:space:]])-cf[[:space:]]+[^[:space:]]+//g;
+				 s/(^|[[:space:]])-dr[[:space:]]+[[:alnum:]]+//g')
+			antechamber_parms="${base_parms} -c rc -cf ${name}.crg -dr no"
+		else
+			info "Heavy metal detected (id=${metal_id}, elem=${metal_elem}); generating charges on metal-stripped ligand and re-applying them to the full complex."
+
+			# Replace the job input MOL2 with a metal-stripped version (same order minus the metal)
+			local tmp_lig="${JOB_DIR}/${name}_ligand_for_charge.mol2"
+			mol2_strip_atom "$complex_mol2" "$tmp_lig" "$metal_id"
+			mv -f "$tmp_lig" "${JOB_DIR}/${name}_crest.mol2"
+
+			# Optional heuristic (Au + explicit halides): assume halides are -1 each and Au is +N
+			# This only affects the -nc passed to antechamber; final total charge is enforced later.
+			if [[ "${metal_elem^^}" == "AU" && "$total_charge" =~ ^-?[0-9]+$ ]]; then
+				local halides
+				halides="$(awk 'BEGIN{in=0;c=0}
+					/^@<TRIPOS>ATOM/{in=1;next}
+					/^@<TRIPOS>/{if(in){in=0}}
+					in && $1~/^[0-9]+$/{
+						n=$2; sub(/[^A-Za-z].*$/,"",n); u=toupper(n)
+						if(u=="CL"||u=="BR"||u=="I"||u=="F") c++
+					}
+					END{print c}' "$complex_mol2")"
+
+				if [[ "$halides" =~ ^[0-9]+$ && "$halides" -gt 0 ]]; then
+					local metal_charge_guess="$halides"
+					charge=$(( total_charge - metal_charge_guess ))
+					info "Heuristic Au charge guess: +${metal_charge_guess} (based on ${halides} halide(s)); using ligand net charge ${charge} for antechamber."
+				fi
+			fi
+		fi
 	fi
 	# ---------------------------------------------------------------------
 
@@ -128,6 +169,41 @@ run_antechamber() {
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
+
+	# If we stripped a metal for charge generation, overlay charges back onto the full complex MOL2.
+	if [[ "$heavy_metal" == "true" && -n "${complex_mol2:-}" && -s "$complex_mol2" ]]; then
+		local lig_charged="${JOB_DIR}/${name}_charges.mol2"
+		local out_complex="${JOB_DIR}/${name}_charges_complex.mol2"
+		local out_user="${JOB_DIR}/${name}_charges_complex_user.mol2"
+
+		# Sum ligand charges from the antechamber output (metal-stripped MOL2)
+		local lig_net
+		lig_net="$(awk 'BEGIN{in=0;sum=0}
+			/^@<TRIPOS>ATOM/{in=1;next}
+			/^@<TRIPOS>/{if(in){in=0}}
+			in && $1~/^[0-9]+$/{sum+=$NF}
+			END{printf "%.6f", sum}' "$lig_charged")"
+
+		# Enforce the configured total charge by assigning the metal the residual charge
+		local metal_charge
+		metal_charge="$(awk -v tot="$total_charge" -v lig="$lig_net" 'BEGIN{printf "%.6f", (tot - lig)}')"
+
+		info "Overlaying ligand charges onto full complex: ligand_net=${lig_net}; total=${total_charge}; metal_charge=${metal_charge}"
+
+		# Apply ligand charges to the full complex and set the metal charge
+		mol2_overlay_ligand_charges "$lig_charged" "$complex_mol2" "$out_complex" "$metal_charge"
+
+		# Ensure USER_CHARGES header
+		mol2_force_user_charges "$out_complex" "$out_user"
+
+		# Keep the ligand-only charged MOL2 for debugging, and replace final output with the full complex
+		mv -f "$lig_charged" "${JOB_DIR}/${name}_ligand_charges.mol2"
+		mv -f "$out_user" "${JOB_DIR}/${name}_charges.mol2"
+		rm -f "$out_complex" || true
+
+		# Re-check final output after overlay
+		check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
+	fi
 
 	success "$job_name has finished correctly"
 
