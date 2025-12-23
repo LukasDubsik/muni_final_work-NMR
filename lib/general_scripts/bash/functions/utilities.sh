@@ -167,14 +167,12 @@ mol2_first_metal()
 			atom_type = $6
 			charge    = $NF
 
-			# Normalize to just leading letters (e.g., Au1+ -> Au)
+			# Normalize to just leading letters from ATOM NAME.
+			# IMPORTANT: MOL2 atom_type may be GAFF like "cd"/"ca" and must NOT be used for element detection.
 			sym_name = atom_name
-			sym_type = atom_type
 			sub(/[^A-Za-z].*$/, "", sym_name)
-			sub(/[^A-Za-z].*$/, "", sym_type)
 
 			u_name = toupper(sym_name)
-			u_type = toupper(sym_type)
 
 			# Validate numeric charge; default to 0.0 if missing/weird
 			if (charge !~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) {
@@ -186,10 +184,7 @@ mol2_first_metal()
 				print atom_id, sym_name, charge, x, y, z
 				exit 0
 			}
-			if (u_type ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/) {
-				print atom_id, sym_type, charge, x, y, z
-				exit 0
-			}
+
 		}
 	' "$mol2"
 }
@@ -244,10 +239,10 @@ mol2_to_mcpb_pdb()
 		id=$1; name=$2; x=$3; y=$4; z=$5; type=$6; resi=$7; resid=$8;
 
 		if (id == mid) {
-			# Metal: residue name uppercase (AU), element as proper case (Au)
-			elem = cap(type);
+			# Metal: derive element from atom NAME (NOT atom_type; GAFF types like "cd"/"ca" are not elements)
+			elem = guess_elem(name);
 			resn = toupper(substr(elem,1,2));
-			atn  = toupper(elem);     # make atom name robust ("AU")
+			atn  = elem;             # keep proper case (e.g., "Au")
 			resi_out = 2;            # IMPORTANT: separate residue number from ligand
 		} else {
 			# Ligand: force residue name to LIG for MCPB consistency
