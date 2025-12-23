@@ -276,6 +276,24 @@ run_mcpb() {
 	local STAGE2_OK="$STAGE2_DIR/.ok"
 	local STAGE3_OK="$STAGE3_DIR/.ok"
 
+	# If the MCPB input MOL2 changed since the last successful run, cached stages
+	# must be invalidated; otherwise stale connectivity (e.g., metal bonds) may be reused.
+	local in_mol2_sha
+	in_mol2_sha="$(sha256sum "$in_mol2" | awk '{print $1}')"
+	local MOL2_SHA_FILE="$STAGE1_DIR/.input_mol2.sha256"
+
+	if [[ -f "$STAGE1_OK" && ! -f "$MOL2_SHA_FILE" ]]; then
+		warning "MCPB cache is missing input hash; invalidating cached MCPB stages."
+		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
+	elif [[ -f "$MOL2_SHA_FILE" ]]; then
+		local old_sha
+		old_sha="$(cat "$MOL2_SHA_FILE" 2>/dev/null || true)"
+		if [[ -n "$old_sha" && "$old_sha" != "$in_mol2_sha" ]]; then
+			warning "MCPB input MOL2 changed; invalidating cached MCPB stages."
+			rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
+		fi
+	fi
+
 	# If stage 1 isn't OK, nothing downstream is valid.
 	if [[ ! -f "$STAGE1_OK" ]]; then
 		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
@@ -303,9 +321,8 @@ run_mcpb() {
 	# Stage 0: prepare MCPB inputs (done on login node; very fast)
 	# ---------------------------------------------------------------------
 	local src_mol2="$STAGE1_DIR/${name}_mcpb_source.mol2"
-	if [[ ! -f "$src_mol2" ]]; then
-		cp "$in_mol2" "$src_mol2"
-	fi
+	cp -f "$in_mol2" "$src_mol2" || die "Failed to copy MCPB source MOL2: $in_mol2 -> $src_mol2"
+	printf '%s\n' "$in_mol2_sha" > "$MOL2_SHA_FILE" || true
 
 	# Always ensure LIG.frcmod exists in stage1
 	if [[ ! -f "$STAGE1_DIR/LIG.frcmod" ]]; then
@@ -742,7 +759,7 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 } > "\${NAME}_mcpb.in"
 
 echo "[INFO] Running MCPB.py step 2"
-MCPB.py -i "\${NAME}_mcpb.in" -s 2
+MCPB.py -i "\${NAME}_mcpb.in" -s 2 --overwrite --no_preopt
 
 # Normalize outputs to stable names expected by the rest of your pipeline
 if [[ -f "frcmod_\${NAME}" ]]; then
@@ -1070,6 +1087,14 @@ run_tleap() {
 
 				# Remove any remaining bare loadMol2 calls of ${name}_charges_fix.mol2 (prevents accidental overwrite)
 				sed -i "/load[Mm]ol2[[:space:]]\+\(\.\?\/\)\?${name}_charges_fix[.]mol2/d" "$JOB_DIR/${in_file}.in"
+
+				# Force a stable solute handle for downstream code: SYS = mol (or the MCPB pdb var)
+				# 1) Remove any existing SYS assignments (avoids accidental overwrite)
+				sed -i "/^[[:space:]]*SYS[[:space:]]*=/d" "$JOB_DIR/${in_file}.in"
+
+				# 2) If MCPB used a variable assignment (e.g., mol = loadpdb ...), prefer it
+				#    Otherwise just refer to 'mol' (your MCPB line is 'mol = loadpdb ...' as shown by grep)
+				sed -i "/load[Pp]db[[:space:]]\+${name}_mcpbpy[.]pdb/a\\SYS = mol" "$JOB_DIR/${in_file}.in"
 
 			else
 				info "Detected MCPB output – templates/PDB not usable; falling back to typed MOL2"

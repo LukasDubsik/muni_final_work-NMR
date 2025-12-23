@@ -167,13 +167,19 @@ main() {
 
 		#Run parmchk2
 		if [[ 3 -gt $LOG_POSITION ]]; then
-			run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$antechamber_cmd" "$charge"
+			run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$parmchk2_cmd"
 		fi
 
 		# Always attempt MCPB; run_mcpb is now self-resuming via stage marker files
+		mcpb_in_mol2="process/preparations/parmchk2/${name}_charges_full.mol2"
+		if [[ ! -f "$mcpb_in_mol2" ]]; then
+			mcpb_in_mol2="process/preparations/parmchk2/${name}_charges.mol2"
+		fi
+
 		run_mcpb "$name" "$directory" "$meta" "$amber_mod" "$mcpb_cmd" \
-			"process/preparations/parmchk2/${name}_charges.mol2" \
+			"$mcpb_in_mol2" \
 			"process/preparations/parmchk2/${name}.frcmod"
+
 
 
 		#Perform the nemesis fix
