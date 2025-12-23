@@ -1029,35 +1029,42 @@ run_tleap() {
 
 		local MCPB_FRCMOD="$MCPB_DIR/${name}_mcpbpy.frcmod"
 		if [[ -f "$MCPB_FRCMOD" ]]; then
-			info "Detected MCPB output – applying MCPB parameters via typed MOL2 (no MCPB PDB load)"
+			# Always make the frcmod available locally
 			cp -f "$MCPB_FRCMOD" "$JOB_DIR/${name}_mcpbpy.frcmod"
 
-			# Create a typed MOL2: Au -> M1, coordinated halide(s) -> Y1
-			local src_mol2_for_tleap="$JOB_DIR/${name}_charges_fix.mol2"
-			local dst_mol2_for_tleap="$JOB_DIR/${name}_mcpbtypes.mol2"
+			# Only use the typed-MOL2 fallback when we *could not* keep MCPB templates
+			if [[ "$missing_templates" == "true" ]]; then
+				info "Detected MCPB output – templates missing; applying MCPB parameters via typed MOL2 (fallback)"
 
-			local mid
-			mid="$(mol2_first_metal "$src_mol2_for_tleap")"
+				# Create a typed MOL2: metal -> M1, coordinated halide(s) -> Y1
+				local src_mol2_for_tleap="$JOB_DIR/${name}_charges_fix.mol2"
+				local dst_mol2_for_tleap="$JOB_DIR/${name}_mcpbtypes.mol2"
 
-			if [[ -z "$mid" ]]; then
-				warning "Could not detect metal in ${name}_charges_fix.mol2; MCPB typing will not be applied."
+				local mid
+				mid="$(mol2_first_metal "$src_mol2_for_tleap" | awk 'NR==1{print $1}')"
+
+				if [[ -z "$mid" ]]; then
+					warning "Could not detect metal in ${name}_charges_fix.mol2; MCPB typing will not be applied."
+				else
+					local bonded
+					bonded="$(mol2_bonded_atoms "$src_mol2_for_tleap" "$mid")"
+
+					local halide_ids=()
+					for bid in $bonded; do
+						if mol2_atom_is_halide_by_id "$src_mol2_for_tleap" "$bid"; then
+							halide_ids+=("$bid")
+						fi
+					done
+
+					mol2_write_mcpb_typed_mol2 "$src_mol2_for_tleap" "$dst_mol2_for_tleap" "$mid" "$name" "${halide_ids[@]}"
+
+					# Replace the loadMol2 line in the tleap input to use the typed MOL2
+					sed -i -E \
+						"s#load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2#loadMol2 ${name}_mcpbtypes.mol2#g" \
+						"$JOB_DIR/${in_file}.in"
+				fi
 			else
-				local bonded
-				bonded="$(mol2_bonded_atoms "$src_mol2_for_tleap" "$mid")"
-
-				local halide_ids=()
-				for bid in $bonded; do
-					if mol2_atom_is_halide_by_id "$src_mol2_for_tleap" "$bid"; then
-						halide_ids+=("$bid")
-					fi
-				done
-
-				mol2_write_mcpb_typed_mol2 "$src_mol2_for_tleap" "$dst_mol2_for_tleap" "$mid" "$name" "${halide_ids[@]}"
-
-				# Replace the loadMol2 line in the tleap input to use the typed MOL2
-				sed -i -E \
-					"s#load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2#loadMol2 ${name}_mcpbtypes.mol2#g" \
-					"$JOB_DIR/${in_file}.in"
+				info "Detected MCPB output – templates present; using MCPB PDB load (no typed MOL2 fallback)"
 			fi
 
 			# Ensure MCPB frcmod is loaded (insert after your ligand frcmod load)
@@ -1067,6 +1074,7 @@ run_tleap() {
 					"$JOB_DIR/${in_file}.in"
 			fi
 		fi
+
 
 		# Prepend MCPB params into tleap script
 		cat "$mcpb_params_ok" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"

@@ -715,3 +715,46 @@ mol2_force_atom_type_inplace()
 
 	mv "$tmp" "$mol2" || die "Failed to replace MOL2: $mol2"
 }
+
+mol2_quick_validate_for_tleap()
+{
+	local mol2="$1"
+
+	[[ -r "$mol2" ]] || return 1
+
+	# Keep this intentionally permissive:
+	# - require a usable @<TRIPOS>ATOM block
+	# - do NOT require BOND/SUBSTRUCTURE blocks (single-ion templates are valid)
+	awk '
+		BEGIN {
+			in_atoms = 0
+			nat = 0
+			bad = 0
+			num = "^[+-]?[0-9]*([.][0-9]+)?([eE][+-]?[0-9]+)?$"
+		}
+
+		$0 ~ /^@<TRIPOS>ATOM/ { in_atoms = 1; next }
+		$0 ~ /^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atoms = 0 }
+
+		in_atoms == 1 {
+			line = $0
+			sub(/^[ \t]+/, "", line)
+			if (line == "" || line ~ /^@/) next
+
+			n = split(line, f, /[ \t]+/)
+			# Tripos MOL2 atom line: at least 8 fields (charge may be absent)
+			if (n < 8) { bad = 1; next }
+
+			if (f[1] !~ /^[0-9]+$/) bad = 1
+			if (f[3] !~ num || f[4] !~ num || f[5] !~ num) bad = 1
+			if (f[6] == "" || f[6] ~ /^@/) bad = 1
+
+			nat++
+		}
+
+		END {
+			if (bad || nat < 1) exit 1
+			exit 0
+		}
+	' "$mol2"
+}
