@@ -1034,7 +1034,7 @@ run_tleap() {
 			# If MCPB PDB is preserved in the prepended MCPB lines, we must use it as SYS.
 			# Otherwise teLeap will pick up Au/cl/cc atom types from ${name}_charges_fix.mol2 and fail.
 			local have_mcpb_pdb="false"
-			if grep -qiE "\\b(loadPdb|loadpdb)\\b[[:space:]]+.*${name}_mcpbpy[.]pdb\\b" "$mcpb_params_ok"; then
+			if grep -qiE "load[Pp]db[[:space:]]+.*${name}_mcpbpy[.]pdb" "$mcpb_params_ok"; then
 				have_mcpb_pdb="true"
 			fi
 
@@ -1044,7 +1044,7 @@ run_tleap() {
 				# Try to reuse the unit variable from MCPB tleap lines (e.g., mol = loadpdb ...).
 				local pdb_var=""
 				pdb_var="$(
-					grep -Ei "^[[:alnum:]_]+[[:space:]]*=[[:space:]]*(loadPdb|loadpdb)[[:space:]]+.*${name}_mcpbpy[.]pdb\\b" \
+					grep -Ei "^[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Pp]db[[:space:]]+.*${name}_mcpbpy[.]pdb" \
 						"$mcpb_params_ok" | head -n1 | sed -E 's/[[:space:]]*=.*$//'
 				)"
 
@@ -1111,8 +1111,6 @@ run_tleap() {
 					"$JOB_DIR/${in_file}.in"
 			fi
 		fi
-
-
 
 		# Prepend MCPB params into tleap script
 		cat "$mcpb_params_ok" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"
