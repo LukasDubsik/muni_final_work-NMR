@@ -178,11 +178,13 @@ run_antechamber() {
 
 		# Sum ligand charges from the antechamber output (metal-stripped MOL2)
 		local lig_net
-		lig_net="$(awk 'BEGIN{in=0;sum=0}
-			/^@<TRIPOS>ATOM/{in=1;next}
-			/^@<TRIPOS>/{if(in){in=0}}
-			in && $1~/^[0-9]+$/{sum+=$NF}
-			END{printf "%.6f", sum}' "$lig_charged")"
+		lig_net="$(awk '
+			/^@<TRIPOS>ATOM/ {mode=1; next}
+			/^@<TRIPOS>/ { if (mode==1) mode=0 }
+			mode==1 && $1 ~ /^[0-9]+$/ { sum += $NF }
+			END { printf "%.6f", sum+0 }
+			' "$lig_charged")"
+
 
 		# Enforce the configured total charge by assigning the metal the residual charge
 		local metal_charge
