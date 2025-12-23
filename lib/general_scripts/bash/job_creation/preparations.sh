@@ -761,6 +761,16 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 echo "[INFO] Running MCPB.py step 2"
 MCPB.py -i "\${NAME}_mcpb.in" -s 2 --overwrite --no_preopt
 
+# Normalize the MCPB-typed PDB name (required by tleap stage)
+if [[ -f "${NAME}_mcpbpy.pdb" ]]; then
+	cp "${NAME}_mcpbpy.pdb" "${NAME}_mcpbpy.pdb"
+elif [[ -f "${NAME}.pdb" ]]; then
+	# Some MCPB variants overwrite NAME.pdb
+	cp "${NAME}.pdb" "${NAME}_mcpbpy.pdb"
+elif [[ -f "mcpbpy.pdb" ]]; then
+	cp "mcpbpy.pdb" "${NAME}_mcpbpy.pdb"
+fi
+
 # Normalize outputs to stable names expected by the rest of your pipeline
 if [[ -f "frcmod_\${NAME}" ]]; then
 	cp "frcmod_\${NAME}" "\${NAME}_mcpbpy.frcmod"
