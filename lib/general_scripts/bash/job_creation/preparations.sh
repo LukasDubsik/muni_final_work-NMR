@@ -1051,21 +1051,20 @@ run_tleap() {
 				# Replace any SYS loadMol2 of the post-processed MOL2 with the MCPB PDB unit.
 				if [[ -n "$pdb_var" ]]; then
 					sed -i -E \
-						"s#^[[:space:]]*SYS[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2\\b#SYS = ${pdb_var}#g" \
+						"s#^[[:space:]]*SYS[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\.|\\./)?${name}_charges_fix[.]mol2#SYS = ${pdb_var}#g" \
 						"$JOB_DIR/${in_file}.in"
 
-					# If the input uses a different variable name for the solute, still force SYS to the MCPB unit.
 					sed -i -E \
-						"s#^[[:space:]]*[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2\\b#SYS = ${pdb_var}#g" \
+						"s#^[[:space:]]*[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\.|\\./)?${name}_charges_fix[.]mol2#SYS = ${pdb_var}#g" \
 						"$JOB_DIR/${in_file}.in"
 				else
 					# No variable assignment in MCPB lines => safely reload and assign here.
 					sed -i -E \
-						"s#^[[:space:]]*SYS[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2\\b#SYS = loadPdb ${name}_mcpbpy.pdb#g" \
+						"s#^[[:space:]]*SYS[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\.|\\./)?${name}_charges_fix[.]mol2#SYS = loadPdb ${name}_mcpbpy.pdb#g" \
 						"$JOB_DIR/${in_file}.in"
 
 					sed -i -E \
-						"s#^[[:space:]]*[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\./)?${name}_charges_fix[.]mol2\\b#SYS = loadPdb ${name}_mcpbpy.pdb#g" \
+						"s#^[[:space:]]*[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Mm]ol2[[:space:]]+(\\.|\\./)?${name}_charges_fix[.]mol2#SYS = loadPdb ${name}_mcpbpy.pdb#g" \
 						"$JOB_DIR/${in_file}.in"
 				fi
 
