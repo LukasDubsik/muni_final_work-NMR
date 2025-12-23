@@ -242,7 +242,7 @@ mol2_to_mcpb_pdb()
 			# Metal: derive element from atom NAME (NOT atom_type; GAFF types like "cd"/"ca" are not elements)
 			elem = guess_elem(name);
 			resn = toupper(substr(elem,1,2));
-			atn  = elem;             # keep proper case (e.g., "Au")
+			atn  = toupper(elem);             # keep proper case (e.g., "Au")
 			resi_out = 2;            # IMPORTANT: separate residue number from ligand
 		} else {
 			# Ligand: force residue name to LIG for MCPB consistency
