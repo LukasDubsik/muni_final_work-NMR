@@ -141,6 +141,8 @@ run_opt_temp() {
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
+	force_first_md_start "${JOB_DIR}/${in_file}.in"
+
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
@@ -152,6 +154,8 @@ run_opt_temp() {
 		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "$in_file.in" "" "" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
+
+	wrap_pmemd_cuda_fallback "${JOB_DIR}/${job_name}.sh"
 
     #Run the antechmaber
     submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 1 "08:00:00"

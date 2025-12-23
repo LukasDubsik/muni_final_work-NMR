@@ -17,6 +17,50 @@ substitute_name_in() {
 	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
+# force_first_md_start IN_FILE
+# For the first MD/heating stage started from minimization, we must NOT
+# request velocities from the restart. Force: irest=0, ntx=1.
+force_first_md_start() {
+	local in_file="$1"
+
+	[[ -f "$in_file" ]] || die "Missing MD input file to patch: $in_file"
+
+	# Replace any existing irest/ntx settings robustly (handles whitespace and comma-separated lists)
+	sed -E -i \
+		-e 's/(^|[[:space:],])irest[[:space:]]*=[[:space:]]*[0-9]+/\1irest=0/g' \
+		-e 's/(^|[[:space:],])ntx[[:space:]]*=[[:space:]]*[0-9]+/\1ntx=1/g' \
+		"$in_file" || die "Failed to patch irest/ntx in: $in_file"
+}
+
+# wrap_pmemd_cuda_fallback SH_FILE
+# Rewrites the first pmemd.cuda invocation into a guarded form:
+#   - exports OMP_NUM_THREADS=1
+#   - retries on CPU with pmemd if pmemd.cuda fails (including segfault exit code)
+wrap_pmemd_cuda_fallback() {
+	local sh_file="$1"
+
+	[[ -f "$sh_file" ]] || die "Missing job script to patch: $sh_file"
+
+	awk '
+	BEGIN { done=0 }
+	{
+		if (!done && $0 ~ /(^|[[:space:];])pmemd\.cuda[[:space:]]/) {
+			cmd=$0
+			cpu=$0
+			sub(/pmemd\.cuda/, "pmemd", cpu)
+
+			print "export OMP_NUM_THREADS=1"
+			print cmd " || { rc=$?; echo \"[WARN] pmemd.cuda failed (rc=\" rc \") - retrying with pmemd\" 1>&2; " cpu "; }"
+			done=1
+			next
+		}
+		print
+	}
+	' "$sh_file" > "${sh_file}.tmp" || die "Failed to patch job script: $sh_file"
+
+	mv "${sh_file}.tmp" "$sh_file" || die "Failed to update job script: $sh_file"
+}
+
 # substitute_name_in FIL DST NAME LIMIT SIGMA
 # Substitute values directly into the input script for the job
 # Globals: none
