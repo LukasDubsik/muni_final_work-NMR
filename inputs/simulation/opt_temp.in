@@ -22,10 +22,6 @@
  ntpr=500,
  ntwx=10000,
  ntwr=1000,
-
- ntr=1,
- restraint_wt=2.0,
- restraintmask='@1-14 &!@H=',
  
  iwrap=1,
 
