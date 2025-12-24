@@ -89,69 +89,26 @@ run_antechamber() {
 	#Copy the data from crest
 	move_inp_file "${name}_crest.mol2" "$SRC_DIR" "$JOB_DIR"
 
-		# --- Heavy-metal handling --------------------------------------------
-	# If the original structure contains a heavy metal (e.g. Au),
-	# do NOT force "-c rc" (that just preserves zeros). Instead:
-	#  1) keep a copy of the metal-containing MOL2
-	#  2) strip the metal ONLY for the charge-generation run (sqm)
-	#  3) after antechamber finishes, overlay ligand charges back onto the complex
-	local struct_file="${INPUTS}/structures/${name}.mol2"
-	if has_heavy_metal "$struct_file"; then
-		heavy_metal="true"
-		complex_mol2="${JOB_DIR}/${name}_complex_crest.mol2"
+	# --- Metal present? antechamber is only used for GAFF2 typing/parmchk2.
+	# MCPB.py will provide final (RESP/QM) charges for the metal site.
+	if mol2_has_metal "$JOB_DIR/${name}_crest.mol2"; then
+		local mid
+		mid="$(mol2_first_metal "$JOB_DIR/${name}_crest.mol2" | awk 'NR==1{print $1}')"
 
-		# Preserve the original (metal-containing) crest MOL2 for later overlay
-		cp -f "${JOB_DIR}/${name}_crest.mol2" "$complex_mol2"
+		if [[ -n "$mid" && "$mid" != "-1" ]]; then
+			info "Metal detected (id=${mid}) – stripping metal for antechamber (GAFF2 typing only; charges will come from MCPB.py)."
 
-		# Identify the first metal atom (id + element) in the crest MOL2
-		local metal_line
-		metal_line="$(mol2_first_metal "$complex_mol2")" || true
-		read -r metal_id metal_elem _ _ _ _ <<< "$metal_line"
+			local tmp_lig="$JOB_DIR/${name}_ligand_only.mol2"
+			mol2_strip_atom "$JOB_DIR/${name}_crest.mol2" "$tmp_lig" "$mid"
 
-		if [[ -z "${metal_id:-}" ]]; then
-			warning "Heavy metal detected in $struct_file, but mol2_first_metal failed on $complex_mol2; falling back to input charges (-c rc)."
+			# Keep downstream filenames stable: overwrite the antechamber input with ligand-only MOL2
+			mv -f "$tmp_lig" "$JOB_DIR/${name}_crest.mol2"
 
-			# Fallback: original behavior (may still be zero if the input was zero)
-			local chg_file="${JOB_DIR}/${name}.crg"
-			mol2_write_charge_file "$struct_file" "$chg_file"
-
-			local base_parms
-			base_parms=$(printf '%s\n' "$antechamber_parms" | sed -E \
-				's/(^|[[:space:]])-c[[:space:]]+[[:alnum:]]+//g;
-				 s/(^|[[:space:]])-cf[[:space:]]+[^[:space:]]+//g;
-				 s/(^|[[:space:]])-dr[[:space:]]+[[:alnum:]]+//g')
-			antechamber_parms="${base_parms} -c rc -cf ${name}.crg -dr no"
-		else
-			info "Heavy metal detected (id=${metal_id}, elem=${metal_elem}); generating charges on metal-stripped ligand and re-applying them to the full complex."
-
-			# Replace the job input MOL2 with a metal-stripped version (same order minus the metal)
-			local tmp_lig="${JOB_DIR}/${name}_ligand_for_charge.mol2"
-			mol2_strip_atom "$complex_mol2" "$tmp_lig" "$metal_id"
-			mv -f "$tmp_lig" "${JOB_DIR}/${name}_crest.mol2"
-
-			# Optional heuristic (Au + explicit halides): assume halides are -1 each and Au is +N
-			# This only affects the -nc passed to antechamber; final total charge is enforced later.
-			if [[ "${metal_elem^^}" == "AU" && "$total_charge" =~ ^-?[0-9]+$ ]]; then
-				local halides
-				halides="$(awk 'BEGIN{in_atom=0;c=0}
-					/^@<TRIPOS>ATOM/{in_atom=1;next}
-					/^@<TRIPOS>/{if(in_atom){in_atom=0}}
-					in_atom && $1~/^[0-9]+$/{
-						n=$2; sub(/[^A-Za-z].*$/,"",n); u=toupper(n)
-						if(u=="CL"||u=="BR"||u=="I"||u=="F") c++
-					}
-					END{print c+0}' "$complex_mol2")"
-
-
-				if [[ "$halides" =~ ^[0-9]+$ && "$halides" -gt 0 ]]; then
-					local metal_charge_guess="$halides"
-					charge=$(( total_charge - metal_charge_guess ))
-					info "Heuristic Au charge guess: +${metal_charge_guess} (based on ${halides} halide(s)); using ligand net charge ${charge} for antechamber."
-				fi
-			fi
+			# Ensure antechamber does not attempt AM1-BCC/sqm here (typing only).
+			antechamber_parms="$(echo "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[^[:space:]]+//g; s/(^|[[:space:]])-dr[[:space:]]+[^[:space:]]+//g')"
+			antechamber_parms="${antechamber_parms} -c rc -dr no"
 		fi
 	fi
-	# ---------------------------------------------------------------------
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
@@ -171,40 +128,40 @@ run_antechamber() {
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
 
-	# If we stripped a metal for charge generation, overlay charges back onto the full complex MOL2.
-	if [[ "$heavy_metal" == "true" && -n "${complex_mol2:-}" && -s "$complex_mol2" ]]; then
-		local lig_charged="${JOB_DIR}/${name}_charges.mol2"
-		local out_complex="${JOB_DIR}/${name}_charges_complex.mol2"
-		local out_user="${JOB_DIR}/${name}_charges_complex_user.mol2"
+	# # If we stripped a metal for charge generation, overlay charges back onto the full complex MOL2.
+	# if [[ "$heavy_metal" == "true" && -n "${complex_mol2:-}" && -s "$complex_mol2" ]]; then
+	# 	local lig_charged="${JOB_DIR}/${name}_charges.mol2"
+	# 	local out_complex="${JOB_DIR}/${name}_charges_complex.mol2"
+	# 	local out_user="${JOB_DIR}/${name}_charges_complex_user.mol2"
 
-		# Sum ligand charges from the antechamber output (metal-stripped MOL2)
-		local lig_net
-		lig_net="$(awk 'BEGIN{in_atom=0;sum=0}
-			/^@<TRIPOS>ATOM/{in_atom=1;next}
-			/^@<TRIPOS>/{if(in_atom){in_atom=0}}
-			in_atom && $1~/^[0-9]+$/{sum+=$NF}
-			END{printf "%.6f", sum}' "$lig_charged")"
+	# 	# Sum ligand charges from the antechamber output (metal-stripped MOL2)
+	# 	local lig_net
+	# 	lig_net="$(awk 'BEGIN{in_atom=0;sum=0}
+	# 		/^@<TRIPOS>ATOM/{in_atom=1;next}
+	# 		/^@<TRIPOS>/{if(in_atom){in_atom=0}}
+	# 		in_atom && $1~/^[0-9]+$/{sum+=$NF}
+	# 		END{printf "%.6f", sum}' "$lig_charged")"
 
-		# Enforce the configured total charge by assigning the metal the residual charge
-		local metal_charge
-		metal_charge="$(awk -v tot="$total_charge" -v lig="$lig_net" 'BEGIN{printf "%.6f", (tot - lig)}')"
+	# 	# Enforce the configured total charge by assigning the metal the residual charge
+	# 	local metal_charge
+	# 	metal_charge="$(awk -v tot="$total_charge" -v lig="$lig_net" 'BEGIN{printf "%.6f", (tot - lig)}')"
 
-		info "Overlaying ligand charges onto full complex: ligand_net=${lig_net}; total=${total_charge}; metal_charge=${metal_charge}"
+	# 	info "Overlaying ligand charges onto full complex: ligand_net=${lig_net}; total=${total_charge}; metal_charge=${metal_charge}"
 
-		# Apply ligand charges to the full complex and set the metal charge
-		mol2_overlay_ligand_charges "$lig_charged" "$complex_mol2" "$out_complex" "$metal_charge"
+	# 	# Apply ligand charges to the full complex and set the metal charge
+	# 	mol2_overlay_ligand_charges "$lig_charged" "$complex_mol2" "$out_complex" "$metal_charge"
 
-		# Ensure USER_CHARGES header
-		mol2_force_user_charges "$out_complex" "$out_user"
+	# 	# Ensure USER_CHARGES header
+	# 	mol2_force_user_charges "$out_complex" "$out_user"
 
-		# Keep the ligand-only charged MOL2 for debugging, and replace final output with the full complex
-		mv -f "$lig_charged" "${JOB_DIR}/${name}_ligand_charges.mol2"
-		mv -f "$out_user" "${JOB_DIR}/${name}_charges.mol2"
-		rm -f "$out_complex" || true
+	# 	# Keep the ligand-only charged MOL2 for debugging, and replace final output with the full complex
+	# 	mv -f "$lig_charged" "${JOB_DIR}/${name}_ligand_charges.mol2"
+	# 	mv -f "$out_user" "${JOB_DIR}/${name}_charges.mol2"
+	# 	rm -f "$out_complex" || true
 
-		# Re-check final output after overlay
-		check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
-	fi
+	# 	# Re-check final output after overlay
+	# 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
+	# fi
 
 	success "$job_name has finished correctly"
 
@@ -1007,6 +964,11 @@ run_tleap() {
 
 		# Resolve/validate referenced files; never keep a loadPdb unless templates are present
 		local missing_templates="false"
+		local have_mcpb_lib="false"
+		if [[ -f "$MCPB_DIR/${name}.lib" || -f "$MCPB_DIR/${name}_mcpbpy.lib" || -f "$MCPB_DIR/${name}.off" || -f "$MCPB_DIR/${name}_mcpbpy.off" ]]; then
+			have_mcpb_lib="true"
+		fi
+
 		: > "$mcpb_params_ok"
 
 		while IFS= read -r line; do
@@ -1029,6 +991,13 @@ run_tleap() {
 
 			local base="${file##*/}"
 			base="${base#./}"
+
+			# If we have a MCPB library/off file, do NOT load AU*/LG* MOL2 templates:
+			# they may carry placeholder charges and can override RESP charges from the lib.
+			if [[ "$have_mcpb_lib" == "true" && "$cmd" =~ ^(loadMol2|loadmol2)$ && "$base" =~ ^(AU[0-9]+|LG[0-9]+)[.]mol2$ ]]; then
+				info "Skipping MCPB MOL2 template (RESP charges will come from lib/off): $base"
+				continue
+			fi
 
 			# If a referenced MOL2 exists but is malformed, remove it so we regenerate it.
 			if [[ -f "$JOB_DIR/$base" && "$base" == *.mol2 ]]; then
@@ -1121,6 +1090,12 @@ run_tleap() {
 
 			# If still missing:
 			if [[ ! -f "$JOB_DIR/$base" ]]; then
+				# If RESP lib/off is present, missing AU*/LG* MOL2 templates are not fatal.
+				if [[ "$have_mcpb_lib" == "true" && "$cmd" =~ ^(loadMol2|loadmol2)$ && "$base" =~ ^(AU[0-9]+|LG[0-9]+)[.]mol2$ ]]; then
+					info "Ignoring missing MCPB MOL2 template (RESP lib/off will define residues): $base"
+					continue
+				fi
+
 				# Missing template => cannot safely load MCPB PDB
 				if [[ "$cmd" =~ ^(loadMol2|loadmol2)$ ]]; then
 					missing_templates="true"
@@ -1151,6 +1126,23 @@ run_tleap() {
 
 			if [[ "$missing_templates" == "false" && "$have_mcpb_pdb" == "true" ]]; then
 				info "Detected MCPB output – using MCPB PDB as the solute (do not load ${name}_charges_fix.mol2 as SYS)"
+
+				# Ensure RESP library is loaded before the MCPB PDB.
+				local lib_base=""
+				if [[ -f "$JOB_DIR/${name}_mcpbpy.lib" ]]; then
+					lib_base="${name}_mcpbpy.lib"
+				elif [[ -f "$JOB_DIR/${name}.lib" ]]; then
+					lib_base="${name}.lib"
+				fi
+
+				if [[ -n "$lib_base" ]]; then
+					if ! grep -qiE "^[[:space:]]*loadoff[[:space:]]+${lib_base}\\b" "$mcpb_params_ok"; then
+						# Insert loadoff immediately before the MCPB PDB load (order matters).
+						sed -i -E "/load[Pp]db[[:space:]]+.*${name}_mcpbpy[.]pdb/i\\loadoff ${lib_base}" "$mcpb_params_ok"
+					fi
+				else
+					warning "MCPB PDB detected but no MCPB lib/off found; charges may not be RESP/QM-derived."
+				fi
 
 				# Try to reuse the unit variable from MCPB tleap lines (e.g., mol = loadpdb ...).
 				local pdb_var=""
