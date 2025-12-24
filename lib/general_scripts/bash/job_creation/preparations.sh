@@ -824,6 +824,11 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 echo "[INFO] Running MCPB.py step 2"
 MCPB.py -i "\${NAME}_mcpb.in" -s 2
 
+if [[ "\$STEP" -ge 3 ]]; then
+	echo "[INFO] Running MCPB.py step 3 (charge fitting / charge modification)"
+	MCPB.py -i "\${NAME}_mcpb.in" -s 3
+fi
+
 # Normalize the MCPB-typed PDB name (required by tleap stage)
 if [[ -f "\${NAME}_mcpbpy.pdb" ]]; then
 	cp "\${NAME}_mcpbpy.pdb" "\${NAME}_mcpbpy.pdb"
@@ -838,8 +843,16 @@ fi
 if [[ -f "frcmod_\${NAME}" ]]; then
 	cp "frcmod_\${NAME}" "\${NAME}_mcpbpy.frcmod"
 fi
+# Normalize library output (if MCPB produced one)
 if [[ -f "\${NAME}.lib" ]]; then
 	cp "\${NAME}.lib" "\${NAME}_mcpbpy.lib"
+elif [[ -f "mcpbpy.lib" ]]; then
+	cp "mcpbpy.lib" "\${NAME}_mcpbpy.lib"
+else
+	lib_any="\$(ls -1 *.lib 2>/dev/null | head -n 1 || true)"
+	if [[ -n "\$lib_any" ]]; then
+		cp "\$lib_any" "\${NAME}_mcpbpy.lib"
+	fi
 fi
 
 if [[ "\$STEP" -ge 4 ]]; then
@@ -865,7 +878,14 @@ EOF
 			submit_job "$meta" "$STAGE3_JOB" "$STAGE3_DIR" 32 8 0 "02:00:00"
 
 			check_res_file "${name}_mcpbpy.frcmod" "$STAGE3_DIR" "$STAGE3_JOB"
-			check_res_file "${name}_mcpbpy.lib"   "$STAGE3_DIR" "$STAGE3_JOB"
+
+			# MCPB does NOT always produce a .lib (especially if you are not doing charge fitting via step 3).
+			# Charges can also come from MOL2; do not hard-fail here.
+			if [[ -f "${STAGE3_DIR}/${name}_mcpbpy.lib" ]]; then
+				success "MCPB library found: ${STAGE3_DIR}/${name}_mcpbpy.lib"
+			else
+				warning "MCPB library missing (${name}_mcpbpy.lib). Continuing: tleap will rely on MOL2 charges instead."
+			fi
 
 			if [[ $mcpb_step -ge 4 ]]; then
 				check_res_file "${name}_tleap.in" "$STAGE3_DIR" "$STAGE3_JOB"
