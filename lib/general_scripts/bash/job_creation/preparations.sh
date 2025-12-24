@@ -134,7 +134,7 @@ run_antechamber() {
 	# (1) GAFF-typed ligand from antechamber and (2) metal+bonds from the original MOL2.
 	if [[ "$mcpb_needs_full" == "true" ]]; then
 		mol2_build_full_with_first_metal "$crest_full" "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}_charges_full.mol2"
-		check_res_file "$JOB_DIR/${name}_charges_full.mol2"
+		check_res_file "${name}_charges_full.mol2" "$JOB_DIR" "$job_name"
 	fi
 
 	if [[ "$heavy_metal" == "true" ]]; then
