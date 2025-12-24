@@ -178,9 +178,7 @@ main() {
 
 		run_mcpb "$name" "$directory" "$meta" "$amber_mod" "$mcpb_cmd" \
 			"$mcpb_in_mol2" \
-			"process/preparations/parmchk2/${name}.frcmod"
-
-
+			"process/preparations/parmchk2/${name}.frcmod" "$charge"
 
 		#Perform the nemesis fix
 		if [[ 4 -gt $LOG_POSITION ]]; then
