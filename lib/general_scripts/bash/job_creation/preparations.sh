@@ -125,7 +125,7 @@ run_antechamber() {
 	fi
 
 	#Run the antechamber
-	submit_job "$meta" "$job_name" "$JOB_DIR" 16 32 0 "8:00:00"
+	submit_job "$meta" "$job_name" "$JOB_DIR" 32 16 0 "8:00:00"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
