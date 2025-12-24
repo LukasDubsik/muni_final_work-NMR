@@ -754,3 +754,139 @@ mol2_quick_validate_for_tleap()
 	' "$mol2"
 }
 
+# mol2_build_full_with_first_metal FULL_MOL2 LIG_TYPED_MOL2 OUT_MOL2
+# Builds a metal-containing MOL2 for MCPB.py by appending the first metal atom
+# (and its metal-ligand bonds) from FULL_MOL2 onto the GAFF-typed ligand MOL2.
+# The metal is appended as the last atom; atom/bond counts are updated.
+# Assumes FULL_MOL2 differs from the ligand by removal of a single metal atom.
+mol2_build_full_with_first_metal() {
+	local full="$1"
+	local lig="$2"
+	local out="$3"
+
+	[[ -f "$full" ]] || die "Missing FULL_MOL2: $full"
+	[[ -f "$lig" ]] || die "Missing LIG_TYPED_MOL2: $lig"
+
+	local mid
+	mid="$(mol2_first_metal "$full" | awk 'NR==1{print $1}')"
+	[[ -n "$mid" && "$mid" != "-1" ]] || die "No metal detected in FULL_MOL2: $full"
+
+	local tmp="${out}.tmp"
+
+	awk -v full="$full" -v mid="$mid" '
+		function isnum(s){ return (s ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+
+		BEGIN{
+			in_atom=0; in_bond=0; metal_line=""; nmb=0
+
+			# Read FULL_MOL2 to capture the metal atom record and all metal-ligand bonds
+			while ((getline line < full) > 0) {
+				if (line ~ /^@<TRIPOS>ATOM/) { in_atom=1; in_bond=0; continue }
+				if (line ~ /^@<TRIPOS>BOND/) { in_atom=0; in_bond=1; continue }
+				if (line ~ /^@<TRIPOS>/)      { in_atom=0; in_bond=0; continue }
+
+				if (in_atom && line ~ /^[ \t]*[0-9]+[ \t]/) {
+					n=split(line, f, /[ \t]+/)
+					if (f[1]==mid) {
+						metal_line=line
+					}
+				}
+
+				if (in_bond && line ~ /^[ \t]*[0-9]+[ \t]/) {
+					n=split(line, b, /[ \t]+/)
+					a1=b[2]; a2=b[3]; bt=(n>=4 ? b[4] : "1")
+					if (a1==mid || a2==mid) {
+						other=(a1==mid ? a2 : a1)
+						mb_other[++nmb]=other
+						mb_type[nmb]=bt
+					}
+				}
+			}
+			close(full)
+
+			if (metal_line=="") {
+				# If we cannot locate the metal ATOM line, we cannot build a consistent output
+				exit 2
+			}
+
+			sect=""
+			mol_line=0
+			nat_lig=0; nb_lig=0
+		}
+
+		/^@<TRIPOS>MOLECULE/ { sect="MOL"; mol_line=0; print; next }
+
+		/^@<TRIPOS>ATOM/ { sect="ATOM"; print; next }
+
+		/^@<TRIPOS>BOND/ {
+			# Append metal atom right before BOND starts
+			if (sect=="ATOM") {
+				new_mid=nat_lig+1
+				n=split(metal_line, mf, /[ \t]+/)
+
+				# Keep name/type/coords from FULL_MOL2, but force a fresh atom id (append at end)
+				x=(n>=5 && isnum(mf[3]) ? mf[3] : 0.0)
+				y=(n>=5 && isnum(mf[4]) ? mf[4] : 0.0)
+				z=(n>=5 && isnum(mf[5]) ? mf[5] : 0.0)
+				t=(n>=6 ? mf[6] : mf[2])
+				sid=(n>=7 && mf[7] ~ /^[0-9]+$/ ? mf[7] : 1)
+				subst=(n>=8 ? mf[8] : "LIG")
+				q=(isnum(mf[n]) ? mf[n] : 0.0)
+
+				printf(" %d %s %.4f %.4f %.4f %s %d %s %.6f\n", new_mid, mf[2], x, y, z, t, sid, subst, q)
+			}
+
+			sect="BOND"
+			print
+			next
+		}
+
+		/^@<TRIPOS>SUBSTRUCTURE/ {
+			# Append metal bonds right before SUBSTRUCTURE starts
+			if (sect=="BOND") {
+				new_mid=nat_lig+1
+				for (i=1; i<=nmb; i++) {
+					other=mb_other[i]
+					# Map old ligand ids to ligand-only ids: remove one index if it was after the removed metal
+					other_new=(other > mid ? other-1 : other)
+					printf(" %d %d %d %s\n", nb_lig+i, new_mid, other_new, mb_type[i])
+				}
+			}
+			sect="SUB"
+			print
+			next
+		}
+
+		sect=="MOL" {
+			mol_line++
+			# line 1 after MOLECULE is name; line 2 is counts
+			if (mol_line==2) {
+				nat_lig=$1
+				nb_lig=$2
+				nat_total=nat_lig+1
+				nb_total=nb_lig+nmb
+				printf("%d %d %d %d %d\n", nat_total, nb_total, ($3?$3:1), ($4?$4:0), ($5?$5:0))
+				next
+			}
+			print
+			next
+		}
+
+		{ print }
+
+		END{
+			# If the file ends inside BOND section (no SUBSTRUCTURE), still append metal bonds
+			if (sect=="BOND") {
+				new_mid=nat_lig+1
+				for (i=1; i<=nmb; i++) {
+					other=mb_other[i]
+					other_new=(other > mid ? other-1 : other)
+					printf(" %d %d %d %s\n", nb_lig+i, new_mid, other_new, mb_type[i])
+				}
+			}
+		}
+	' "$lig" > "$tmp" || die "Failed to build full MOL2: $out"
+
+	mv "$tmp" "$out" || die "Failed to write: $out"
+	[[ -s "$out" ]] || die "Failed to build full MOL2 (empty): $out"
+}

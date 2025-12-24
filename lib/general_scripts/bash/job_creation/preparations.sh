@@ -89,45 +89,38 @@ run_antechamber() {
 	#Copy the data from crest
 	move_inp_file "${name}_crest.mol2" "$SRC_DIR" "$JOB_DIR"
 	
+	local mcpb_needs_full="false"
+	local crest_full=""
+	local metal_mid=""
 
-	# --- Metal present? antechamber is only used for GAFF2 typing/parmchk2.
-	# MCPB.py will provide final (RESP/QM) charges for the metal site.
 	if mol2_has_metal "$JOB_DIR/${name}_crest.mol2"; then
-		local mid
-		mid="$(mol2_first_metal "$JOB_DIR/${name}_crest.mol2" | awk 'NR==1{print $1}')"
+		mcpb_needs_full="true"
+		metal_mid="$(mol2_first_metal "$JOB_DIR/${name}_crest.mol2" | awk 'NR==1{print $1}')"
+		info "Metal detected (id=${metal_mid}) – stripping metal for antechamber (GAFF2 typing only; charges will come from MCPB.py)."
 
-		if [[ -n "$mid" && "$mid" != "-1" ]]; then
-			info "Metal detected (id=${mid}) – stripping metal for antechamber (GAFF2 typing only; charges will come from MCPB.py)."
+		# Preserve the original (metal-containing) MOL2 so we can reattach the metal+bonds after typing
+		crest_full="$JOB_DIR/${name}_crest_full.mol2"
+		cp -f "$JOB_DIR/${name}_crest.mol2" "$crest_full" || die "Failed to preserve full MOL2 for MCPB: $crest_full"
 
-			heavy_metal="true"
-			complex_mol2="$JOB_DIR/${name}_charges_full.mol2"
-			cp -f "$JOB_DIR/${name}_crest.mol2" "$complex_mol2" || die "Failed to preserve full complex MOL2 for MCPB.py: $JOB_DIR/${name}_crest.mol2"
+		# Feed antechamber a metal-free ligand MOL2 (GAFF2 typing only)
+		local tmp_lig="$JOB_DIR/${name}_crest_ligand_only.mol2"
+		mol2_strip_atom "$crest_full" "$tmp_lig" "$metal_mid"
+		mv -f "$tmp_lig" "$JOB_DIR/${name}_crest.mol2" || die "Failed to replace antechamber input with metal-stripped ligand MOL2"
 
-			# After stripping the metal, the original net charge no longer applies.
-			# We are not computing charges in antechamber for metal systems (MCPB.py will), so keep it neutral here.
-			charge="0"
-
-			local tmp_lig="$JOB_DIR/${name}_ligand_only.mol2"
-			mol2_strip_atom "$JOB_DIR/${name}_crest.mol2" "$tmp_lig" "$mid"
-
-			# Keep downstream filenames stable: overwrite the antechamber input with ligand-only MOL2
-			mv -f "$tmp_lig" "$JOB_DIR/${name}_crest.mol2"
-
-			# Ensure antechamber does not attempt AM1-BCC/sqm here (typing only).
-			antechamber_parms="$(echo "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[^[:space:]]+//g; s/(^|[[:space:]])-dr[[:space:]]+[^[:space:]]+//g')"
-			antechamber_parms="${antechamber_parms} -c rc -dr no"
-		fi
+		# Ensure antechamber does NOT compute charges for metal systems (MCPB.py will do that)
+		antechamber_parms="$(echo "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[^[:space:]]+//g; s/(^|[[:space:]])-dr[[:space:]]+[^[:space:]]+//g')"
+		antechamber_parms="${antechamber_parms} -c dc -dr no"
 	fi
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$antechamber_parms" "$charge"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "${name}_crest.mol2" "" "$antechamber_parms" "$charge"
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$antechamber_parms" "$charge"
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "${name}_crest.mol2" "" "$antechamber_parms" "$charge"
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
@@ -136,6 +129,13 @@ run_antechamber() {
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
+
+	# For metal systems: rebuild a metal-containing MOL2 for MCPB.py using
+	# (1) GAFF-typed ligand from antechamber and (2) metal+bonds from the original MOL2.
+	if [[ "$mcpb_needs_full" == "true" ]]; then
+		mol2_build_full_with_first_metal "$crest_full" "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}_charges_full.mol2"
+		check_res_file "$JOB_DIR/${name}_charges_full.mol2"
+	fi
 
 	if [[ "$heavy_metal" == "true" ]]; then
 		check_res_file "${name}_charges_full.mol2" "$JOB_DIR" "$job_name"
@@ -208,16 +208,9 @@ run_parmchk2() {
 	#Copy the data from antechamber
 	move_inp_file "${name}_charges.mol2" "$SRC_DIR" "$JOB_DIR"
 
-	# parmchk2 is for the organic part; heavy metals frequently break/poison the frcmod generation.
-	# If a metal is present, run parmchk2 on a ligand-only MOL2, but keep the full MOL2 for MCPB.
-	# parmchk2 is for the organic part; heavy metals frequently break/poison the frcmod generation.
-	# If a metal is present, run parmchk2 on a ligand-only MOL2, but keep the full MOL2 for MCPB.
-	local full_mol2="$JOB_DIR/${name}_charges.mol2"
-	local mcpb_mol2="$JOB_DIR/${name}_charges_full.mol2"
-
-	# If antechamber preserved a full-complex MOL2 (metal + ligand), copy it over for MCPB.py.
+	# If antechamber built a full (metal-containing) MOL2 for MCPB.py, carry it forward.
 	if [[ -f "$SRC_DIR/${name}_charges_full.mol2" ]]; then
-		cp -f "$SRC_DIR/${name}_charges_full.mol2" "$mcpb_mol2"
+		move_inp_file "${name}_charges_full.mol2" "$SRC_DIR" "$JOB_DIR"
 	fi
 
 	# If the MOL2 we will feed into parmchk2 still contains a metal, strip it now.
@@ -244,11 +237,11 @@ run_parmchk2() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$parmchk2_params" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "${name}_charges.mol2" "" "$parmchk2_params" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$parmchk2_params" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "${name}_charges.mol2" "" "$parmchk2_params" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
