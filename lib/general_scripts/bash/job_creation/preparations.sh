@@ -88,28 +88,7 @@ run_antechamber() {
 
 	#Copy the data from crest
 	move_inp_file "${name}_crest.mol2" "$SRC_DIR" "$JOB_DIR"
-
-	# ------------------------------------------------------------
-	# If a metal is present, do NOT run antechamber.
-	# MCPB.py will generate the final RESP/QM charges (incl. metal site).
-	# We still create a ${name}_charges.mol2 placeholder for downstream steps.
-	# ------------------------------------------------------------
-	if mol2_has_metal "$JOB_DIR/${name}_crest.mol2"; then
-		info "Metal detected in ${name}_crest.mol2 – skipping antechamber. Charges will be generated later by MCPB.py."
-
-		# Downstream expects ${name}_charges.mol2 to exist (parmchk2/nemesis_fix inputs).
-		cp -f "$JOB_DIR/${name}_crest.mol2" "$JOB_DIR/${name}_charges.mol2"
-
-		# Ensure USER_CHARGES header (write to a temp file to avoid truncation).
-		local tmp_user="$JOB_DIR/${name}_charges.user.mol2"
-		mol2_force_user_charges "$JOB_DIR/${name}_charges.mol2" "$tmp_user"
-		mv -f "$tmp_user" "$JOB_DIR/${name}_charges.mol2"
-
-		check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
-		success "$job_name skipped (metal present)"
-		add_to_log "$job_name" "$LOG"
-		return 0
-	fi
+	
 
 	# --- Metal present? antechamber is only used for GAFF2 typing/parmchk2.
 	# MCPB.py will provide final (RESP/QM) charges for the metal site.
@@ -119,6 +98,14 @@ run_antechamber() {
 
 		if [[ -n "$mid" && "$mid" != "-1" ]]; then
 			info "Metal detected (id=${mid}) – stripping metal for antechamber (GAFF2 typing only; charges will come from MCPB.py)."
+
+			heavy_metal="true"
+			complex_mol2="$JOB_DIR/${name}_charges_full.mol2"
+			cp -f "$JOB_DIR/${name}_crest.mol2" "$complex_mol2" || die "Failed to preserve full complex MOL2 for MCPB.py: $JOB_DIR/${name}_crest.mol2"
+
+			# After stripping the metal, the original net charge no longer applies.
+			# We are not computing charges in antechamber for metal systems (MCPB.py will), so keep it neutral here.
+			charge="0"
 
 			local tmp_lig="$JOB_DIR/${name}_ligand_only.mol2"
 			mol2_strip_atom "$JOB_DIR/${name}_crest.mol2" "$tmp_lig" "$mid"
@@ -149,6 +136,10 @@ run_antechamber() {
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
+
+	if [[ "$heavy_metal" == "true" ]]; then
+		check_res_file "${name}_charges_full.mol2" "$JOB_DIR" "$job_name"
+	fi
 
 	# # If we stripped a metal for charge generation, overlay charges back onto the full complex MOL2.
 	# if [[ "$heavy_metal" == "true" && -n "${complex_mol2:-}" && -s "$complex_mol2" ]]; then
@@ -219,27 +210,33 @@ run_parmchk2() {
 
 	# parmchk2 is for the organic part; heavy metals frequently break/poison the frcmod generation.
 	# If a metal is present, run parmchk2 on a ligand-only MOL2, but keep the full MOL2 for MCPB.
+	# parmchk2 is for the organic part; heavy metals frequently break/poison the frcmod generation.
+	# If a metal is present, run parmchk2 on a ligand-only MOL2, but keep the full MOL2 for MCPB.
 	local full_mol2="$JOB_DIR/${name}_charges.mol2"
-	local mcpb_mol2="$full_mol2"
-
-		# Strip the metal for the parmchk2 run (keep a full copy for MCPB)
 	local mcpb_mol2="$JOB_DIR/${name}_charges_full.mol2"
-	local mcpb_input_mol2="$full_mol2"
 
+	# If antechamber preserved a full-complex MOL2 (metal + ligand), copy it over for MCPB.py.
+	if [[ -f "$SRC_DIR/${name}_charges_full.mol2" ]]; then
+		cp -f "$SRC_DIR/${name}_charges_full.mol2" "$mcpb_mol2"
+	fi
+
+	# If the MOL2 we will feed into parmchk2 still contains a metal, strip it now.
 	if mol2_has_metal "$full_mol2"; then
-		cp "$full_mol2" "$mcpb_mol2"
+		# Ensure MCPB sees a full MOL2 even if antechamber did not preserve one
+		if [[ ! -f "$mcpb_mol2" ]]; then
+			cp -f "$full_mol2" "$mcpb_mol2"
+		fi
 
 		local metal_id
-		metal_id="$(mol2_has_metal "$mcpb_mol2")"
+		metal_id="$(mol2_first_metal "$mcpb_mol2" | awk 'NR==1{print $1}')"
 
-		if [[ "$metal_id" == "false" ]]; then
+		if [[ -z "$metal_id" || "$metal_id" == "-1" ]]; then
 			warning "Metal expected but could not be identified in MOL2; skipping strip. (This may break parmchk2.)"
 		else
-			info "Metal detected in MOL2 (atom_id=$metal_id). Stripping it for parmchk2 (MCPB will use the full MOL2)."
-			mol2_strip_atom "$mcpb_mol2" "$full_mol2" "$metal_id"
-
-			# MCPB must see the full (unstripped) MOL2
-			mcpb_input_mol2="$mcpb_mol2"
+			info "Metal detected in MOL2 (atom_id=$metal_id). Stripping it for parmchk2 (MCPB will use ${name}_charges_full.mol2)."
+			local tmp_strip="$JOB_DIR/${name}_charges_ligand_only.mol2"
+			mol2_strip_atom "$mcpb_mol2" "$tmp_strip" "$metal_id"
+			mv -f "$tmp_strip" "$full_mol2"
 		fi
 	fi
 
@@ -411,7 +408,14 @@ run_mcpb() {
 		mol2_to_mcpb_pdb "$src_mol2" "$STAGE1_DIR/${name}_mcpb.pdb" "$metal_id"
 	fi
 	if [[ ! -s "$STAGE1_DIR/LIG.mol2" ]]; then
-		mol2_strip_atom "$src_mol2" "$STAGE1_DIR/LIG.mol2" "$metal_id"
+		local lig_mol2_src
+		lig_mol2_src="$(dirname "$lig_frcmod")/${name}_charges.mol2"
+
+		if [[ -s "$lig_mol2_src" ]]; then
+			cp -f "$lig_mol2_src" "$STAGE1_DIR/LIG.mol2" || die "Failed to copy ligand MOL2 for MCPB.py: $lig_mol2_src"
+		else
+			mol2_strip_atom "$src_mol2" "$STAGE1_DIR/LIG.mol2" "$metal_id"
+		fi
 	fi
 	if [[ ! -s "$STAGE1_DIR/${metal_elem}.mol2" ]]; then
 		write_single_ion_mol2 "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
@@ -865,7 +869,7 @@ EOF
 			submit_job "$meta" "$STAGE3_JOB" "$STAGE3_DIR" 32 8 0 "02:00:00"
 
 			check_res_file "${name}_mcpbpy.frcmod" "$STAGE3_DIR" "$STAGE3_JOB"
-			#check_res_file "${name}_mcpbpy.lib"   "$STAGE3_DIR" "$STAGE3_JOB"
+			check_res_file "${name}_mcpbpy.lib"   "$STAGE3_DIR" "$STAGE3_JOB"
 
 			if [[ $mcpb_step -ge 4 ]]; then
 				check_res_file "${name}_tleap.in" "$STAGE3_DIR" "$STAGE3_JOB"
