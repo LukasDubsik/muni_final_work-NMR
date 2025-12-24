@@ -786,6 +786,7 @@ mol2_build_full_with_first_metal() {
 				if (line ~ /^@<TRIPOS>/)      { in_atom=0; in_bond=0; continue }
 
 				if (in_atom && line ~ /^[ \t]*[0-9]+[ \t]/) {
+					sub(/^[ \t]+/, "", line)
 					n=split(line, f, /[ \t]+/)
 					if (f[1]==mid) {
 						metal_line=line
@@ -793,6 +794,7 @@ mol2_build_full_with_first_metal() {
 				}
 
 				if (in_bond && line ~ /^[ \t]*[0-9]+[ \t]/) {
+					sub(/^[ \t]+/, "", line)
 					n=split(line, b, /[ \t]+/)
 					a1=b[2]; a2=b[3]; bt=(n>=4 ? b[4] : "1")
 					if (a1==mid || a2==mid) {

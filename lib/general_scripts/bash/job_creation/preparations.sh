@@ -109,7 +109,7 @@ run_antechamber() {
 
 		# Ensure antechamber does NOT compute charges for metal systems (MCPB.py will do that)
 		antechamber_parms="$(echo "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[^[:space:]]+//g; s/(^|[[:space:]])-dr[[:space:]]+[^[:space:]]+//g')"
-		antechamber_parms="${antechamber_parms} -c dc -dr no"
+		antechamber_parms="${antechamber_parms} -c rc -dr no"
 	fi
 
 	#Constrcut the job file
@@ -212,6 +212,9 @@ run_parmchk2() {
 	if [[ -f "$SRC_DIR/${name}_charges_full.mol2" ]]; then
 		move_inp_file "${name}_charges_full.mol2" "$SRC_DIR" "$JOB_DIR"
 	fi
+
+	local full_mol2="$JOB_DIR/${name}_charges.mol2"
+	local mcpb_mol2="$JOB_DIR/${name}_charges_full.mol2"
 
 	# If the MOL2 we will feed into parmchk2 still contains a metal, strip it now.
 	if mol2_has_metal "$full_mol2"; then
