@@ -89,6 +89,28 @@ run_antechamber() {
 	#Copy the data from crest
 	move_inp_file "${name}_crest.mol2" "$SRC_DIR" "$JOB_DIR"
 
+	# ------------------------------------------------------------
+	# If a metal is present, do NOT run antechamber.
+	# MCPB.py will generate the final RESP/QM charges (incl. metal site).
+	# We still create a ${name}_charges.mol2 placeholder for downstream steps.
+	# ------------------------------------------------------------
+	if mol2_has_metal "$JOB_DIR/${name}_crest.mol2"; then
+		info "Metal detected in ${name}_crest.mol2 – skipping antechamber. Charges will be generated later by MCPB.py."
+
+		# Downstream expects ${name}_charges.mol2 to exist (parmchk2/nemesis_fix inputs).
+		cp -f "$JOB_DIR/${name}_crest.mol2" "$JOB_DIR/${name}_charges.mol2"
+
+		# Ensure USER_CHARGES header (write to a temp file to avoid truncation).
+		local tmp_user="$JOB_DIR/${name}_charges.user.mol2"
+		mol2_force_user_charges "$JOB_DIR/${name}_charges.mol2" "$tmp_user"
+		mv -f "$tmp_user" "$JOB_DIR/${name}_charges.mol2"
+
+		check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
+		success "$job_name skipped (metal present)"
+		add_to_log "$job_name" "$LOG"
+		return 0
+	fi
+
 	# --- Metal present? antechamber is only used for GAFF2 typing/parmchk2.
 	# MCPB.py will provide final (RESP/QM) charges for the metal site.
 	if mol2_has_metal "$JOB_DIR/${name}_crest.mol2"; then
