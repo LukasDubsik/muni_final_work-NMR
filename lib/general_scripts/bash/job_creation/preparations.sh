@@ -109,7 +109,7 @@ run_antechamber() {
 
 		# Ensure antechamber does NOT compute charges for metal systems (MCPB.py will do that)
 		antechamber_parms="$(echo "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[^[:space:]]+//g; s/(^|[[:space:]])-dr[[:space:]]+[^[:space:]]+//g')"
-		antechamber_parms="${antechamber_parms} -c rc -dr no"
+		antechamber_parms="${antechamber_parms} -c dc -dr no"
 	fi
 
 	#Constrcut the job file
@@ -240,11 +240,11 @@ run_parmchk2() {
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "${name}_charges.mol2" "" "$parmchk2_params" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$parmchk2_params" ""
 		construct_sh_meta "$JOB_DIR" "$job_name"
 	else
 		substitute_name_sh_wolf_start "$JOB_DIR"
-		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "${name}_charges.mol2" "" "$parmchk2_params" ""
+		substitute_name_sh "$job_name" "$JOB_DIR" "$amber" "$name" "" "" "$parmchk2_params" ""
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
