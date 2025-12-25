@@ -107,11 +107,9 @@ run_antechamber() {
 		mol2_strip_atom "$crest_full" "$tmp_lig" "$metal_mid"
 		mv -f "$tmp_lig" "$JOB_DIR/${name}_crest.mol2" || die "Failed to replace antechamber input with metal-stripped ligand MOL2"
 
-		# Ensure antechamber does NOT compute charges for metal systems (MCPB.py will do that).
-		# We must prevent AM1-BCC from running sqm. Use -c rc (read charges from input MOL2; your crest MOL2 has 0.0 charges).
-		antechamber_parms="$(echo "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[^[:space:]]+//g')"
-		antechamber_parms="${antechamber_parms} -c rc"
-
+		# Ensure antechamber does NOT compute charges for metal systems (MCPB.py will do that)
+		antechamber_parms="$(echo "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[^[:space:]]+//g; s/(^|[[:space:]])-dr[[:space:]]+[^[:space:]]+//g')"
+		antechamber_parms="${antechamber_parms} -c dc -dr no"
 	fi
 
 	#Constrcut the job file
