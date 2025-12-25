@@ -114,7 +114,10 @@ load_cfg() {
 	#Get the overall charge of the system
 	charge=$(get_cfg 'charge')
 
-	info "Config loaded: name=$name, save_as=$save_as, checking modules=$c_modules, number of frames=$num_frames, input_type=$input_type, gpu=$gpu, cpptraj_mode=$cpptraj_mode meta=$meta, sigma=$sigma, md iterations=$md_iterations, charge=$charge, params=$params"
+	# Optional: formal charge / oxidation state of the metal ion (e.g., Au(I)=1, Au(III)=3)
+	metal_charge=$(get_cfg_opt 'metal_charge')
+
+	info "Config loaded: name=$name, save_as=$save_as, checking modules=$c_modules, number of frames=$num_frames, input_type=$input_type, gpu=$gpu, cpptraj_mode=$cpptraj_mode meta=$meta, sigma=$sigma, md iterations=$md_iterations, charge=$charge, params=$params, metal charge=$metal_charge"
 
 	#By default amber extension is empty
 	amber_ext=""

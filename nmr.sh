@@ -72,6 +72,7 @@ name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
 num_frames="" cpptraj_mode="" sigma="" charge="" filter="" params="" mcpb_cmd=""
+metal_charge=""
 
 LOG="log.txt"
 
@@ -178,7 +179,8 @@ main() {
 
 		run_mcpb "$name" "$directory" "$meta" "$amber_mod" "$mcpb_cmd" \
 			"$mcpb_in_mol2" \
-			"process/preparations/parmchk2/${name}.frcmod" "$charge"
+			"process/preparations/parmchk2/${name}.frcmod" "$charge" \
+			"$metal_charge"
 
 		#Perform the nemesis fix
 		if [[ 4 -gt $LOG_POSITION ]]; then

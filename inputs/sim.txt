@@ -46,6 +46,9 @@ directory:=/storage/brno2/home/lukasdubsik/muni/final_work/novel
 #The Amber version we are using (metacentrum has may and not all are available to all)
 amber:=/22.1.3-gcc-10.2.1-man1
 
+# Oxidation of the metal atom
+metal_charge:=1
+
 ##Names for the expected *.in files for individual optimizations
 tleap:=tleap_spec
 opt_water:=opt_water

@@ -174,17 +174,23 @@ mol2_first_metal()
 
 			u_name = toupper(sym_name)
 
+			# Also consider the substructure/residue name (field 8 in standard MOL2):
+			# this avoids missing metals when atom names are mangled.
+			subst_name = $8
+			sym_sub = subst_name
+			sub(/[^A-Za-z].*$/, "", sym_sub)
+			u_sub = toupper(sym_sub)
+
 			# Validate numeric charge; default to 0.0 if missing/weird
 			if (charge !~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) {
 				charge = "0.0"
 			}
 
 			# Extend this list if needed
-			if (u_name ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/) {
+			if (u_name ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/ || u_sub ~ /^(AU|AG|HG|ZN|FE|CU|NI|CO|MN|MG|CA|CD|PT|PD|IR|RU|RH|OS|PB|SN)$/) {
 				print atom_id, sym_name, charge, x, y, z
 				exit 0
 			}
-
 		}
 	' "$mol2"
 }
@@ -891,4 +897,81 @@ mol2_build_full_with_first_metal() {
 
 	mv "$tmp" "$out" || die "Failed to write: $out"
 	[[ -s "$out" ]] || die "Failed to build full MOL2 (empty): $out"
+}
+
+
+# mol2_rebalance_total_charge_inplace MOL2FILE TARGET_TOTAL
+# Shifts all per-atom charges by a constant so that sum(charges) == TARGET_TOTAL.
+# This is used to ensure MCPB.py sees consistent total charge when ligand charges are placeholders.
+mol2_rebalance_total_charge_inplace() {
+	local mol2="$1"
+	local target="$2"
+	local tmp="${mol2}.tmp"
+
+	[[ -f "$mol2" ]] || die "Missing MOL2 for charge rebalance: $mol2"
+	[[ "$target" =~ ^[-+]?[0-9]+$ ]] || die "Target total charge must be an integer; got: '$target'"
+
+	awk -v target="$target" '
+	function isnum(v) { return (v ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+
+	BEGIN { inA=0; n=0; sum=0 }
+
+	{ lines[NR] = $0; nf[NR] = NF }
+
+	/^@<TRIPOS>ATOM/ { inA=1; next }
+	/^@<TRIPOS>/     { if (inA) inA=0 }
+
+	{
+		if (inA && $1 ~ /^[0-9]+$/ && isnum($NF)) {
+			n++
+			sum += ($NF + 0.0)
+		}
+	}
+
+	END {
+		if (n == 0) exit 2
+
+		delta = (target - sum) / n
+
+		inA = 0
+		seen = 0
+
+		for (i=1; i<=NR; i++) {
+			line = lines[i]
+
+			if (line ~ /^@<TRIPOS>ATOM/) { inA=1; print line; continue }
+			if (line ~ /^@<TRIPOS>/ && line !~ /^@<TRIPOS>ATOM/) { inA=0; print line; continue }
+
+			if (!inA) { print line; continue }
+
+			# Re-split the ATOM line and adjust the last (charge) field.
+			split(line, f, /[ \t]+/)
+			if (f[1] ~ /^[0-9]+$/ && isnum(f[length(f)])) {
+				seen++
+				newc = (f[length(f)] + 0.0) + delta
+				# Put any floating residual into the last atom to reduce drift.
+				if (seen == n) {
+					# residual = target - (sum + delta*n) (should be ~0, but correct for float noise)
+					residual = target - (sum + delta*n)
+					newc += residual
+				}
+				f[length(f)] = sprintf("%.6f", newc)
+
+				out = f[1]
+				for (k=2; k<=length(f); k++) out = out " " f[k]
+				print out
+			} else {
+				print line
+			}
+		}
+	}
+	' "$mol2" > "$tmp" || {
+		rc=$?
+		if [[ $rc -eq 2 ]]; then
+			die "Charge rebalance failed (no ATOM records / no numeric charges): $mol2"
+		fi
+		die "Charge rebalance failed for: $mol2"
+	}
+
+	mv -f "$tmp" "$mol2" || die "Failed to update MOL2 after charge rebalance: $mol2"
 }

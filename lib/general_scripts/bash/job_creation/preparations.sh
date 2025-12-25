@@ -297,6 +297,9 @@ run_mcpb() {
 	local in_mol2="$6"
 	local lig_frcmod="$7"
 	local total_charge="${8:-0}"
+	local metal_charge_override="${9:-}"
+
+	metal_charge_override=${metal_charge_override//[[:space:]]/}
 
 	# Optional: cap Gaussian opt cycles for MCPB small model
 	local gauss_opt_maxcycle=100
@@ -415,28 +418,67 @@ run_mcpb() {
 		fi
 	fi
 
-	# Derive a reasonable metal formal charge from total charge and ligand charge sum
-	local lig_charge
-	lig_charge="$(awk '
-		BEGIN{inA=0; s=0}
-		/^@<TRIPOS>ATOM/{inA=1; next}
-		/^@<TRIPOS>/{if(inA) inA=0}
-		inA && NF>=9 { s += $9 }
-		END{ printf "%.6f", s }
-	' "$STAGE1_DIR/LIG.mol2")"
+	# Resolve formal metal charge:
+	# MCPB.py sums charges from mol2 files to determine total QM charge and applies RESP restraints.
+	# Therefore, we must NOT silently force metal charge from (total - ligand_sum) when ligand charges are 0/placeholder.
+	local metal_charge_formal=""
 
-	local metal_charge_from_total
-	metal_charge_from_total="$(awk -v tot="$total_charge" -v lig="$lig_charge" '
-		BEGIN{
-			v = tot - lig
-			# round-to-nearest integer for ion charge handling
-			if (v >= 0) printf "%d", int(v + 0.5)
-			else        printf "%d", int(v - 0.5)
-		}
-	')"
+	# 1) Preferred: explicit config override (metal_charge := 1 / 3 / ...)
+	if [[ -n "${metal_charge_override:-}" ]]; then
+		if [[ "$metal_charge_override" =~ ^[-+]?[0-9]+$ ]]; then
+			metal_charge_formal="$metal_charge_override"
+		else
+			die "metal_charge must be an integer (e.g., 1 or 3); got: '$metal_charge_override'"
+		fi
+	fi
 
-	info "Derived metal charge: total=${total_charge}, ligand≈${lig_charge} => metal≈${metal_charge_from_total}"
-	metal_charge="$metal_charge_from_total"
+	# 2) Fallback: if source mol2 metal atom already has a meaningful integer-like charge
+	if [[ -z "$metal_charge_formal" ]]; then
+		metal_charge_formal="$(awk -v c="${metal_charge:-0.0}" '
+			BEGIN{
+				# round-to-nearest integer
+				v = c + 0.0
+				if (v >= 0) printf "%d", int(v + 0.5)
+				else        printf "%d", int(v - 0.5)
+			}
+		')"
+		# If it rounds to 0, treat as "unspecified" and fall back further
+		if [[ "$metal_charge_formal" == "0" ]]; then
+			metal_charge_formal=""
+		fi
+	fi
+
+	# 3) Last-resort fallback: derive from total and ligand sum (kept only for backward compatibility)
+	if [[ -z "$metal_charge_formal" ]]; then
+		local lig_charge
+		lig_charge="$(awk '
+			BEGIN{inA=0; s=0}
+			/^@<TRIPOS>ATOM/{inA=1; next}
+			/^@<TRIPOS>/{if(inA) inA=0}
+			inA && NF>=9 { s += $NF }
+			END{ printf "%.6f", s }
+		' "$STAGE1_DIR/LIG.mol2")"
+
+		metal_charge_formal="$(awk -v tot="$total_charge" -v lig="$lig_charge" '
+			BEGIN{
+				v = tot - lig
+				if (v >= 0) printf "%d", int(v + 0.5)
+				else        printf "%d", int(v - 0.5)
+			}
+		')"
+
+		info "Derived metal charge (fallback): total=${total_charge}, ligand≈${lig_charge} => metal≈${metal_charge_formal}"
+	else
+		info "Using explicit metal charge: metal=${metal_charge_formal} (total=${total_charge})"
+	fi
+
+	metal_charge="$metal_charge_formal"
+
+	# Ensure ligand net charge matches (total - metal) so MCPB.py charge bookkeeping is correct.
+	local lig_target
+	lig_target="$(awk -v tot="$total_charge" -v m="$metal_charge" 'BEGIN{printf "%d", (tot - m)}')"
+	mol2_rebalance_total_charge_inplace "$STAGE1_DIR/LIG.mol2" "$lig_target"
+	info "Enforced ligand net charge: target=${lig_target} (total=${total_charge}, metal=${metal_charge})"
 
 
 	if [[ ! -s "$STAGE1_DIR/${metal_elem}.mol2" ]]; then
