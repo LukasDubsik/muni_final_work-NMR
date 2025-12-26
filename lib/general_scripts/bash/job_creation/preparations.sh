@@ -786,11 +786,11 @@ if ! gauss_ok "NAME_small_fc.log"; then
 	JOB_STATUS=2
 fi
 
-if [ -f "${NAME}_large_mk.com" ]; then
-    run_gaussian "${NAME}_large_mk.com"
+if [ -f "NAME_large_mk.com" ]; then
+    run_gaussian "NAME_large_mk.com"
     rc_mk=$?
-    if ! gauss_ok "${NAME}_large_mk.log"; then
-        echo "[ERR] ${NAME}_large_mk did not normally terminate (rc=${rc_mk})."
+    if ! gauss_ok "NAME_large_mk.log"; then
+        echo "[ERR] NAME_large_mk did not normally terminate (rc=${rc_mk})."
         JOB_STATUS=3
     fi
 else
