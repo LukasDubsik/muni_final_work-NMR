@@ -480,10 +480,8 @@ run_mcpb() {
 	mol2_rebalance_total_charge_inplace "$STAGE1_DIR/LIG.mol2" "$lig_target"
 	info "Enforced ligand net charge: target=${lig_target} (total=${total_charge}, metal=${metal_charge})"
 
-
-	if [[ ! -s "$STAGE1_DIR/${metal_elem}.mol2" ]]; then
-		write_single_ion_mol2 "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "$mx" "$my" "$mz"
-	fi
+	# Write single-ion mol2 (placeholder; always overwrite to avoid stale charge from prior runs)
+	write_single_ion_mol2 "$STAGE1_DIR/${metal_elem}.mol2" "${metal_elem}" "${metal_charge}"
 
 	# MCPB-specific MOL2 sanitization (residue names, etc.)
 	mol2_sanitize_for_mcpb "$STAGE1_DIR/LIG.mol2" "LIG"
@@ -542,6 +540,8 @@ NAME="${name}"
 	echo "naa_mol2files LIG.mol2"
 	echo "frcmod_files LIG.frcmod"
 	echo "large_opt 0"
+	echo "smmodel_chg ${total_charge}"
+	echo "lgmodel_chg ${total_charge}"
 } > "\${NAME}_mcpb.in"
 
 [ -s "\${NAME}_mcpb.in" ] || { echo "[ERR] Missing MCPB input"; exit 1; }
@@ -902,6 +902,8 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 	echo "naa_mol2files LIG.mol2"
 	echo "frcmod_files LIG.frcmod"
 	echo "large_opt 0"
+	echo "smmodel_chg ${total_charge}"
+	echo "lgmodel_chg ${total_charge}"
 } > "\${NAME}_mcpb.in"
 
 echo "[INFO] Running MCPB.py step 2"
@@ -915,10 +917,91 @@ if [[ ! -s "\${NAME}_large_mk.log" ]]; then
     echo "[ERR] Missing \${NAME}_large_mk.log (run Gaussian MK/ESP for the large model)."
     exit 2
 fi
+# MCPB.py step 3 expects \${NAME}_large.fingerprint; some setups provide \${NAME}_standard.fingerprint
+if [[ ! -s "\${NAME}_large.fingerprint" && -s "\${NAME}_standard.fingerprint" ]]; then
+	cp -f "\${NAME}_standard.fingerprint" "\${NAME}_large.fingerprint"
+fi
+if [[ ! -s "\${NAME}_large.fingerprint" ]]; then
+	echo "[ERR] Missing \${NAME}_large.fingerprint (required for RESP charge fitting mapping)"
+	exit 2
+fi
 
 if [[ "\$STEP" -ge 3 ]]; then
 	echo "[INFO] Running MCPB.py step 3 (charge fitting / charge modification)"
-	MCPB.py -i "\${NAME}_mcpb.in" -s 3
+	MCPB.py -i "\${NAME}_mcpb.in" -s 3 --no_preopt
+
+	# Ensure RESP charges are actually propagated into the MOL2 files used by LEaP
+	if [[ ! -s "resp2.chg" ]]; then
+		echo "[ERR] Missing resp2.chg after MCPB step 3"
+		exit 2
+	fi
+	if [[ ! -s "LIG.mol2" || ! -s "${metal_elem}.mol2" ]]; then
+		echo "[ERR] Missing LIG.mol2 or ${metal_elem}.mol2 when applying RESP charges"
+		exit 2
+	fi
+
+	echo "[INFO] Applying RESP charges from resp2.chg to LIG.mol2 and ${metal_elem}.mol2"
+
+	# Flatten resp2.chg -> one charge per line (RESP outputs fixed-width floats) :contentReference[oaicite:4]{index=4}
+	awk '{
+		for(i=1;i<=NF;i++){
+			if(\$i ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) print \$i;
+		}
+	}' resp2.chg > _resp2_all.chg
+
+	nat_lig=$(awk 'BEGIN{inA=0;n=0}
+		/^@<TRIPOS>ATOM/{inA=1;next}
+		/^@<TRIPOS>/{if(inA) inA=0}
+		inA && $1 ~ /^[0-9]+$/{n++}
+		END{print n}' LIG.mol2)
+
+	nat_ion=$(awk 'BEGIN{inA=0;n=0}
+		/^@<TRIPOS>ATOM/{inA=1;next}
+		/^@<TRIPOS>/{if(inA) inA=0}
+		inA && $1 ~ /^[0-9]+$/{n++}
+		END{print n}' ${metal_elem}.mol2)
+
+	nchg=$(wc -l < _resp2_all.chg | tr -d ' ')
+
+	if [[ "\$nchg" -ne "\$((nat_lig + nat_ion))" ]]; then
+		echo "[ERR] resp2.chg count mismatch: charges=\$nchg, expected=\$((nat_lig + nat_ion)) (lig=\$nat_lig ion=\$nat_ion)"
+		exit 2
+	fi
+
+	head -n "\$nat_lig" _resp2_all.chg > _lig.chg
+	tail -n "\$nat_ion" _resp2_all.chg > _ion.chg
+
+	awk 'BEGIN{OFS=" "; inA=0; k=0}
+		FNR==NR { q[++m]=\$1; next }
+		/^@<TRIPOS>ATOM/ { inA=1; print; next }
+		/^@<TRIPOS>/ { if(inA) inA=0; print; next }
+		inA && \$1 ~ /^[0-9]+$/ {
+			k++
+			if(k>m){ print "[ERR] Not enough charges for LIG" > "/dev/stderr"; exit 3 }
+			$(NF)=q[k]
+			print
+			next
+		}
+		{ print }
+		END{ if(k!=m){ print "[ERR] LIG charge/atom mismatch atoms="k" charges="m > "/dev/stderr"; exit 3 } }
+	' _lig.chg LIG.mol2 > LIG.mol2.tmp && mv LIG.mol2.tmp LIG.mol2
+
+	awk 'BEGIN{OFS=" "; inA=0; k=0}
+		FNR==NR { q[++m]=\$1; next }
+		/^@<TRIPOS>ATOM/ { inA=1; print; next }
+		/^@<TRIPOS>/ { if(inA) inA=0; print; next }
+		inA && \$1 ~ /^[0-9]+$/ {
+			k++
+			if(k>m){ print "[ERR] Not enough charges for ION" > "/dev/stderr"; exit 3 }
+			$(NF)=q[k]
+			print
+			next
+		}
+		{ print }
+		END{ if(k!=m){ print "[ERR] ION charge/atom mismatch atoms="k" charges="m > "/dev/stderr"; exit 3 } }
+	' _ion.chg ${metal_elem}.mol2 > ${metal_elem}.mol2.tmp && mv ${metal_elem}.mol2.tmp ${metal_elem}.mol2
+
+	rm -f _resp2_all.chg _lig.chg _ion.chg
 fi
 
 # Normalize the MCPB-typed PDB name (required by tleap stage)
