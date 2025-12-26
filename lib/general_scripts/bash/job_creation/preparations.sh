@@ -907,12 +907,12 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 echo "[INFO] Running MCPB.py step 2"
 MCPB.py -i "\${NAME}_mcpb.in" -s 2
 
-if [[ ! -s "${NAME}_large.pdb" ]]; then
-    echo "[ERR] Missing ${NAME}_large.pdb (required for MCPB.py step 3)."
+if [[ ! -s "\${NAME}_large.pdb" ]]; then
+    echo "[ERR] Missing \${NAME}_large.pdb (required for MCPB.py step 3)."
     exit 2
 fi
-if [[ ! -s "${NAME}_large_mk.log" ]]; then
-    echo "[ERR] Missing ${NAME}_large_mk.log (run Gaussian MK/ESP for the large model)."
+if [[ ! -s "\${NAME}_large_mk.log" ]]; then
+    echo "[ERR] Missing \${NAME}_large_mk.log (run Gaussian MK/ESP for the large model)."
     exit 2
 fi
 
