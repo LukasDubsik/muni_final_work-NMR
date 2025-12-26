@@ -391,9 +391,9 @@ write_single_ion_mol2() {
 	local outmol2="$1"
 	local elem_in="$2"
 	local charge="$3"
-	local x="$4"
-	local y="$5"
-	local z="$6"
+	local x="${4:-0.0000}"
+	local y="${5:-0.0000}"
+	local z="${6:-0.0000}"
 
 	# Residue/substructure label: keep uppercase (e.g., AU, ZN)
 	local elem_u

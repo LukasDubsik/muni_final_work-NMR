@@ -481,7 +481,7 @@ run_mcpb() {
 	info "Enforced ligand net charge: target=${lig_target} (total=${total_charge}, metal=${metal_charge})"
 
 	# Write single-ion mol2 (placeholder; always overwrite to avoid stale charge from prior runs)
-	write_single_ion_mol2 "$STAGE1_DIR/${metal_elem}.mol2" "${metal_elem}" "${metal_charge}"
+	write_single_ion_mol2 "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem" "$metal_charge" "${mx:-0.0000}" "${my:-0.0000}" "${mz:-0.0000}"
 
 	# MCPB-specific MOL2 sanitization (residue names, etc.)
 	mol2_sanitize_for_mcpb "$STAGE1_DIR/LIG.mol2" "LIG"
