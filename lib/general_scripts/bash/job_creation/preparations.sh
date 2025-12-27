@@ -927,6 +927,34 @@ if [[ ! -s "\${NAME}_large.fingerprint" ]]; then
 fi
 
 if [[ "\$STEP" -ge 3 ]]; then
+    # Workaround: RESP sometimes writes adjacent floats without whitespace (e.g. 0.123-0.456),
+	# which breaks MCPB.py parsing (IndexError in resp_fitting.py). Normalize resp*.chg in-place.
+	REAL_RESP="\$(command -v resp)"
+	mkdir -p _bin
+
+	cat > _bin/resp <<'RESPWRAP'
+#!/usr/bin/env bash
+set -euo pipefail
+
+REAL_RESP="__REAL_RESP__"
+"\$REAL_RESP" "\$@"
+
+# Normalize RESP charge files so MCPB.py can parse them reliably.
+for f in resp1.chg resp2.chg; do
+	[[ -s "\$f" ]] || continue
+	# Insert whitespace before a sign that is directly attached to the previous number.
+	# Does not touch exponents like e-03 (previous char is 'e'/'E', not a digit).
+	sed -E 's/([0-9])([-+])/\\1 \\2/g' "\$f" > "\${f}.tmp"
+	mv "\${f}.tmp" "\$f"
+done
+RESPWRAP
+
+	sed -i "s|__REAL_RESP__|\${REAL_RESP}|g" _bin/resp
+	chmod +x _bin/resp
+
+	# Ensure MCPB.py finds our wrapper first.
+	export PATH="\$(pwd)/_bin:\$PATH"
+
 	echo "[INFO] Running MCPB.py step 3 (charge fitting / charge modification)"
 	MCPB.py -i "\${NAME}_mcpb.in" -s 3
 
@@ -1053,6 +1081,15 @@ EOF
 			submit_job "$meta" "$STAGE3_JOB" "$STAGE3_DIR" 32 8 0 "02:00:00"
 
 			check_res_file "${name}_mcpbpy.frcmod" "$STAGE3_DIR" "$STAGE3_JOB"
+
+			# Hard-fail if MCPB.py threw a Python traceback during Stage 3 (common symptom: RESP parsing crash).
+			local stage3_err
+			stage3_err="$(ls -1 "$STAGE3_DIR/${STAGE3_JOB}.e"* 2>/dev/null | tail -n 1 || true)"
+			if [[ -n "${stage3_err:-}" ]]; then
+				if grep -q "Traceback (most recent call last)" "$stage3_err"; then
+					die "MCPB Stage 3 failed (python traceback in: $stage3_err)"
+				fi
+			fi
 
 			# MCPB does NOT always produce a .lib (especially if you are not doing charge fitting via step 3).
 			# Charges can also come from MOL2; do not hard-fail here.
