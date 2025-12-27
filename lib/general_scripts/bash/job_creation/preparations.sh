@@ -978,7 +978,7 @@ if [[ "\$STEP" -ge 3 ]]; then
 		inA && \$1 ~ /^[0-9]+$/ {
 			k++
 			if(k>m){ print "[ERR] Not enough charges for LIG" > "/dev/stderr"; exit 3 }
-			$(NF)=q[k]
+			\$(NF)=q[k]
 			print
 			next
 		}
@@ -993,7 +993,7 @@ if [[ "\$STEP" -ge 3 ]]; then
 		inA && \$1 ~ /^[0-9]+$/ {
 			k++
 			if(k>m){ print "[ERR] Not enough charges for ION" > "/dev/stderr"; exit 3 }
-			$(NF)=q[k]
+			\$(NF)=q[k]
 			print
 			next
 		}
