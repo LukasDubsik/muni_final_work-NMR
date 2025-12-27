@@ -939,45 +939,85 @@ fi
 if [[ "\$STEP" -ge 3 ]]; then
     # Workaround: RESP sometimes writes adjacent floats without whitespace (e.g. 0.123-0.456),
 	# which breaks MCPB.py parsing (IndexError in resp_fitting.py). Normalize resp*.chg in-place.
+	# -------------------------
+	# RESP output formatting fix (robust)
+	# -------------------------
+	# MCPB.py may fail in step 3 when RESP writes fixed-width floats without whitespace,
+	# leading to a charge-count mismatch (IndexError in resp_fitting.py). We harden both:
+	#   (1) resp wrapper: normalize any produced *.chg files (handles concatenation and D exponents)
+	#   (2) sitecustomize: monkeypatch pymsmt.mcpb.resp_fitting.read_resp_file with a regex parser
 	REAL_RESP="\$(command -v resp)"
-	mkdir -p _bin
+	mkdir -p _bin _py_sitecustomize
 
 	cat > _bin/resp <<'RESPWRAP'
 #!/usr/bin/env bash
 set -euo pipefail
 
 REAL_RESP="__REAL_RESP__"
-"\$REAL_RESP" "\$@"
 
-# Post-process RESP outputs so MCPB.py parses the correct number of charges.
-# We flatten every numeric token (including fixed-width concatenated columns) to 1 float per line.
-normalize_chg_file() {
-	local f="\$1"
-	[[ -s "\$f" ]] || return 0
+normalize_chg() {
+	local in="\$1"
+	local tmp="\${in}.tmp"
 
+	# Extract all floats from the file (handles concatenated fixed-width fields and D/E exponents).
 	awk '
+	BEGIN { OFS=""; }
 	{
 		s=\$0
-		while (match(s, /[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/)) {
-			print substr(s, RSTART, RLENGTH)
+		while (match(s, /[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?/)) {
+			tok = substr(s, RSTART, RLENGTH)
+			gsub(/[dD]/, "E", tok)
+			printf "%.8f\n", (tok + 0.0)
 			s = substr(s, RSTART + RLENGTH)
 		}
-	}' "\$f" > "\${f}.tmp"
-
-	mv "\${f}.tmp" "\$f"
+	}
+	' "\$in" > "\$tmp"
+	mv -f "\$tmp" "\$in"
 }
 
-shopt -s nullglob
-for f in *.chg; do
-	normalize_chg_file "\$f"
-done
+"\$REAL_RESP" "\$@"
+
+# Normalize any charge files produced by RESP in the current working tree.
+while IFS= read -r -d '' f; do
+	normalize_chg "\$f"
+done < <(find . -maxdepth 2 -type f -name '*.chg' -print0)
+
+exit 0
 RESPWRAP
 
+	# Bake REAL_RESP into wrapper, then put it first in PATH
 	sed -i "s|__REAL_RESP__|\${REAL_RESP}|g" _bin/resp
 	chmod +x _bin/resp
-
-	# Ensure MCPB.py finds our wrapper first.
 	export PATH="\$(pwd)/_bin:\$PATH"
+
+	# Monkeypatch MCPB.py's RESP reader to be robust to whitespace-free charge fields.
+	cat > _py_sitecustomize/sitecustomize.py <<'PY'
+import re
+
+try:
+    import pymsmt.mcpb.resp_fitting as rf
+except Exception:
+    rf = None
+
+if rf is not None:
+    _float_re = re.compile(r"[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eEdD][-+]?\d+)?")
+
+    def _read_resp_file_robust(fname):
+        vals = []
+        with open(fname, "r", encoding="utf-8", errors="ignore") as fh:
+            for line in fh:
+                for m in _float_re.finditer(line):
+                    tok = m.group(0).replace("D", "E").replace("d", "e")
+                    try:
+                        vals.append(float(tok))
+                    except Exception:
+                        pass
+        return vals
+
+    # MCPB.py calls read_resp_file() inside pymsmt.mcpb.resp_fitting
+    rf.read_resp_file = _read_resp_file_robust
+PY
+	export PYTHONPATH="\$(pwd)/_py_sitecustomize:\${PYTHONPATH:-}"
 
 	echo "[INFO] Running MCPB.py step 3 (charge fitting / charge modification)"
 	MCPB.py -i "\${NAME}_mcpb.in" -s 3
@@ -994,10 +1034,14 @@ RESPWRAP
 
 	echo "[INFO] Applying RESP charges from resp2.chg to LIG.mol2 and ${metal_elem}.mol2"
 
-	# Flatten resp2.chg -> one charge per line (RESP outputs fixed-width floats) :contentReference[oaicite:4]{index=4}
+	# Flatten resp2.chg -> one charge per line (handles concatenated fixed-width fields and D/E exponents)
 	awk '{
-		for(i=1;i<=NF;i++){
-			if(\$i ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) print \$i;
+		s=\$0
+		while (match(s, /[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?/)) {
+			tok = substr(s, RSTART, RLENGTH)
+			gsub(/[dD]/, "E", tok)
+			print tok
+			s = substr(s, RSTART + RLENGTH)
 		}
 	}' resp2.chg > _resp2_all.chg
 
@@ -1091,6 +1135,8 @@ if [[ "\$STEP" -ge 4 ]]; then
 		cp "tleap.in" "\${NAME}_tleap.in"
 	fi
 fi
+# Avoid result-copy failures in metacentrum_end (cp without -r)
+rm -rf _bin _py_sitecustomize || true
 EOF
 
 			if [[ "$meta" == "true" ]]; then
@@ -1305,8 +1351,17 @@ run_tleap() {
 			# Derive common MCPB naming mismatches (LG1/AU1) from available sources
 			if [[ ! -f "$JOB_DIR/$base" ]]; then
 				if [[ "$base" =~ ^LG[0-9]+[.]mol2$ ]]; then
-					# Prefer regenerating from the current post-processed MOL2 (more reliable than stale MCPB LIG.mol2)
-					if [[ -f "$JOB_DIR/${name}_charges_fix.mol2" ]]; then
+					# Prefer MCPB-produced LIG.mol2 (RESP/QM charges). If not present, fall back to nemesis_fix output.
+					if [[ -f "$JOB_DIR/LIG.mol2" ]]; then
+						local mid
+						mid="$(mol2_first_metal "$JOB_DIR/LIG.mol2" | awk 'NR==1{print $1}')"
+						if [[ -n "$mid" && "$mid" != "-1" ]]; then
+							mol2_strip_atom "$JOB_DIR/LIG.mol2" "$JOB_DIR/$base" "$mid"
+						else
+							cp -f "$JOB_DIR/LIG.mol2" "$JOB_DIR/$base"
+						fi
+						info "Derived missing MCPB template: $base <- LIG.mol2"
+					elif [[ -f "$JOB_DIR/${name}_charges_fix.mol2" ]]; then
 						local mid
 						mid="$(mol2_first_metal "$JOB_DIR/${name}_charges_fix.mol2" | awk 'NR==1{print $1}')"
 						if [[ -n "$mid" && "$mid" != "-1" ]]; then
@@ -1314,15 +1369,12 @@ run_tleap() {
 						else
 							cp -f "$JOB_DIR/${name}_charges_fix.mol2" "$JOB_DIR/$base"
 						fi
-					elif [[ -f "$JOB_DIR/LIG.mol2" ]]; then
-						cp -f "$JOB_DIR/LIG.mol2" "$JOB_DIR/$base"
+						info "Derived missing MCPB template: $base <- ${name}_charges_fix.mol2"
 					fi
 
 					if [[ -f "$JOB_DIR/$base" ]]; then
-						mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
-						info "Derived missing MCPB template: $base <- ${name}_charges_fix.mol2/LIG.mol2"
+						mol2_sanitize_for_mcpb "$JOB_DIR/$base" "$JOB_DIR/$base"
 					fi
-
 				elif [[ "$base" =~ ^AU[0-9]+[.]mol2$ ]]; then
 					# Prefer MCPB AU.mol2 if present; otherwise regenerate as a single-ion MOL2
 					if [[ -f "$JOB_DIR/AU.mol2" ]]; then
