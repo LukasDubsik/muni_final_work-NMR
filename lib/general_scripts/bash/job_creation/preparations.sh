@@ -880,7 +880,7 @@ EOF
 		fi
 
 		if [[ "$need_stage3" == "true" ]]; then
-			info "MCPB Stage 3/3: MCPB.py -s 2 (and -s 4 if requested)"
+			info "MCPB Stage 3/3: MCPB.py -s 2 (and -s 3/4 if requested)"
 
 			cat > "$STAGE3_DIR/job_file.txt" <<EOF
 module add ${amber}
