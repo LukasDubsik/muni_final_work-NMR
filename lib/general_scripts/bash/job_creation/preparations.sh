@@ -506,6 +506,12 @@ run_mcpb() {
 			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
 		fi
 	fi
+	if [[ -f "$STAGE1_OK" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
+		if ! grep -q "^additional_resids[[:space:]]\\+1\\b" "$STAGE1_DIR/${name}_mcpb.in"; then
+			warning "MCPB stage1 cache invalid: missing additional_resids; forcing rebuild"
+			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
+		fi
+	fi
 
 	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
 	# ---------------------------------------------------------------------
@@ -534,6 +540,8 @@ NAME="${name}"
 	echo "original_pdb ${name}_mcpb.pdb"
 	echo "group_name ${name}"
 	echo "cut_off 2.8"
+	echo "additional_resids 1"
+	echo "force_field ff19SB"
 	echo "ion_ids ${metal_id}"
 	echo "${addbpairs_line}"
 	echo "ion_mol2files ${metal_elem}.mol2"
@@ -897,6 +905,8 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 	echo "original_pdb ${name}_mcpb.pdb"
 	echo "group_name ${name}"
 	echo "cut_off 2.8"
+	echo "additional_resids 1"
+	echo "force_field ff19SB"
 	echo "ion_ids ${metal_id}"
 	echo "ion_mol2files ${metal_elem}.mol2"
 	echo "naa_mol2files LIG.mol2"
@@ -939,13 +949,27 @@ set -euo pipefail
 REAL_RESP="__REAL_RESP__"
 "\$REAL_RESP" "\$@"
 
-# Normalize RESP charge files so MCPB.py can parse them reliably.
-for f in resp1.chg resp2.chg; do
-	[[ -s "\$f" ]] || continue
-	# Insert whitespace before a sign that is directly attached to the previous number.
-	# Does not touch exponents like e-03 (previous char is 'e'/'E', not a digit).
-	sed -E 's/([0-9])([-+])/\\1 \\2/g' "\$f" > "\${f}.tmp"
-	mv "\${f}.tmp" "\$f"
+# Post-process RESP outputs so MCPB.py parses the correct number of charges.
+# We flatten every numeric token (including fixed-width concatenated columns) to 1 float per line.
+normalize_chg_file() {
+	local f="$1"
+	[[ -s "$f" ]] || return 0
+
+	awk '
+	{
+		s=$0
+		while (match(s, /[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/)) {
+			print substr(s, RSTART, RLENGTH)
+			s = substr(s, RSTART + RLENGTH)
+		}
+	}' "$f" > "${f}.tmp"
+
+	mv "${f}.tmp" "$f"
+}
+
+shopt -s nullglob
+for f in *.chg; do
+	normalize_chg_file "$f"
 done
 RESPWRAP
 
