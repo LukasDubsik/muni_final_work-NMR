@@ -949,6 +949,9 @@ if [[ "\$STEP" -ge 3 ]]; then
 	REAL_RESP="\$(command -v resp)"
 	mkdir -p _bin _py_sitecustomize
 
+	cleanup() { rm -rf _bin _py_sitecustomize; }
+	trap cleanup EXIT
+
 	cat > _bin/resp <<'RESPWRAP'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -1020,7 +1023,9 @@ PY
 	export PYTHONPATH="\$(pwd)/_py_sitecustomize:\${PYTHONPATH:-}"
 
 	echo "[INFO] Running MCPB.py step 3 (charge fitting / charge modification)"
-	MCPB.py -i "\${NAME}_mcpb.in" -s 3
+	# MCPB step 3 sometimes crashes in pymsmt (after RESP already produced resp2.*).
+	# We keep the pipeline alive and propagate charges ourselves from resp2.* below.
+	MCPB.py -i "\${NAME}_mcpb.in" -s 3 || echo "[WARN] MCPB.py step 3 returned non-zero; continuing (see mcpb_step3.err)"
 
 	# Ensure RESP charges are actually propagated into the MOL2 files used by LEaP
 	if [[ ! -s "resp2.chg" ]]; then
@@ -1058,9 +1063,22 @@ PY
 		END{print n}' ${metal_elem}.mol2)
 
 	nchg=\$(wc -l < _resp2_all.chg | tr -d ' ')
+	exp=\$((nat_lig + nat_ion))
 
-	if [[ "\$nchg" -ne "\$((nat_lig + nat_ion))" ]]; then
-		echo "[ERR] resp2.chg count mismatch: charges=\$nchg, expected=\$((nat_lig + nat_ion)) (lig=\$nat_lig ion=\$nat_ion)"
+	# Some RESP setups write a non-expanded resp2.chg; resp2.out always contains the full per-atom q(opt) table.
+	if [[ "\$nchg" -ne "\$exp" ]]; then
+		echo "[WARN] resp2.chg count mismatch: charges=\$nchg, expected=\$exp; extracting per-atom q(opt) from resp2.out"
+		awk '
+			/Point Charges Before \& After Optimization/ {in=1; skip=3; next}
+			in && skip>0 {skip--; next}
+			in && \$1 ~ /^[0-9]+$/ {print \$4; next}
+			in && /Sum over the calculated charges/ {exit}
+		' resp2.out > _resp2_all.chg
+		nchg=\$(wc -l < _resp2_all.chg | tr -d ' ')
+	fi
+
+	if [[ "\$nchg" -ne "\$exp" ]]; then
+		echo "[ERR] RESP charge count mismatch after fallback: charges=\$nchg, expected=\$exp (lig=\$nat_lig ion=\$nat_ion)"
 		exit 2
 	fi
 
@@ -1154,7 +1172,7 @@ EOF
 
 			# Hard-fail if MCPB.py threw a Python traceback during Stage 3 (common symptom: RESP parsing crash).
 			local stage3_err
-			stage3_err="$(ls -1 "$STAGE3_DIR/${STAGE3_JOB}.e"* 2>/dev/null | tail -n 1 || true)"
+			stage3_err="$(ls -1 "$STAGE3_DIR/${STAGE3_JOB}.sh.e"* "$STAGE3_DIR/${STAGE3_JOB}.e"* 2>/dev/null | tail -n 1 || true)"
 			if [[ -n "${stage3_err:-}" ]]; then
 				if grep -q "Traceback (most recent call last)" "$stage3_err"; then
 					die "MCPB Stage 3 failed (python traceback in: $stage3_err)"
