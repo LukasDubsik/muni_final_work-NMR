@@ -952,24 +952,24 @@ REAL_RESP="__REAL_RESP__"
 # Post-process RESP outputs so MCPB.py parses the correct number of charges.
 # We flatten every numeric token (including fixed-width concatenated columns) to 1 float per line.
 normalize_chg_file() {
-	local f="$1"
-	[[ -s "$f" ]] || return 0
+	local f="\$1"
+	[[ -s "\$f" ]] || return 0
 
 	awk '
 	{
-		s=$0
+		s=\$0
 		while (match(s, /[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/)) {
 			print substr(s, RSTART, RLENGTH)
 			s = substr(s, RSTART + RLENGTH)
 		}
-	}' "$f" > "${f}.tmp"
+	}' "\$f" > "\${f}.tmp"
 
-	mv "${f}.tmp" "$f"
+	mv "\${f}.tmp" "\$f"
 }
 
 shopt -s nullglob
 for f in *.chg; do
-	normalize_chg_file "$f"
+	normalize_chg_file "\$f"
 done
 RESPWRAP
 
