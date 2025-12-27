@@ -928,7 +928,7 @@ fi
 
 if [[ "\$STEP" -ge 3 ]]; then
 	echo "[INFO] Running MCPB.py step 3 (charge fitting / charge modification)"
-	MCPB.py -i "\${NAME}_mcpb.in" -s 3 --no_preopt
+	MCPB.py -i "\${NAME}_mcpb.in" -s 3
 
 	# Ensure RESP charges are actually propagated into the MOL2 files used by LEaP
 	if [[ ! -s "resp2.chg" ]]; then
