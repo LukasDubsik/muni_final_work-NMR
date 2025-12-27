@@ -949,19 +949,19 @@ if [[ "\$STEP" -ge 3 ]]; then
 		}
 	}' resp2.chg > _resp2_all.chg
 
-	nat_lig=$(awk 'BEGIN{inA=0;n=0}
+	nat_lig=\$(awk 'BEGIN{inA=0;n=0}
 		/^@<TRIPOS>ATOM/{inA=1;next}
 		/^@<TRIPOS>/{if(inA) inA=0}
-		inA && $1 ~ /^[0-9]+$/{n++}
+		inA && \$1 ~ /^[0-9]+$/{n++}
 		END{print n}' LIG.mol2)
 
-	nat_ion=$(awk 'BEGIN{inA=0;n=0}
+	nat_ion=\$(awk 'BEGIN{inA=0;n=0}
 		/^@<TRIPOS>ATOM/{inA=1;next}
 		/^@<TRIPOS>/{if(inA) inA=0}
-		inA && $1 ~ /^[0-9]+$/{n++}
+		inA && \$1 ~ /^[0-9]+$/{n++}
 		END{print n}' ${metal_elem}.mol2)
 
-	nchg=$(wc -l < _resp2_all.chg | tr -d ' ')
+	nchg=\$(wc -l < _resp2_all.chg | tr -d ' ')
 
 	if [[ "\$nchg" -ne "\$((nat_lig + nat_ion))" ]]; then
 		echo "[ERR] resp2.chg count mismatch: charges=\$nchg, expected=\$((nat_lig + nat_ion)) (lig=\$nat_lig ion=\$nat_ion)"
