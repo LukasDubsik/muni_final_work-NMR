@@ -503,29 +503,14 @@ run_mcpb() {
 	if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
 		if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
 			warning "MCPB preserved stages were generated without add_bonded_pairs; invalidating cached MCPB stages."
-			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
+			rm -f "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
 		fi
 	fi
 	if [[ -f "$STAGE1_OK" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
 		if grep -q "^additional_resids[[:space:]]\\+" "$STAGE1_DIR/${name}_mcpb.in"; then
 			warning "MCPB stage1 cache invalid: contains additional_resids; forcing rebuild"
-			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
+			rm -f "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
 		fi
-	fi
-
-	# If stage 1 isn't OK, nothing downstream is valid.
-	if [[ ! -f "$STAGE1_OK" ]]; then
-		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
-	fi
-
-	# If stage 1 is OK but stage 2 isn't, wipe stage 2 and 3.
-	if [[ -f "$STAGE1_OK" && ! -f "$STAGE2_OK" ]]; then
-		rm -rf "$STAGE2_DIR" "$STAGE3_DIR"
-	fi
-
-	# If stage 2 is OK but stage 3 isn't, wipe stage 3.
-	if [[ -f "$STAGE2_OK" && ! -f "$STAGE3_OK" ]]; then
-		rm -rf "$STAGE3_DIR"
 	fi
 
 	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
