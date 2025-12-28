@@ -978,12 +978,12 @@ set -euo pipefail
 REAL_RESP="__REAL_RESP__"
 
 normalize_chg() {
-	local f="$1"
-	[[ -f "$f" ]] || return 0
+	local f="\$1"
+	[[ -f "\$f" ]] || return 0
 
 	# Normalize RESP charge files into exactly NATOMS lines (one charge per atom).
 	# Handles: Fortran D exponents, compact formatting, and 2-column (q0/qopt) files.
-	python3 - "$f" "$NATOMS" <<'PY'
+	python3 - "\$f" "\$NATOMS" <<'PY'
 import sys, re, math, os
 
 path = sys.argv[1]
