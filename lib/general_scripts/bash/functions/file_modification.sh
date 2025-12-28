@@ -51,8 +51,9 @@ force_safe_heating_start() {
 # wrap_pmemd_cuda_fallback SH_FILE
 # Rewrites the first pmemd.cuda invocation into a guarded form:
 #   - exports OMP_NUM_THREADS=1
+#   - removes -ref (opt_temp has no restraints; avoid double-reading the same NetCDF restart)
 #   - retries on CPU with pmemd if pmemd.cuda fails (including segfault exit code)
-#   - retries with sander if pmemd also fails (sander often emits a clearer error)
+#   - retries with sander if pmemd also fails (sander often prints a real diagnostic instead of SIGSEGV)
 wrap_pmemd_cuda_fallback() {
 	local sh_file="$1"
 
@@ -63,15 +64,19 @@ wrap_pmemd_cuda_fallback() {
 	{
 		if (!done && $0 ~ /(^|[[:space:];])pmemd\.cuda[[:space:]]/) {
 			cmd=$0
-			cpu=$0
-			sand=$0
+
+			# opt_temp has no ntr/nmropt, so -ref is unused; strip it to avoid IO edge-cases
+			gsub(/-ref[[:space:]]+[^[:space:]]+/, "", cmd)
+
+			cpu=cmd
 			sub(/pmemd\.cuda/, "pmemd", cpu)
+
+			sand=cmd
 			sub(/pmemd\.cuda/, "sander", sand)
 
 			print "export OMP_NUM_THREADS=1"
-			print cmd " || { rc=$?; echo \"[WARN] pmemd.cuda failed (rc=${rc}) - retrying with pmemd\" 1>&2; " \
-			      cpu " || { rc2=$?; echo \"[WARN] pmemd failed (rc=${rc2}) - retrying with sander\" 1>&2; " \
-			      sand "; }; }"
+			print "ulimit -s unlimited"
+			print cmd " || { rc=$?; echo \"[WARN] pmemd.cuda failed (rc=$rc) - retrying with pmemd\" 1>&2; " cpu " || { rc2=$?; echo \"[WARN] pmemd failed (rc=$rc2) - retrying with sander\" 1>&2; " sand "; }; }"
 			done=1
 			next
 		}

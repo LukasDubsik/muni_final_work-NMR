@@ -21,5 +21,6 @@
   ntwx=10000,
   ntwr=1000,
 
-  ioutfm=0,
+  iwrap=0,
+  ioutfm=1,
 &end
