@@ -342,6 +342,33 @@ run_mcpb() {
 	in_mol2_sha="$(sha256sum "$in_mol2" | awk '{print $1}')"
 	local MOL2_SHA_FILE="$STAGE1_DIR/.input_mol2.sha256"
 
+	if [[ -f "$STAGE1_OK" && ! -f "$MOL2_SHA_FILE" ]]; then
+		warning "MCPB cache is missing input hash; invalidating cached MCPB stages."
+		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
+	elif [[ -f "$MOL2_SHA_FILE" ]]; then
+		local old_sha
+		old_sha="$(cat "$MOL2_SHA_FILE" 2>/dev/null || true)"
+		if [[ -n "$old_sha" && "$old_sha" != "$in_mol2_sha" ]]; then
+			warning "MCPB input MOL2 changed; invalidating cached MCPB stages."
+			rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
+		fi
+	fi
+
+	# If stage 1 isn't OK, nothing downstream is valid.
+	if [[ ! -f "$STAGE1_OK" ]]; then
+		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
+	fi
+
+	# If stage 1 is OK but stage 2 isn't, wipe stage 2 and 3.
+	if [[ -f "$STAGE1_OK" && ! -f "$STAGE2_OK" ]]; then
+		rm -rf "$STAGE2_DIR" "$STAGE3_DIR"
+	fi
+
+	# If stage 2 is OK but stage 3 isn't, wipe stage 3.
+	if [[ -f "$STAGE2_OK" && ! -f "$STAGE3_OK" ]]; then
+		rm -rf "$STAGE3_DIR"
+	fi
+
 	ensure_dir "$STAGE1_DIR"
 	ensure_dir "$STAGE2_DIR"
 	ensure_dir "$STAGE3_DIR"
@@ -470,18 +497,6 @@ run_mcpb() {
 		for bid in $bonded_ids; do
 			addbpairs_line="$addbpairs_line ${metal_id}-${bid}"
 		done
-	fi
-
-	if [[ -f "$STAGE1_OK" && ! -f "$MOL2_SHA_FILE" ]]; then
-		warning "MCPB cache is missing input hash; invalidating cached MCPB stages."
-		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
-	elif [[ -f "$MOL2_SHA_FILE" ]]; then
-		local old_sha
-		old_sha="$(cat "$MOL2_SHA_FILE" 2>/dev/null || true)"
-		if [[ -n "$old_sha" && "$old_sha" != "$in_mol2_sha" ]]; then
-			warning "MCPB input MOL2 changed; invalidating cached MCPB stages."
-			rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
-		fi
 	fi
 
 	# If preserved stages were created without add_bonded_pairs, they are not safe to reuse
