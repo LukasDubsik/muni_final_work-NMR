@@ -342,6 +342,18 @@ run_mcpb() {
 	in_mol2_sha="$(sha256sum "$in_mol2" | awk '{print $1}')"
 	local MOL2_SHA_FILE="$STAGE1_DIR/.input_mol2.sha256"
 
+	# Explicitly tell MCPB which atoms are bonded to the metal (critical for e.g. Au–C)
+	local bonded_ids
+	bonded_ids="$(mol2_bonded_atoms "$src_mol2" "$metal_id")"
+
+	local addbpairs_line=""
+	if [[ -n "$bonded_ids" ]]; then
+		addbpairs_line="add_bonded_pairs"
+		for bid in $bonded_ids; do
+			addbpairs_line="$addbpairs_line ${metal_id}-${bid}"
+		done
+	fi
+
 	if [[ -f "$STAGE1_OK" && ! -f "$MOL2_SHA_FILE" ]]; then
 		warning "MCPB cache is missing input hash; invalidating cached MCPB stages."
 		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
@@ -500,18 +512,6 @@ run_mcpb() {
 	# MCPB-specific MOL2 sanitization (residue names, etc.)
 	mol2_sanitize_for_mcpb "$STAGE1_DIR/LIG.mol2" "LIG"
 	mol2_sanitize_for_mcpb "$STAGE1_DIR/${metal_elem}.mol2" "$metal_elem"
-
-	# Explicitly tell MCPB which atoms are bonded to the metal (critical for e.g. Au–C)
-	local bonded_ids
-	bonded_ids="$(mol2_bonded_atoms "$src_mol2" "$metal_id")"
-
-	local addbpairs_line=""
-	if [[ -n "$bonded_ids" ]]; then
-		addbpairs_line="add_bonded_pairs"
-		for bid in $bonded_ids; do
-			addbpairs_line="$addbpairs_line ${metal_id}-${bid}"
-		done
-	fi
 
 	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
 	# ---------------------------------------------------------------------
