@@ -1060,64 +1060,63 @@ PY
 	}
 
 	_extract_floats() {
-		# Extract all floats from any text file (one per line)
-		python3 - <<'PY'
-	import re,sys
-	data=open(sys.argv[1],"r",errors="ignore").read()
-	nums=re.findall(r'[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?', data)
-	for x in nums:
-		print(x)
-	PY
-	}
+	# Extract all floats from any text file (one per line)
+	python3 - "\$1" <<'PY'
+import re,sys
+data=open(sys.argv[1],"r",errors="ignore").read()
+nums=re.findall(r'[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?', data)
+for x in nums:
+    print(x)
+PY
+}
 
 	_validate_chgfile() {
-		# Args: file nat_expected total_charge
-		local f="\$1"
-		local nat="\$2"
-		local tot="\$3"
+	# Args: file nat_expected total_charge
+	local f="\$1"
+	local nat="\$2"
+	local tot="\$3"
 
-		[[ -s "\$f" ]] || return 1
+	[[ -s "\$f" ]] || return 1
 
-		local n sum maxabs nzero
-		n="\$(wc -l < "\$f" | tr -d ' ')"
-		[[ "\$n" -eq "\$nat" ]] || return 1
+	local n sum maxabs nzero
+	n="\$(wc -l < "\$f" | tr -d ' ')"
+	[[ "\$n" -eq "\$nat" ]] || return 1
 
-		# Basic sanity: sum close to expected, not “mostly zero”, and not absurd magnitudes
-		read -r sum maxabs nzero < <(awk '
-			BEGIN{sum=0; maxabs=0; nzero=0}
-			{q=\$1+0.0; sum+=q; a=(q<0?-q:q); if(a>maxabs) maxabs=a; if(a!=0) nzero++}
-			END{printf("%.8f %.8f %d\n", sum, maxabs, nzero)}
-		' "\$f")
+	# Basic sanity: sum close to expected, not “mostly zero”, and not absurd magnitudes
+	read -r sum maxabs nzero < <(awk '
+		BEGIN{sum=0; maxabs=0; nzero=0}
+		{q=\$1+0.0; sum+=q; a=(q<0?-q:q); if(a>maxabs) maxabs=a; if(a!=0) nzero++}
+		END{printf("%.8f %.8f %d\n", sum, maxabs, nzero)}
+	' "\$f")
 
-		# Sum must be reasonably close to expected total charge
-		python3 - <<PY
-	import sys,math
-	sumv=float(sys.argv[1]); tot=float(sys.argv[2])
-	# allow modest numerical drift from RESP
-	sys.exit(0 if abs(sumv-tot) <= 0.05 else 1)
-	PY "\$sum" "\$tot" || return 1
+	# Sum must be reasonably close to expected total charge
+	python3 - "\$sum" "\$tot" <<'PY' || return 1
+import sys,math
+sumv=float(sys.argv[1]); tot=float(sys.argv[2])
+# allow modest numerical drift from RESP
+sys.exit(0 if abs(sumv-tot) <= 0.05 else 1)
+PY
 
-		# Reject “mostly zero” charge sets (common symptom of a broken/partial resp stage)
-		# Allow small systems to have a few zeros, but not large fractions.
-		if [[ "\$nat" -ge 10 ]]; then
-			python3 - <<PY
-	import sys
-	nat=int(sys.argv[1]); nzero=int(sys.argv[2])
-	frac_zero = 1.0 - (nzero / float(nat))
-	# frac_zero = fraction of zeros
-	sys.exit(0 if frac_zero <= 0.10 else 1)
-	PY "\$nat" "\$nzero" || return 1
-		fi
+	# Too many zeros usually means parsing failed and we got blank/0 charges
+	if [[ "\$nat" -ge 10 ]]; then
+		python3 - "\$nat" "\$nzero" <<'PY' || return 1
+import sys
+nat=int(sys.argv[1]); nzero=int(sys.argv[2])
+frac_zero = 1.0 - (nzero / float(nat))
+# frac_zero = fraction of zeros
+sys.exit(0 if frac_zero <= 0.10 else 1)
+PY
+	fi
 
-		# Reject wildly large charges (should not happen for typical RESP on organics)
-		python3 - <<PY
-	import sys
-	m=float(sys.argv[1])
-	sys.exit(0 if m <= 2.5 else 1)
-	PY "\$maxabs" || return 1
+	# Max abs charge sanity (RESP can give large-ish, but not crazy)
+	python3 - "\$maxabs" <<'PY' || return 1
+import sys
+m=float(sys.argv[1])
+sys.exit(0 if m <= 2.5 else 1)
+PY
 
-		return 0
-	}
+	return 0
+}
 
 	_apply_chg_to_mol2_inplace() {
 		# Args: mol2 chgfile
