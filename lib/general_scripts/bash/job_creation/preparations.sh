@@ -860,24 +860,6 @@ EOF
 	# Stage 3/3: MCPB.py -s 2 (+ -s 4 if requested)
 	# ---------------------------------------------------------------------
 	if [[ $mcpb_step -ge 2 ]]; then
-		# Copy all MCPB inputs + QM outputs into stage3 (copy, do not move)
-		cp -f "$STAGE1_DIR/${name}_mcpb.pdb" "$STAGE3_DIR/"
-		cp -f "$STAGE1_DIR/LIG.mol2" "$STAGE3_DIR/"
-		cp -f "$STAGE1_DIR/${metal_elem}.mol2" "$STAGE3_DIR/"
-		cp -f "$STAGE1_DIR/LIG.frcmod" "$STAGE3_DIR/"
-
-		# Needed by MCPB.py -s 2 and -s 4 (standard model + fingerprint)
-		cp -f "$STAGE1_DIR/${name}_standard.pdb" "$STAGE3_DIR/" 2>/dev/null || true
-		cp -f "$STAGE1_DIR/${name}_standard.fingerprint" "$STAGE3_DIR/" 2>/dev/null || true
-		cp -f "$STAGE1_DIR/${name}_small.res" "$STAGE3_DIR/" 2>/dev/null || true
-		cp -f "$STAGE1_DIR/${name}_small.pdb" "$STAGE3_DIR/" 2>/dev/null || true
-
-		cp -f "$STAGE2_DIR/${name}_small_opt.log" "$STAGE3_DIR/"
-		cp -f "$STAGE2_DIR/${name}_small_fc.log" "$STAGE3_DIR/"
-		cp -f "$STAGE2_DIR/${name}_small_opt.chk" "$STAGE3_DIR/"
-
-		cp -f "$STAGE1_DIR/${name}_large.pdb" "$STAGE3_DIR/" 2>/dev/null || true
-		cp -f "$STAGE2_DIR/${name}_large_mk.log" "$STAGE3_DIR/" 2>/dev/null || true
 
 		local need_stage3="true"
 		if [[ -f "$STAGE3_OK" && -s "$STAGE3_DIR/${name}_mcpbpy.frcmod" ]]; then
@@ -888,6 +870,25 @@ EOF
 
 		if [[ "$need_stage3" == "true" ]]; then
 			info "MCPB Stage 3/3: MCPB.py -s 2 (and -s 3/4 if requested)"
+
+			# Copy all MCPB inputs + QM outputs into stage3 (copy, do not move)
+			cp -f "$STAGE1_DIR/${name}_mcpb.pdb" "$STAGE3_DIR/"
+			cp -f "$STAGE1_DIR/LIG.mol2" "$STAGE3_DIR/"
+			cp -f "$STAGE1_DIR/${metal_elem}.mol2" "$STAGE3_DIR/"
+			cp -f "$STAGE1_DIR/LIG.frcmod" "$STAGE3_DIR/"
+
+			# Needed by MCPB.py -s 2 and -s 4 (standard model + fingerprint)
+			cp -f "$STAGE1_DIR/${name}_standard.pdb" "$STAGE3_DIR/" 2>/dev/null || true
+			cp -f "$STAGE1_DIR/${name}_standard.fingerprint" "$STAGE3_DIR/" 2>/dev/null || true
+			cp -f "$STAGE1_DIR/${name}_small.res" "$STAGE3_DIR/" 2>/dev/null || true
+			cp -f "$STAGE1_DIR/${name}_small.pdb" "$STAGE3_DIR/" 2>/dev/null || true
+
+			cp -f "$STAGE2_DIR/${name}_small_opt.log" "$STAGE3_DIR/"
+			cp -f "$STAGE2_DIR/${name}_small_fc.log" "$STAGE3_DIR/"
+			cp -f "$STAGE2_DIR/${name}_small_opt.chk" "$STAGE3_DIR/"
+
+			cp -f "$STAGE1_DIR/${name}_large.pdb" "$STAGE3_DIR/" 2>/dev/null || true
+			cp -f "$STAGE2_DIR/${name}_large_mk.log" "$STAGE3_DIR/" 2>/dev/null || true
 
 			cat > "$STAGE3_DIR/job_file.txt" <<EOF
 module add ${amber}
