@@ -1024,9 +1024,13 @@ PY
 	export PYTHONPATH="\$(pwd)/_py_sitecustomize:\${PYTHONPATH:-}"
 
 	echo "[INFO] Running MCPB.py step 3 (charge fitting / charge modification)"
-	# MCPB step 3 sometimes crashes in pymsmt (after RESP already produced resp2.*).
-	# We keep the pipeline alive and propagate charges ourselves from resp2.* below.
-	MCPB.py -i "\${NAME}_mcpb.in" -s 3 || echo "[WARN] MCPB.py step 3 returned non-zero; continuing (see mcpb_step3.err)"
+	set +e
+	MCPB.py -i "\${NAME}_mcpb.in" -s 3 > mcpb_step3.out 2> mcpb_step3.err
+	st3_rc=\$?
+	set -e
+	if [[ \$st3_rc -ne 0 ]]; then
+		echo "[WARN] MCPB.py step 3 returned non-zero (rc=\$st3_rc); will import charges manually if possible (see mcpb_step3.err)"
+	fi
 
 	# Ensure RESP charges are actually propagated into the MOL2 files used by LEaP
 	if [[ ! -s "resp2.chg" ]]; then
@@ -1038,85 +1042,241 @@ PY
 		exit 2
 	fi
 
-	echo "[INFO] Applying RESP charges from resp2.chg to LIG.mol2 and ${metal_elem}.mol2"
+	# Ensure RESP charges are actually propagated into the mol2 templates that tleap will load.
+	# DO NOT assume resp*.chg is [ligand][metal]. RESP output is in the atom order of the RESP input coordinates.
+	echo "[INFO] Importing RESP charges into LIG.mol2 and ${metal_elem}.mol2 (mapping by PDB atom order)"
 
-	# Flatten resp2.chg -> one charge per line (handles concatenated fixed-width fields and D/E exponents)
-	awk '{
-		s=\$0
-		while (match(s, /[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?/)) {
-			tok = substr(s, RSTART, RLENGTH)
-			gsub(/[dD]/, "E", tok)
-			print tok
-			s = substr(s, RSTART + RLENGTH)
-		}
-	}' resp2.chg > _resp2_all.chg
+	TOTAL_CHG="${total_charge}"
 
-	nat_lig=\$(awk 'BEGIN{inA=0;n=0}
-		/^@<TRIPOS>ATOM/{inA=1;next}
-		/^@<TRIPOS>/{if(inA) inA=0}
-		inA && \$1 ~ /^[0-9]+$/{n++}
-		END{print n}' LIG.mol2)
-
-	nat_ion=\$(awk 'BEGIN{inA=0;n=0}
-		/^@<TRIPOS>ATOM/{inA=1;next}
-		/^@<TRIPOS>/{if(inA) inA=0}
-		inA && \$1 ~ /^[0-9]+$/{n++}
-		END{print n}' ${metal_elem}.mol2)
-
-	nchg=\$(wc -l < _resp2_all.chg | tr -d ' ')
-	exp=\$((nat_lig + nat_ion))
-
-	# Some RESP setups write a non-expanded resp2.chg; resp2.out always contains the full per-atom q(opt) table.
-	if [[ "\$nchg" -ne "\$exp" ]]; then
-		echo "[WARN] resp2.chg count mismatch: charges=\$nchg, expected=\$exp; extracting per-atom q(opt) from resp2.out"
+	_extract_qopt_from_out() {
+		# Extract q(opt) column from RESP output (prefers optimized charges)
+		# Prints one number per line.
 		awk '
-			/Point Charges Before \& After Optimization/ {in=1; skip=3; next}
-			in && skip>0 {skip--; next}
-			in && \$1 ~ /^[0-9]+$/ {print \$4; next}
-			in && /Sum over the calculated charges/ {exit}
-		' resp2.out > _resp2_all.chg
-		nchg=\$(wc -l < _resp2_all.chg | tr -d ' ')
+			/RESP Point Charges Before & After Optimization/ {f=1; next}
+			f && /^\s*$/ {next}
+			f && /^\s*-+/ {next}
+			f && \$1 ~ /^[0-9]+$/ {print \$NF}
+		' "\$1"
+	}
+
+	_extract_floats() {
+		# Extract all floats from any text file (one per line)
+		python3 - <<'PY'
+	import re,sys
+	data=open(sys.argv[1],"r",errors="ignore").read()
+	nums=re.findall(r'[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?', data)
+	for x in nums:
+		print(x)
+	PY
+	}
+
+	_validate_chgfile() {
+		# Args: file nat_expected total_charge
+		local f="\$1"
+		local nat="\$2"
+		local tot="\$3"
+
+		[[ -s "\$f" ]] || return 1
+
+		local n sum maxabs nzero
+		n="\$(wc -l < "\$f" | tr -d ' ')"
+		[[ "\$n" -eq "\$nat" ]] || return 1
+
+		# Basic sanity: sum close to expected, not “mostly zero”, and not absurd magnitudes
+		read -r sum maxabs nzero < <(awk '
+			BEGIN{sum=0; maxabs=0; nzero=0}
+			{q=\$1+0.0; sum+=q; a=(q<0?-q:q); if(a>maxabs) maxabs=a; if(a!=0) nzero++}
+			END{printf("%.8f %.8f %d\n", sum, maxabs, nzero)}
+		' "\$f")
+
+		# Sum must be reasonably close to expected total charge
+		python3 - <<PY
+	import sys,math
+	sumv=float(sys.argv[1]); tot=float(sys.argv[2])
+	# allow modest numerical drift from RESP
+	sys.exit(0 if abs(sumv-tot) <= 0.05 else 1)
+	PY "\$sum" "\$tot" || return 1
+
+		# Reject “mostly zero” charge sets (common symptom of a broken/partial resp stage)
+		# Allow small systems to have a few zeros, but not large fractions.
+		if [[ "\$nat" -ge 10 ]]; then
+			python3 - <<PY
+	import sys
+	nat=int(sys.argv[1]); nzero=int(sys.argv[2])
+	frac_zero = 1.0 - (nzero / float(nat))
+	# frac_zero = fraction of zeros
+	sys.exit(0 if frac_zero <= 0.10 else 1)
+	PY "\$nat" "\$nzero" || return 1
+		fi
+
+		# Reject wildly large charges (should not happen for typical RESP on organics)
+		python3 - <<PY
+	import sys
+	m=float(sys.argv[1])
+	sys.exit(0 if m <= 2.5 else 1)
+	PY "\$maxabs" || return 1
+
+		return 0
+	}
+
+	_apply_chg_to_mol2_inplace() {
+		# Args: mol2 chgfile
+		local mol2="\$1"
+		local chg="\$2"
+
+		awk -v chgfile="\$chg" '
+			BEGIN{
+				n=0;
+				while((getline line < chgfile) > 0){ chg[++n]=line+0.0 }
+				close(chgfile);
+				inA=0; i=0;
+			}
+			/^@<TRIPOS>ATOM/ {inA=1; print; next}
+			/^@<TRIPOS>/ {if(inA) inA=0; print; next}
+			inA{
+				i++;
+				if(!(i in chg)){
+					print "[ERROR] Not enough charges for " FILENAME " at atom " i > "/dev/stderr";
+					exit 2
+				}
+				\$NF=sprintf("%.8f", chg[i]);
+				print;
+				next
+			}
+			{print}
+			END{
+				if(i!=n){
+					print "[WARN] Charge count (" n ") != ATOM count (" i ") for " FILENAME > "/dev/stderr"
+				}
+			}
+		' "\$mol2" > "\${mol2}.tmp" && mv -f "\${mol2}.tmp" "\$mol2"
+	}
+
+	# Determine which PDB defines RESP atom order
+	pdb_order=""
+	for f in "\${NAME}_standard.pdb" "\${NAME}_small.pdb" "\${NAME}_mcpb.pdb"; do
+		if [[ -f "\$f" ]]; then pdb_order="\$f"; break; fi
+	done
+	if [[ -z "\$pdb_order" ]]; then
+		echo "[ERROR] Cannot locate MCPB PDB to define RESP atom order (expected *_standard.pdb/_small.pdb/_mcpb.pdb)"
+		exit 1
 	fi
 
-	if [[ "\$nchg" -ne "\$exp" ]]; then
-		echo "[ERR] RESP charge count mismatch after fallback: charges=\$nchg, expected=\$exp (lig=\$nat_lig ion=\$nat_ion)"
-		exit 2
+	nat_pdb="\$(awk 'BEGIN{n=0} /^ATOM  |^HETATM/{n++} END{print n}' "\$pdb_order")"
+	echo "[INFO] RESP atom-order PDB: \$pdb_order (natoms=\$nat_pdb)"
+
+	# Choose best available RESP charges:
+	# prefer resp2.out q(opt), then resp2.chg, else resp1.out q(opt), then resp1.chg
+	rm -f _resp_all.chg _resp_candidate.chg
+
+	if [[ -s resp2.out ]]; then
+		_extract_qopt_from_out resp2.out > _resp_candidate.chg || true
+		if _validate_chgfile _resp_candidate.chg "\$nat_pdb" "\$TOTAL_CHG"; then
+			mv -f _resp_candidate.chg _resp_all.chg
+			echo "[INFO] Using charges from resp2.out (q(opt))"
+		fi
 	fi
 
-	head -n "\$nat_lig" _resp2_all.chg > _lig.chg
-	tail -n "\$nat_ion" _resp2_all.chg > _ion.chg
+	if [[ ! -s _resp_all.chg && -s resp2.chg ]]; then
+		_extract_floats resp2.chg > _resp_candidate.chg || true
+		if _validate_chgfile _resp_candidate.chg "\$nat_pdb" "\$TOTAL_CHG"; then
+			mv -f _resp_candidate.chg _resp_all.chg
+			echo "[INFO] Using charges from resp2.chg"
+		fi
+	fi
 
-	awk 'BEGIN{OFS=" "; inA=0; k=0}
-		FNR==NR { q[++m]=\$1; next }
-		/^@<TRIPOS>ATOM/ { inA=1; print; next }
-		/^@<TRIPOS>/ { if(inA) inA=0; print; next }
-		inA && \$1 ~ /^[0-9]+$/ {
-			k++
-			if(k>m){ print "[ERR] Not enough charges for LIG" > "/dev/stderr"; exit 3 }
-			\$(NF)=q[k]
-			print
-			next
+	if [[ ! -s _resp_all.chg && -s resp1.out ]]; then
+		_extract_qopt_from_out resp1.out > _resp_candidate.chg || true
+		if _validate_chgfile _resp_candidate.chg "\$nat_pdb" "\$TOTAL_CHG"; then
+			mv -f _resp_candidate.chg _resp_all.chg
+			echo "[INFO] Using charges from resp1.out (q(opt))"
+		fi
+	fi
+
+	if [[ ! -s _resp_all.chg && -s resp1.chg ]]; then
+		_extract_floats resp1.chg > _resp_candidate.chg || true
+		if _validate_chgfile _resp_candidate.chg "\$nat_pdb" "\$TOTAL_CHG"; then
+			mv -f _resp_candidate.chg _resp_all.chg
+			echo "[INFO] Using charges from resp1.chg"
+		fi
+	fi
+
+	rm -f _resp_candidate.chg
+
+	if [[ ! -s _resp_all.chg ]]; then
+		echo "[ERROR] No valid RESP charge set found (resp1/resp2). Not touching MOL2 charges."
+		echo "[ERROR] Inspect resp*.out / mcpb_step3.err. Aborting."
+		exit 1
+	fi
+
+	# Build index lists from PDB order using residue names.
+	# Accept common MCPB renames: LIG/LG1 and ${metal_elem}/${metal_elem}1
+	lig_re="^(LIG|LG1)$"
+	ion_re="^(${metal_elem}|${metal_elem}1)$"
+
+	rm -f _idx_lig _idx_ion
+	awk -v lig_re="\$lig_re" -v ion_re="\$ion_re" '
+		BEGIN{i=0}
+		/^ATOM  |^HETATM/{
+			i++;
+			res=substr(\$0,18,3);
+			gsub(/ /,"",res);
+			if(res ~ lig_re) print i >> "_idx_lig";
+			else if(res ~ ion_re) print i >> "_idx_ion";
 		}
-		{ print }
-		END{ if(k!=m){ print "[ERR] LIG charge/atom mismatch atoms="k" charges="m > "/dev/stderr"; exit 3 } }
-	' _lig.chg LIG.mol2 > LIG.mol2.tmp && mv LIG.mol2.tmp LIG.mol2
+	' "\$pdb_order"
 
-	awk 'BEGIN{OFS=" "; inA=0; k=0}
-		FNR==NR { q[++m]=\$1; next }
-		/^@<TRIPOS>ATOM/ { inA=1; print; next }
-		/^@<TRIPOS>/ { if(inA) inA=0; print; next }
-		inA && \$1 ~ /^[0-9]+$/ {
-			k++
-			if(k>m){ print "[ERR] Not enough charges for ION" > "/dev/stderr"; exit 3 }
-			\$(NF)=q[k]
-			print
-			next
+	nat_lig_idx="\$(wc -l < _idx_lig | tr -d ' ')"
+	nat_ion_idx="\$(wc -l < _idx_ion | tr -d ' ')"
+
+	nat_lig_mol2="\$(mol2_atoms_count LIG.mol2)"
+	nat_ion_mol2="\$(mol2_atoms_count "${metal_elem}.mol2")"
+
+	echo "[INFO] PDB->LIG atoms: \$nat_lig_idx (mol2 has \$nat_lig_mol2)"
+	echo "[INFO] PDB->ION atoms: \$nat_ion_idx (mol2 has \$nat_ion_mol2)"
+
+	if [[ "\$nat_lig_idx" -ne "\$nat_lig_mol2" || "\$nat_ion_idx" -ne "\$nat_ion_mol2" ]]; then
+		echo "[ERROR] Residue atom-count mismatch while mapping RESP charges."
+		echo "[ERROR] Check residue names in \$pdb_order and mol2 atom counts."
+		exit 1
+	fi
+
+	# Slice RESP charges by indices and apply to mol2 in-place
+	awk 'FNR==NR{q[FNR]=\$1; next} {print q[\$1]}' _resp_all.chg _idx_lig > _lig.chg
+	awk 'FNR==NR{q[FNR]=\$1; next} {print q[\$1]}' _resp_all.chg _idx_ion > _ion.chg
+
+	_apply_chg_to_mol2_inplace LIG.mol2 _lig.chg
+	_apply_chg_to_mol2_inplace "${metal_elem}.mol2" _ion.chg
+
+	# Quick summaries
+	read -r nonzero_lig sum_lig maxabs_lig < <(awk '
+		BEGIN{inA=0;sum=0;nz=0;mx=0}
+		/^@<TRIPOS>ATOM/{inA=1;next}
+		/^@<TRIPOS>/{if(inA) inA=0}
+		inA{
+			q=\$NF+0.0; sum+=q; if(q!=0) nz++;
+			a=(q<0?-q:q); if(a>mx) mx=a
 		}
-		{ print }
-		END{ if(k!=m){ print "[ERR] ION charge/atom mismatch atoms="k" charges="m > "/dev/stderr"; exit 3 } }
-	' _ion.chg ${metal_elem}.mol2 > ${metal_elem}.mol2.tmp && mv ${metal_elem}.mol2.tmp ${metal_elem}.mol2
+		END{printf("%d %.8f %.8f\n", nz, sum, mx)}
+	' LIG.mol2)
 
-	rm -f _resp2_all.chg _lig.chg _ion.chg
+	read -r nonzero_ion sum_ion maxabs_ion < <(awk '
+		BEGIN{inA=0;sum=0;nz=0;mx=0}
+		/^@<TRIPOS>ATOM/{inA=1;next}
+		/^@<TRIPOS>/{if(inA) inA=0}
+		inA{
+			q=\$NF+0.0; sum+=q; if(q!=0) nz++;
+			a=(q<0?-q:q); if(a>mx) mx=a
+		}
+		END{printf("%d %.8f %.8f\n", nz, sum, mx)}
+	' "${metal_elem}.mol2")
+
+	echo "[INFO] LIG.mol2: nonzero=\${nonzero_lig} sum=\${sum_lig} maxabs=\${maxabs_lig}"
+	echo "[INFO] ${metal_elem}.mol2: nonzero=\${nonzero_ion} sum=\${sum_ion} maxabs=\${maxabs_ion}"
+
+	# Clean temps
+	rm -f _resp_all.chg _idx_lig _idx_ion _lig.chg _ion.chg
+
 fi
 
 # Normalize the MCPB-typed PDB name (required by tleap stage)
@@ -1175,7 +1335,7 @@ EOF
 			local stage3_err
 			stage3_err="$(ls -1 "$STAGE3_DIR/${STAGE3_JOB}.sh.e"* "$STAGE3_DIR/${STAGE3_JOB}.e"* 2>/dev/null | tail -n 1 || true)"
 			if [[ -f "$stage3_err" ]] && grep -q "Traceback (most recent call last)" "$stage3_err"; then
-					warn "MCPB step 3 produced a python traceback (see: $stage3_err). Continuing because step 4 / outputs may still be valid."
+				warning "MCPB step 3 produced a python traceback (see: $stage3_err). Continuing because step 4 / outputs may still be valid."
 			fi
 
 			# MCPB does NOT always produce a .lib (especially if you are not doing charge fitting via step 3).
