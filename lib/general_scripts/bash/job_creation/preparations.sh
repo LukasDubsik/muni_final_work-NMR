@@ -929,6 +929,15 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 echo "[INFO] Running MCPB.py step 2"
 MCPB.py -i "\${NAME}_mcpb.in" -s 2
 
+# Guard: MCPB can emit NaN force constants for degenerate angles (e.g., 0.0° artifacts).
+# NaN in frcmod can break tleap parsing, so strip those lines.
+for f in "\${NAME}_mcpbpy.frcmod" "\${NAME}_mcpbpy_pre.frcmod"; do
+	if [[ -f "\$f" ]] && grep -qiE '\bnan\b' "\$f"; then
+		warning "Detected NaN in \$f; removing invalid parameter lines."
+		sed -i '/[Nn][Aa][Nn]/d' "\$f"
+	fi
+done
+
 if [[ ! -s "\${NAME}_large.pdb" ]]; then
     echo "[ERR] Missing \${NAME}_large.pdb (required for MCPB.py step 3)."
     exit 2
@@ -969,23 +978,48 @@ set -euo pipefail
 REAL_RESP="__REAL_RESP__"
 
 normalize_chg() {
-	local in="\$1"
-	local tmp="\${in}.tmp"
+	local f="$1"
+	[[ -f "$f" ]] || return 0
 
-	# Extract all floats from the file (handles concatenated fixed-width fields and D/E exponents).
-	awk '
-	BEGIN { OFS=""; }
-	{
-		s=\$0
-		while (match(s, /[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?/)) {
-			tok = substr(s, RSTART, RLENGTH)
-			gsub(/[dD]/, "E", tok)
-			printf "%.8f\n", (tok + 0.0)
-			s = substr(s, RSTART + RLENGTH)
-		}
-	}
-	' "\$in" > "\$tmp"
-	mv -f "\$tmp" "\$in"
+	# Normalize RESP charge files into exactly NATOMS lines (one charge per atom).
+	# Handles: Fortran D exponents, compact formatting, and 2-column (q0/qopt) files.
+	python3 - "$f" "$NATOMS" <<'PY'
+import sys, re, math, os
+
+path = sys.argv[1]
+natoms = int(sys.argv[2])
+
+txt = open(path, "r", errors="ignore").read()
+txt = txt.replace('D','E').replace('d','e')
+txt = txt.replace("D", "E").replace("d", "e")
+
+nums = re.findall(r'[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eEdD][-+]?\d+)?', txt)
+vals = [float(x) for x in nums]
+
+if len(vals) == natoms:
+	use = vals
+elif len(vals) == 2 * natoms:
+	# Typical "q0 qopt" pairing per atom -> keep qopt (2nd of each pair)
+	use = vals[1::2]
+elif len(vals) > natoms and (len(vals) % natoms) == 0:
+	# Multiple blocks -> keep last block (usually the final charges)
+	use = vals[-natoms:]
+else:
+	print(f"[ERR] normalize_chg: {path}: extracted {len(vals)} floats; expected {natoms} or 2*natoms (or k*natoms).", file=sys.stderr)
+	sys.exit(2)
+
+for q in use:
+	if not math.isfinite(q):
+		print(f"[ERR] normalize_chg: {path}: non-finite charge detected: {q}", file=sys.stderr)
+		sys.exit(3)
+
+tmp = path + ".norm"
+with open(tmp, "w") as fh:
+	for q in use:
+		fh.write(f"{q:.8f}\n")
+
+os.replace(tmp, path)
+PY
 }
 
 "\$REAL_RESP" "\$@"
