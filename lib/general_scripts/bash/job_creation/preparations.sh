@@ -354,6 +354,20 @@ run_mcpb() {
 		fi
 	fi
 
+	# If preserved stages were created without add_bonded_pairs, they are not safe to reuse
+	if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
+		if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
+			warning "MCPB preserved stages were generated without add_bonded_pairs; invalidating cached MCPB stages."
+			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
+		fi
+	fi
+	if [[ -f "$STAGE1_OK" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
+		if grep -q "^additional_resids[[:space:]]\\+" "$STAGE1_DIR/${name}_mcpb.in"; then
+			warning "MCPB stage1 cache invalid: contains additional_resids; forcing rebuild"
+			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
+		fi
+	fi
+
 	# If stage 1 isn't OK, nothing downstream is valid.
 	if [[ ! -f "$STAGE1_OK" ]]; then
 		rm -rf "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
@@ -499,20 +513,6 @@ run_mcpb() {
 		done
 	fi
 
-	# If preserved stages were created without add_bonded_pairs, they are not safe to reuse
-	if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
-		if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
-			warning "MCPB preserved stages were generated without add_bonded_pairs; invalidating cached MCPB stages."
-			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
-		fi
-	fi
-	if [[ -f "$STAGE1_OK" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
-		if grep -q "^additional_resids[[:space:]]\\+" "$STAGE1_DIR/${name}_mcpb.in"; then
-			warning "MCPB stage1 cache invalid: contains additional_resids; forcing rebuild"
-			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
-		fi
-	fi
-
 	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
 	# ---------------------------------------------------------------------
 	# Stage 1/3: MCPB.py -s 1  (generates QM inputs)
@@ -540,7 +540,6 @@ NAME="${name}"
 	echo "original_pdb ${name}_mcpb.pdb"
 	echo "group_name ${name}"
 	echo "cut_off 2.8"
-	echo "additional_resids 1"
 	echo "force_field ff19SB"
 	echo "ion_ids ${metal_id}"
 	echo "${addbpairs_line}"
@@ -916,7 +915,6 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 	echo "original_pdb ${name}_mcpb.pdb"
 	echo "group_name ${name}"
 	echo "cut_off 2.8"
-	echo "additional_resids 1"
 	echo "force_field ff19SB"
 	echo "ion_ids ${metal_id}"
 	echo "${addbpairs_line}"
