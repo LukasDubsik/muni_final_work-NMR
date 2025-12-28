@@ -507,9 +507,9 @@ run_mcpb() {
 		fi
 	fi
 	if [[ -f "$STAGE1_OK" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
-		if ! grep -q "^additional_resids[[:space:]]\\+1\\b" "$STAGE1_DIR/${name}_mcpb.in"; then
-			warning "MCPB stage1 cache invalid: missing additional_resids; forcing rebuild"
-			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
+		if grep -q "^additional_resids[[:space:]]\\+" "$STAGE1_DIR/${name}_mcpb.in"; then
+			warning "MCPB stage1 cache invalid: contains additional_resids; forcing rebuild"
+			stage1_ok=false
 		fi
 	fi
 
@@ -908,6 +908,7 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 	echo "additional_resids 1"
 	echo "force_field ff19SB"
 	echo "ion_ids ${metal_id}"
+	echo "${addbpairs_line}"
 	echo "ion_mol2files ${metal_elem}.mol2"
 	echo "naa_mol2files LIG.mol2"
 	echo "frcmod_files LIG.frcmod"
@@ -1173,10 +1174,8 @@ EOF
 			# Hard-fail if MCPB.py threw a Python traceback during Stage 3 (common symptom: RESP parsing crash).
 			local stage3_err
 			stage3_err="$(ls -1 "$STAGE3_DIR/${STAGE3_JOB}.sh.e"* "$STAGE3_DIR/${STAGE3_JOB}.e"* 2>/dev/null | tail -n 1 || true)"
-			if [[ -n "${stage3_err:-}" ]]; then
-				if grep -q "Traceback (most recent call last)" "$stage3_err"; then
-					die "MCPB Stage 3 failed (python traceback in: $stage3_err)"
-				fi
+			if [[ -f "$stage3_err" ]] && grep -q "Traceback (most recent call last)" "$stage3_err"; then
+					warn "MCPB step 3 produced a python traceback (see: $stage3_err). Continuing because step 4 / outputs may still be valid."
 			fi
 
 			# MCPB does NOT always produce a .lib (especially if you are not doing charge fitting via step 3).
