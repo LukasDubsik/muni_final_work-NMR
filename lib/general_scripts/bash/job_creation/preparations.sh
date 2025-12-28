@@ -509,7 +509,7 @@ run_mcpb() {
 	if [[ -f "$STAGE1_OK" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
 		if grep -q "^additional_resids[[:space:]]\\+" "$STAGE1_DIR/${name}_mcpb.in"; then
 			warning "MCPB stage1 cache invalid: contains additional_resids; forcing rebuild"
-			stage1_ok=false
+			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK"
 		fi
 	fi
 
@@ -897,6 +897,17 @@ module add g16 2>/dev/null || module add gaussian 2>/dev/null || true
 NAME="${name}"
 STEP="${mcpb_step}"
 
+mol2_atoms_count() {
+	local mol2="\$1"
+	awk '
+		BEGIN{in_atom=0; n=0}
+		/^@<TRIPOS>ATOM/{in_atom=1; next}
+		/^@<TRIPOS>/{if(in_atom){print n; exit}}
+		in_atom && NF{n++}
+		END{if(!in_atom){print 0}}
+	' "\$mol2"
+}
+
 # Generate the fchk file
 formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 
@@ -1032,9 +1043,9 @@ PY
 		echo "[WARN] MCPB.py step 3 returned non-zero (rc=\$st3_rc); will import charges manually if possible (see mcpb_step3.err)"
 	fi
 
-	# Ensure RESP charges are actually propagated into the MOL2 files used by LEaP
-	if [[ ! -s "resp2.chg" ]]; then
-		echo "[ERR] Missing resp2.chg after MCPB step 3"
+	# Ensure MCPB produced at least one RESP charge file; resp2 may be absent in some failure modes.
+	if [[ ! -s "resp1.chg" && ! -s "resp2.chg" ]]; then
+		echo "[ERR] Missing resp1.chg and resp2.chg after MCPB step 3"
 		exit 2
 	fi
 	if [[ ! -s "LIG.mol2" || ! -s "${metal_elem}.mol2" ]]; then
@@ -1289,8 +1300,16 @@ elif [[ -f "mcpbpy.pdb" ]]; then
 fi
 
 # Normalize outputs to stable names expected by the rest of your pipeline
-if [[ -f "frcmod_\${NAME}" ]]; then
-	cp "frcmod_\${NAME}" "\${NAME}_mcpbpy.frcmod"
+if [[ -f "${NAME}_mcpbpy.frcmod" ]]; then
+	:
+elif [[ -f "frcmod_${NAME}" ]]; then
+	cp "frcmod_${NAME}" "${NAME}_mcpbpy.frcmod"
+elif [[ -f "${NAME}.frcmod" ]]; then
+	cp "${NAME}.frcmod" "${NAME}_mcpbpy.frcmod"
+else
+	echo "[ERR] No frcmod output from MCPB step 2/4 (looked for: ${NAME}_mcpbpy.frcmod, frcmod_${NAME}, ${NAME}.frcmod)"
+	ls -l
+	exit 2
 fi
 # Normalize library output (if MCPB produced one)
 if [[ -f "\${NAME}.lib" ]]; then
