@@ -1600,7 +1600,7 @@ run_tleap() {
 					fi
 
 					if [[ -f "$JOB_DIR/$base" ]]; then
-						mol2_sanitize_for_mcpb "$JOB_DIR/$base" "$JOB_DIR/$base"
+						mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
 					fi
 				elif [[ "$base" =~ ^AU[0-9]+[.]mol2$ ]]; then
 					# Prefer MCPB AU.mol2 if present; otherwise regenerate as a single-ion MOL2
@@ -1892,6 +1892,12 @@ EOF
 
     #Run the antechmaber
     submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
+
+	local err_file
+	err_file="$(ls -1t "$JOB_DIR/${job_name}.sh.e"* 2>/dev/null | head -n 1 || true)"
+	if [[ -n "$err_file" ]] && grep -qiE 'corrupted size|munmap_chunk\\(\\): invalid pointer|invalid pointer|Aborted|terminated with signal|Segmentation fault' "$err_file"; then
+		die "teLeap crashed (glibc heap corruption). See: $err_file"
+	fi
 
 	#Check that the final files are truly present
 	check_res_file "${name}.rst7" "$JOB_DIR" "$job_name"

@@ -465,6 +465,13 @@ mol2_sanitize_atom_coords_inplace() {
 mol2_sanitize_for_mcpb() {
 	local in_mol2="$1"
 	local subst="${2:-LIG}"
+	# Ensure residue/substructure name is a short, safe token (never a path)
+	subst="${subst##*/}"        # drop any directory prefix
+	subst="${subst%.mol2}"      # drop common extensions
+	subst="${subst%.MOL2}"
+	subst="${subst//[^[:alnum:]]/}"
+	subst="${subst:0:4}"
+	[[ -n "$subst" ]] || subst="LIG"
 	local tmp="${in_mol2}.tmp"
 
 	awk -v subst="$subst" '
