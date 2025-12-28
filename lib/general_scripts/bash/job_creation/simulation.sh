@@ -1,7 +1,7 @@
 # shellcheck disable=SC2148
 # Guard so we don't load twice
 [[ ${_SIMULATION_SH_LOADED:-0} -eq 1 ]] && return
-_SIMULATION_LOADED=1
+_SIMULATION_SH_LOADED=1
 
 # run_opt_water NAME DIRECTORY META AMBER
 # Optimalize the water system without touching the solute
@@ -142,6 +142,8 @@ run_opt_temp() {
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
 	force_first_md_start "${JOB_DIR}/${in_file}.in"
+
+	force_safe_heating_start "${JOB_DIR}/${in_file}.in"
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then

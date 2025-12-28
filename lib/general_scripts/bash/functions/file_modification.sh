@@ -25,17 +25,34 @@ force_first_md_start() {
 
 	[[ -f "$in_file" ]] || die "Missing MD input file to patch: $in_file"
 
-	# Replace any existing irest/ntx settings robustly (handles whitespace and comma-separated lists)
+	# Patch case-insensitively (Amber namelist keywords are case-insensitive)
 	sed -E -i \
-		-e 's/(^|[[:space:],])irest[[:space:]]*=[[:space:]]*[0-9]+/\1irest=0/g' \
-		-e 's/(^|[[:space:],])ntx[[:space:]]*=[[:space:]]*[0-9]+/\1ntx=1/g' \
+		-e 's/(^|[[:space:],])([iI][rR][eE][sS][tT])[[:space:]]*=[[:space:]]*[0-9]+/\1irest=0/g' \
+		-e 's/(^|[[:space:],])([nN][tT][xX])[[:space:]]*=[[:space:]]*[0-9]+/\1ntx=1/g' \
 		"$in_file" || die "Failed to patch irest/ntx in: $in_file"
+}
+
+# force_safe_heating_start IN_FILE
+# For initial heating, keep constraints to H-bonds only and use a conservative dt.
+# This reduces instability risk in metal systems and avoids SHAKE-on-all-bonds (ntc/ntf=3).
+force_safe_heating_start() {
+	local in_file="$1"
+
+	[[ -f "$in_file" ]] || die "Missing MD input file to patch: $in_file"
+
+	sed -E -i \
+		-e 's/(^|[[:space:],])([nN][tT][cC])[[:space:]]*=[[:space:]]*[0-9]+/\1ntc=2/g' \
+		-e 's/(^|[[:space:],])([nN][tT][fF])[[:space:]]*=[[:space:]]*[0-9]+/\1ntf=2/g' \
+		-e 's/(^|[[:space:],])([dD][tT])[[:space:]]*=[[:space:]]*[0-9.+-Ee]+/\1dt=0.001/g' \
+		-e 's/(^|[[:space:],])([iI][gG])[[:space:]]*=[[:space:]]*-?[0-9]+/\1ig=-1/g' \
+		"$in_file" || die "Failed to patch safe heating settings in: $in_file"
 }
 
 # wrap_pmemd_cuda_fallback SH_FILE
 # Rewrites the first pmemd.cuda invocation into a guarded form:
 #   - exports OMP_NUM_THREADS=1
 #   - retries on CPU with pmemd if pmemd.cuda fails (including segfault exit code)
+#   - retries with sander if pmemd also fails (sander often emits a clearer error)
 wrap_pmemd_cuda_fallback() {
 	local sh_file="$1"
 
@@ -47,10 +64,14 @@ wrap_pmemd_cuda_fallback() {
 		if (!done && $0 ~ /(^|[[:space:];])pmemd\.cuda[[:space:]]/) {
 			cmd=$0
 			cpu=$0
+			sand=$0
 			sub(/pmemd\.cuda/, "pmemd", cpu)
+			sub(/pmemd\.cuda/, "sander", sand)
 
 			print "export OMP_NUM_THREADS=1"
-			print cmd " || { rc=$?; echo \"[WARN] pmemd.cuda failed (rc=\" rc \") - retrying with pmemd\" 1>&2; " cpu "; }"
+			print cmd " || { rc=$?; echo \"[WARN] pmemd.cuda failed (rc=${rc}) - retrying with pmemd\" 1>&2; " \
+			      cpu " || { rc2=$?; echo \"[WARN] pmemd failed (rc=${rc2}) - retrying with sander\" 1>&2; " \
+			      sand "; }; }"
 			done=1
 			next
 		}
