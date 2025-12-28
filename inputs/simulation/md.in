@@ -26,8 +26,7 @@
  ntpr=1000,      !When to take energy measurements
  ntwx=5000,      !Trajectory
  ntwr=5000,    !Restart
- 
- iwrap=1,      !Wrap molecules to primary box for cleaner trajs
+
  ntr=0,
 
 &end
