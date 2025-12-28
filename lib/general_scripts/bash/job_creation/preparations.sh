@@ -1298,14 +1298,14 @@ elif [[ -f "mcpbpy.pdb" ]]; then
 fi
 
 # Normalize outputs to stable names expected by the rest of your pipeline
-if [[ -f "${NAME}_mcpbpy.frcmod" ]]; then
+if [[ -f "\${NAME}_mcpbpy.frcmod" ]]; then
 	:
-elif [[ -f "frcmod_${NAME}" ]]; then
-	cp "frcmod_${NAME}" "${NAME}_mcpbpy.frcmod"
-elif [[ -f "${NAME}.frcmod" ]]; then
-	cp "${NAME}.frcmod" "${NAME}_mcpbpy.frcmod"
+elif [[ -f "frcmod_\${NAME}" ]]; then
+	cp "frcmod_\${NAME}" "\${NAME}_mcpbpy.frcmod"
+elif [[ -f "\${NAME}.frcmod" ]]; then
+	cp "\${NAME}.frcmod" "\${NAME}_mcpbpy.frcmod"
 else
-	echo "[ERR] No frcmod output from MCPB step 2/4 (looked for: ${NAME}_mcpbpy.frcmod, frcmod_${NAME}, ${NAME}.frcmod)"
+	echo "[ERR] No frcmod output from MCPB step 2/4 (looked for: \${NAME}_mcpbpy.frcmod, frcmod_\${NAME}, \${NAME}.frcmod)"
 	ls -l
 	exit 2
 fi
