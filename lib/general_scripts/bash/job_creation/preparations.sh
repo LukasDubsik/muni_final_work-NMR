@@ -1519,8 +1519,8 @@ run_tleap() {
 			"$mcpb_tleap_in" \
 			| tr -d '\r' \
 			| sed -E 's/^[[:space:]]+//; s#[[:space:]]+$##' \
+			| awk '!seen[$0]++' \
 			> "$mcpb_bonds_in" || true
-
 
 		# Resolve/validate referenced files; never keep a loadPdb unless templates are present
 		local missing_templates="false"
@@ -1851,6 +1851,35 @@ run_tleap() {
 
 	# Drop any (possibly corrupted) check/charge lines
 	sed -i -E '/^[[:space:]]*(check|charge|eck|arge)[[:space:]]+SYS([[:space:]]|$)/Id' "$JOB_DIR/$tleap_in"
+
+	# -----------------------------------------------------------------
+	# De-duplicate explicit bond/addBond commands.
+	# teLeap aborts with:
+	#   "1-4: cannot add bond ..."
+	# when the same bond is specified twice (even without PDB CONECT). 
+	# -----------------------------------------------------------------
+	awk '
+	function norm_pair(a,b) { return (a<b) ? a SUBSEP b : b SUBSEP a }
+	{
+		raw=$0
+		line=$0
+		sub(/^[[:space:]]+/, "", line)
+
+		# bond atom1 atom2 [order]
+		# atom specs may be like: mol.1.C  or  8  or  MOL.12.AU
+		if (match(line, /^(bond|add[Bb]ond)[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+)([[:space:]]+([^[:space:]]+))?/, m)) {
+			cmd=tolower(m[1])
+			a=m[2]
+			b=m[3]
+			ord=m[5]
+
+			k = cmd SUBSEP norm_pair(a,b) SUBSEP ord
+			if (seen[k]++) next
+		}
+
+		print raw
+	}' "$JOB_DIR/$tleap_in" > "$JOB_DIR/${tleap_in}.dedup" && mv -f "$JOB_DIR/${tleap_in}.dedup" "$JOB_DIR/$tleap_in"
+
 
 	# -----------------------------------------------------------------
 	# Strip PDB CONECT records referenced by this teLeap input.
