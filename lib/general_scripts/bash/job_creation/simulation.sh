@@ -213,6 +213,8 @@ run_opt_pres() {
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
+	wrap_pmemd_cuda_fallback "${JOB_DIR}/${job_name}.sh"
+
     #Run the antechmaber
     submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 1 "08:00:00"
 
