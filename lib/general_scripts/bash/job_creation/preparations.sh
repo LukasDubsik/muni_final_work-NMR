@@ -1712,6 +1712,23 @@ run_tleap() {
 			if [[ "$missing_templates" == "false" && "$have_mcpb_pdb" == "true" ]]; then
 				info "Detected MCPB output – using MCPB PDB as the solute (do not load ${name}_charges_fix.mol2 as SYS)"
 
+				# PATCH2: (1) Strip CONECT from MCPB PDB to avoid duplicate bond fatal
+				#         (2) Retype LG1.mol2 coordinated atoms to MCPB Y* types (fix missing cl-M1 / c1-M1 params)
+				#         (3) Provide addAtomTypes snippet for MCPB-generated types
+				local mcpb_pdb="$JOB_DIR/${name}_mcpbpy.pdb"
+				local mcpb_frcmod="$JOB_DIR/${name}_mcpbpy.frcmod"
+
+				if [[ -f "$mcpb_pdb" ]] && grep -q '^CONECT' "$mcpb_pdb" 2>/dev/null; then
+					grep -v '^CONECT' "$mcpb_pdb" > "${mcpb_pdb}.noconect"
+					mv -f "${mcpb_pdb}.noconect" "$mcpb_pdb"
+				fi
+
+				# Align ligand template atom types with MCPB frcmod (e.g., Y2/Y3) so LEaP finds Y*-M1 bonds/angles
+				mol2_apply_mcpb_ytypes_from_pdb "$JOB_DIR/LG1.mol2" "$mcpb_pdb" "$mcpb_frcmod"
+
+				# Optional but recommended: define MCPB-generated atom types before loading mol2
+				mol2_write_mcpb_add_atomtypes_for_frcmod "$mcpb_frcmod" "$JOB_DIR/mcpb_atomtypes.in"
+
 				# Ensure RESP library is loaded before the MCPB PDB.
 				local lib_base=""
 				if [[ -f "$JOB_DIR/${name}_mcpbpy.lib" ]]; then
@@ -1809,7 +1826,12 @@ run_tleap() {
 		fi
 
 		# Prepend MCPB params into tleap script
-		cat "$mcpb_params_ok" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"
+		if [[ -s "$JOB_DIR/mcpb_atomtypes.in" ]]; then
+			cat "$JOB_DIR/mcpb_atomtypes.in" "$mcpb_params_ok" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"
+		else
+			cat "$mcpb_params_ok" "$JOB_DIR/${in_file}.in" > "$JOB_DIR/tleap_run.in"
+		fi
+
 	else
 		cp "$JOB_DIR/${in_file}.in" "$JOB_DIR/tleap_run.in"
 	fi
