@@ -1162,10 +1162,10 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 		mass["$t"]="$m"
 	done < <(
 		awk '
-			BEGIN{in=0}
-			$1=="MASS"{in=1; next}
-			in && $1=="BOND"{exit}
-			in && NF>=2 {print $1, $2}
+			BEGIN{inp=0}
+			$1=="MASS"{inp=1; next}
+			inp && $1=="BOND"{exit}
+			inp && NF>=2 {print $1, $2}
 		' "$frcmod_file"
 	)
 
@@ -1252,10 +1252,10 @@ mol2_write_mcpb_add_atomtypes_for_frcmod() {
 	local partners
 	partners="$(
 		awk '
-			BEGIN{in=0}
-			$1=="BOND"{in=1; next}
-			in && ($1=="ANGL" || $1=="ANGLE" || $1=="DIHE" || $1=="IMPR" || $1=="NONB" || $1=="MASS") {exit}
-			in && $1 ~ /-/ {
+			BEGIN{inp=0}
+			$1=="BOND"{inp=1; next}
+			inp && ($1=="ANGL" || $1=="ANGLE" || $1=="DIHE" || $1=="IMPR" || $1=="NONB" || $1=="MASS") {exit}
+			inp && $1 ~ /-/ {
 				s=$1
 				split(s,a,"-")
 				if (a[1]=="M1") print a[2]
@@ -1272,10 +1272,10 @@ mol2_write_mcpb_add_atomtypes_for_frcmod() {
 		mass["$t"]="$m"
 	done < <(
 		awk '
-			BEGIN{in=0}
-			$1=="MASS"{in=1; next}
-			in && $1=="BOND"{exit}
-			in && NF>=2 {print $1, $2}
+			BEGIN{inp=0}
+			$1=="MASS"{inp=1; next}
+			inp && $1=="BOND"{exit}
+			inp && NF>=2 {print $1, $2}
 		' "$frcmod_file"
 	)
 
