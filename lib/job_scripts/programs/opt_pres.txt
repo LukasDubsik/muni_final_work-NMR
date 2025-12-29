@@ -1,4 +1,36 @@
 module add ${module}
 
+# --- Fix topology molecule tables if needed (metal systems can break ATOMS_PER_MOLECULE) ---
+if command -v parmed >/dev/null 2>&1; then
+	natom=$(awk '
+		$0 ~ /^%FLAG POINTERS/ {p=1; next}
+		p && $0 ~ /^%FORMAT/ {next}
+		p {for (i=1;i<=NF;i++) {print $i; exit}}
+	' "${name}.parm7")
+
+	apm=$(awk '
+		$0 ~ /^%FLAG ATOMS_PER_MOLECULE/ {a=1; next}
+		a && $0 ~ /^%FORMAT/ {next}
+		a && $0 ~ /^%FLAG/ {a=0}
+		a {for (i=1;i<=NF;i++) s+=$i}
+		END {print s+0}
+	' "${name}.parm7")
+
+	if [[ -n "$natom" && -n "$apm" && "$natom" -ne "$apm" ]]; then
+		echo "[WARN] setMolecules: NATOM=$natom but SUM(ATOMS_PER_MOLECULE)=$apm; rebuilding molecule tables" 1>&2
+		cat > parmed_setMolecules.in <<EOF
+setMolecules
+outparm ${name}.parm7.fixed
+quit
+EOF
+		parmed -O -p "${name}.parm7" -i parmed_setMolecules.in
+		mv -f "${name}.parm7.fixed" "${name}.parm7"
+		rm -f parmed_setMolecules.in
+	fi
+else
+	echo "[WARN] parmed not in PATH inside job; skipping setMolecules" 1>&2
+fi
+# --- end setMolecules fix ---
+
 pmemd.cuda -O -i ${file} -p ${name}.parm7 -c ${name}_opt_temp.rst7 -ref ${name}_opt_pres.rst7 -o opt_pres.out -r ${name}_opt_pres.rst7 -x opt_pres.mdcrd -inf opt_pres.mdinfo
 
