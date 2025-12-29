@@ -1718,8 +1718,8 @@ run_tleap() {
 				local mcpb_pdb="$JOB_DIR/${name}_mcpbpy.pdb"
 				local mcpb_frcmod="$JOB_DIR/${name}_mcpbpy.frcmod"
 
-				if [[ -f "$mcpb_pdb" ]] && grep -q '^CONECT' "$mcpb_pdb" 2>/dev/null; then
-					grep -v '^CONECT' "$mcpb_pdb" > "${mcpb_pdb}.noconect"
+				if [[ -f "$mcpb_pdb" ]] && grep -qiE '^[[:space:]]*CONECT' "$mcpb_pdb" 2>/dev/null; then
+					grep -viE '^[[:space:]]*CONECT' "$mcpb_pdb" > "${mcpb_pdb}.noconect"
 					mv -f "${mcpb_pdb}.noconect" "$mcpb_pdb"
 				fi
 
@@ -1851,6 +1851,53 @@ run_tleap() {
 
 	# Drop any (possibly corrupted) check/charge lines
 	sed -i -E '/^[[:space:]]*(check|charge|eck|arge)[[:space:]]+SYS([[:space:]]|$)/Id' "$JOB_DIR/$tleap_in"
+
+	# -----------------------------------------------------------------
+	# Strip PDB CONECT records referenced by this teLeap input.
+	# When MCPB bond commands are present, CONECT duplicates them and can
+	# trigger: "1-4: cannot add bond ..."
+	# -----------------------------------------------------------------
+	while IFS= read -r pdb_file; do
+		[[ -z "$pdb_file" ]] && continue
+
+		# Strip quotes and leading ./ if present
+		pdb_file="${pdb_file#\"}"; pdb_file="${pdb_file%\"}"
+		pdb_file="${pdb_file#\'}"; pdb_file="${pdb_file%\'}"
+		pdb_file="${pdb_file#./}"
+
+		if [[ -f "$JOB_DIR/$pdb_file" ]] && grep -qiE '^[[:space:]]*CONECT' "$JOB_DIR/$pdb_file" 2>/dev/null; then
+			grep -viE '^[[:space:]]*CONECT' "$JOB_DIR/$pdb_file" > "$JOB_DIR/${pdb_file}.noconect"
+			mv -f "$JOB_DIR/${pdb_file}.noconect" "$JOB_DIR/$pdb_file"
+		fi
+	done < <(
+		grep -Ei '^[[:space:]]*([[:alnum:]_]+[[:space:]]*=[[:space:]]*)?load[Pp]db[[:space:]]+' "$JOB_DIR/$tleap_in" \
+			| awk '{print $NF}' \
+			| sort -u
+	)
+
+	# -----------------------------------------------------------------
+	# De-duplicate numeric bond commands (bond X.<i> X.<j>) to prevent
+	# teLeap abort if the same bond is introduced twice in the input.
+	# -----------------------------------------------------------------
+	awk '
+	function key(a,b) { return (a<b) ? a"-"b : b"-"a }
+	{
+		line=$0
+
+		# bond mol.8 mol.67   /   addBond mol.8 mol.67
+		if (match(line, /^[[:space:]]*(bond|add[Bb]ond)[[:space:]]+[^.]+[.]([0-9]+)[[:space:]]+[^.]+[.]([0-9]+)/, m)) {
+			k = key(m[2], m[3])
+			if (seen[k]++) next
+		}
+
+		# bond 8 67 (rare, but handle it)
+		if (match(line, /^[[:space:]]*(bond|add[Bb]ond)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)/, n)) {
+			k = key(n[2], n[3])
+			if (seen[k]++) next
+		}
+
+		print line
+	}' "$JOB_DIR/$tleap_in" > "$JOB_DIR/${tleap_in}.dedup" && mv -f "$JOB_DIR/${tleap_in}.dedup" "$JOB_DIR/$tleap_in"
 
 
 	# -----------------------------------------------------------------
