@@ -56,17 +56,18 @@ force_safe_heating_start() {
 #   - retries with sander if pmemd also fails (sander often prints a real diagnostic instead of SIGSEGV)
 wrap_pmemd_cuda_fallback() {
 	local sh_file="$1"
+	local strip_ref="${2:-0}"   # 1 => remove -ref, 0 => keep -ref
 
 	[[ -f "$sh_file" ]] || die "Missing job script to patch: $sh_file"
 
-	awk '
+	awk -v strip_ref="$strip_ref" '
 	BEGIN { done=0 }
 	{
 		if (!done && $0 ~ /(^|[[:space:];])pmemd\.cuda[[:space:]]/) {
 			cmd=$0
-
-			# opt_temp has no ntr/nmropt, so -ref is unused; strip it to avoid IO edge-cases
-			gsub(/-ref[[:space:]]+[^[:space:]]+/, "", cmd)
+			if (strip_ref == 1) {
+				gsub(/-ref[[:space:]]+[^[:space:]]+/, "", cmd)
+			}
 
 			cpu=cmd
 			sub(/pmemd\.cuda/, "pmemd", cpu)

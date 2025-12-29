@@ -157,7 +157,7 @@ run_opt_temp() {
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
-	wrap_pmemd_cuda_fallback "${JOB_DIR}/${job_name}.sh"
+	wrap_pmemd_cuda_fallback "${JOB_DIR}/${job_name}.sh" 1
 
     #Run the antechmaber
     submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 1 "08:00:00"
@@ -198,6 +198,8 @@ run_opt_pres() {
 	move_inp_file "${name}_opt_temp.rst7" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
+	fix_prmtop_molecules "${JOB_DIR}/${name}.parm7"
+
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
@@ -213,7 +215,7 @@ run_opt_pres() {
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
-	wrap_pmemd_cuda_fallback "${JOB_DIR}/${job_name}.sh"
+	wrap_pmemd_cuda_fallback "${JOB_DIR}/${job_name}.sh" 0
 
     #Run the antechmaber
     submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 1 "08:00:00"

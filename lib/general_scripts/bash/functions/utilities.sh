@@ -982,3 +982,51 @@ mol2_rebalance_total_charge_inplace() {
 
 	mv -f "$tmp" "$mol2" || die "Failed to update MOL2 after charge rebalance: $mol2"
 }
+
+
+# fix_prmtop_molecules PRMTOP
+# Rebuild ATOMS_PER_MOLECULE / SOLVENT_POINTERS if inconsistent (common with metal systems).
+fix_prmtop_molecules() {
+	local prmtop="$1"
+	[[ -f "$prmtop" ]] || die "Missing topology: $prmtop"
+
+	command -v parmed >/dev/null 2>&1 || die "parmed not found in PATH (load AmberTools/Amber first)"
+
+	local natom apm
+	natom=$(awk '
+		$0 ~ /^%FLAG POINTERS/ {p=1; next}
+		p && $0 ~ /^%FORMAT/ {next}
+		p {for (i=1;i<=NF;i++) {print $i; exit}}
+	' "$prmtop")
+
+	apm=$(awk '
+		$0 ~ /^%FLAG ATOMS_PER_MOLECULE/ {a=1; next}
+		a && $0 ~ /^%FORMAT/ {next}
+		a && $0 ~ /^%FLAG/ {a=0}
+		a {for (i=1;i<=NF;i++) s+=$i}
+		END {print s+0}
+	' "$prmtop")
+
+	[[ -n "$natom" && -n "$apm" ]] || die "Failed reading NATOM/ATOMS_PER_MOLECULE from: $prmtop"
+
+	if [[ "$natom" -eq "$apm" ]]; then
+		return 0
+	fi
+
+	warn "Topology molecule table inconsistent: NATOM=$natom but SUM(ATOMS_PER_MOLECULE)=$apm. Rebuilding via ParmEd setMolecules."
+
+	local in_file out_file
+	in_file="${prmtop}.parmed_setMolecules.in"
+	out_file="${prmtop}.fixed"
+
+	cat >"$in_file" <<EOF
+setMolecules
+outparm $out_file
+quit
+EOF
+
+	parmed -O -p "$prmtop" -i "$in_file" >/dev/null || die "ParmEd setMolecules failed for: $prmtop"
+
+	mv -f "$out_file" "$prmtop" || die "Failed replacing topology: $prmtop"
+	rm -f "$in_file"
+}
