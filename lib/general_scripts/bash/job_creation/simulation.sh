@@ -4,7 +4,7 @@
 _SIMULATION_SH_LOADED=1
 
 # run_opt_water NAME DIRECTORY META AMBER
-# Optimalize the water system without touching the solute
+# Optimize the water system without touching the solute
 # Globals: none
 # Returns: Nothing
 run_opt_water() {
@@ -33,7 +33,7 @@ run_opt_water() {
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
-	#Constrcut the job file
+	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
@@ -58,7 +58,7 @@ run_opt_water() {
 }
 
 # run_opt_all NAME DIRECTORY META AMBER
-# Optimalize the whole system (water + solute)
+# Optimize the whole system (water + solute)
 # Globals: none
 # Returns: Nothing
 run_opt_all() {
@@ -87,7 +87,7 @@ run_opt_all() {
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
-	#Constrcut the job file
+	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
@@ -145,7 +145,7 @@ run_opt_temp() {
 
 	force_safe_heating_start "${JOB_DIR}/${in_file}.in"
 
-	#Constrcut the job file
+	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
@@ -198,12 +198,12 @@ run_opt_pres() {
 	move_inp_file "${name}_opt_temp.rst7" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
-	fix_prmtop_molecules "${JOB_DIR}/${name}.parm7"
+	#fix_prmtop_molecules "${JOB_DIR}/${name}.parm7"
 
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
-	#Constrcut the job file
+	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
@@ -259,7 +259,7 @@ run_md() {
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
-	#Constrcut the job file
+	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
@@ -287,7 +287,7 @@ run_md() {
 }
 
 # run_cpptraj NAME DIRECTORY META AMBER CURR_RUN
-# Run cppytraj and sample the needed atoms/molecules for the gaussian NMR
+# Run cpptraj and sample the needed atoms/molecules for the gaussian NMR
 # Globals: none
 # Returns: Nothing
 run_cpptraj() {
@@ -323,7 +323,7 @@ run_cpptraj() {
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" "$limit"
 
-	#Constrcut the job file
+	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
 		substitute_name_sh_meta_end "$JOB_DIR"
@@ -358,11 +358,11 @@ run_cpptraj() {
 		move_inp_file "select_interact.py" "$SRC_DIR_3" "$JOB_DIR"
 		#Move to the job dir
 		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
-		#Activate the conda enviroment
+		#Activate the conda environment
 		conda activate "$env"
 		#Run the python script
 		python -W "ignore" select_interact.py "${name}.parm7" "$curr_run"
-		#Then deactive it
+		#Then deactivate it
 		conda deactivate
 		#Return to the base dir
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
