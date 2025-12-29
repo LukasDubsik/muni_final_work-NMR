@@ -1081,7 +1081,61 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 			END { for (k in n) print k }
 		' "$pdb_file" | sort -n
 	)"
-	[[ -n "${bonded_serials:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: no CONECT bonds to AU found (serial=$au_serial) in $pdb_file"
+	# If there are no CONECT records (common in MCPB PDBs), fall back to geometry:
+	#  - halides within 3.2 A of AU
+	#  - other heavy atoms within 2.6 A of AU
+	if [[ -z "${bonded_serials:-}" ]]; then
+		local aux auy auz
+		read -r aux auy auz < <(
+			awk -v au="$au_serial" '
+				($1=="ATOM" || $1=="HETATM") {
+					serial = substr($0,7,5)+0
+					if (serial==au) {
+						x=substr($0,31,8)+0
+						y=substr($0,39,8)+0
+						z=substr($0,47,8)+0
+						print x, y, z
+						exit
+					}
+				}
+			' "$pdb_file"
+		)
+		[[ -n "${aux:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: failed to read AU coordinates (serial=$au_serial) in $pdb_file"
+
+		bonded_serials="$(
+			awk -v au="$au_serial" -v ax="$aux" -v ay="$auy" -v az="$auz" '
+				function d2(x,y,z){dx=x-ax;dy=y-ay;dz=z-az;return dx*dx+dy*dy+dz*dz}
+				($1=="ATOM"||$1=="HETATM"){
+					serial=substr($0,7,5)+0
+					if(serial==au) next
+
+					an=substr($0,13,4); gsub(/ /,"",an)
+					tan=toupper(an)
+
+					# skip hydrogens (PDB has no element column here, so rely on atom name)
+					if (tan ~ /^H/) next
+
+					x=substr($0,31,8)+0
+					y=substr($0,39,8)+0
+					z=substr($0,47,8)+0
+					dist2=d2(x,y,z)
+
+					# halides within 3.2 A (3.2^2 = 10.24)
+					if (tan ~ /^(CL|BR|I|F)/ && dist2 < 10.24) { h[serial]=dist2; next }
+
+					# other heavy atoms within 2.6 A (2.6^2 = 6.76)
+					if (dist2 < 6.76) { n[serial]=dist2 }
+				}
+				END{
+					for (k in h) print k
+					for (k in n) print k
+				}
+			' "$pdb_file" | sort -n | uniq
+		)"
+
+		[[ -n "${bonded_serials:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: no AU neighbors found (no CONECT; no close atoms) for serial=$au_serial in $pdb_file"
+	fi
+
 
 	# 3) Determine which atom types in frcmod are bonded to M1 (e.g., Y2 and Y3)
 	local m1_partners
