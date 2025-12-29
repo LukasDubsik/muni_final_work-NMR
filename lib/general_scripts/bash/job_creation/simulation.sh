@@ -323,6 +323,10 @@ run_cpptraj() {
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" "$limit"
 
+	if [[ $mode == "no_water" ]]; then
+		force_cpptraj_xyz_output "$JOB_DIR/${in_file}.in" "$name"
+	fi
+
 	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""

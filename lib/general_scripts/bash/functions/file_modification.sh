@@ -88,6 +88,32 @@ wrap_pmemd_cuda_fallback() {
 	mv "${sh_file}.tmp" "$sh_file" || die "Failed to update job script: $sh_file"
 }
 
+# force_cpptraj_xyz_output IN_FILE NAME
+# For cpptraj_mode=no_water we require a multi-frame XYZ named ${NAME}_frame.xyz
+force_cpptraj_xyz_output() {
+	local in_file="$1"
+	local name="$2"
+
+	[[ -f "$in_file" ]] || die "Missing cpptraj input file to patch: $in_file"
+
+	# If it's already writing an xyz, keep it untouched.
+	if grep -qiE '^[[:space:]]*trajout[[:space:]].*\.xyz([[:space:]]|$)' "$in_file"; then
+		return 0
+	fi
+
+	# Remove any existing trajout lines and append our required XYZ output.
+	awk -v name="$name" '
+		/^[[:space:]]*trajout[[:space:]]/ { next }
+		{ print }
+		END {
+			print ""
+			print "trajout " name "_frame.xyz xyz"
+		}
+	' "$in_file" > "${in_file}.tmp" || die "Failed to rewrite cpptraj input: $in_file"
+
+	mv "${in_file}.tmp" "$in_file" || die "Failed to update cpptraj input: $in_file"
+}
+
 # substitute_name_in FIL DST NAME LIMIT SIGMA
 # Substitute values directly into the input script for the job
 # Globals: none
