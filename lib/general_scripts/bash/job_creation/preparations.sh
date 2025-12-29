@@ -1506,6 +1506,7 @@ run_tleap() {
 		local mcpb_tleap_in="${MCPB_DIR}/${name}_tleap.in"
 		local mcpb_params_in="$JOB_DIR/mcpb_params.in"
 		local mcpb_params_ok="$JOB_DIR/mcpb_params.ok.in"
+		local mcpb_bonds_in="$JOB_DIR/mcpb_bonds.in"
 
 		# Extract only MCPB load statements (including "VAR = loadmol2 file.mol2" forms)
 		grep -E '^[[:space:]]*([[:alnum:]_]+[[:space:]]*=[[:space:]]*)?(loadAmberParams|loadamberparams|loadoff|loadOff|loadMol2|loadmol2|loadPdb|loadpdb)[[:space:]]+' \
@@ -1513,6 +1514,13 @@ run_tleap() {
 			| tr -d '\r' \
 			| sed -E 's/^[[:space:]]+//; s#[[:space:]]+$##; s#\./##g' \
 			> "$mcpb_params_in" || true
+		# Extract MCPB bond definitions (REQUIRED for metal–ligand connectivity)
+		grep -E '^[[:space:]]*(bond|add[Bb]ond)[[:space:]]+' \
+			"$mcpb_tleap_in" \
+			| tr -d '\r' \
+			| sed -E 's/^[[:space:]]+//; s#[[:space:]]+$##' \
+			> "$mcpb_bonds_in" || true
+
 
 		# Resolve/validate referenced files; never keep a loadPdb unless templates are present
 		local missing_templates="false"
@@ -1670,6 +1678,21 @@ run_tleap() {
 
 			printf '%s\n' "$line" >> "$mcpb_params_ok"
 		done < "$mcpb_params_in"
+
+		# MCPB.py writes explicit bond commands in *_tleap.in to connect the metal center.
+		# If we kept any loadPdb line, splice the bond commands right after the FIRST loadPdb.
+		if [[ -s "$mcpb_bonds_in" ]] && grep -qiE 'load[Pp]db[[:space:]]+' "$mcpb_params_ok"; then
+			awk -v bonds="$mcpb_bonds_in" '
+				BEGIN{inserted=0}
+				{
+					print $0
+					if (inserted==0 && $0 ~ /load[Pp]db[[:space:]]+/) {
+						while ((getline b < bonds) > 0) print b
+						close(bonds)
+						inserted=1
+					}
+				}' "$mcpb_params_ok" > "$mcpb_params_ok.tmp" && mv -f "$mcpb_params_ok.tmp" "$mcpb_params_ok"
+		fi
 
 		local MCPB_FRCMOD="$MCPB_DIR/${name}_mcpbpy.frcmod"
 		if [[ -f "$MCPB_FRCMOD" ]]; then
