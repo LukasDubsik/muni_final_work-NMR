@@ -1141,10 +1141,10 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 	local m1_partners
 	m1_partners="$(
 		awk '
-			BEGIN{in=0}
-			$1=="BOND"{in=1; next}
-			in && ($1=="ANGL" || $1=="ANGLE" || $1=="DIHE" || $1=="IMPR" || $1=="NONB" || $1=="MASS") {exit}
-			in && $1 ~ /-/ {
+			BEGIN{inp=0}
+			$1=="BOND"{inp=1; next}
+			inp && ($1=="ANGL" || $1=="ANGLE" || $1=="DIHE" || $1=="IMPR" || $1=="NONB" || $1=="MASS") {exit}
+			inp && $1 ~ /-/ {
 				s=$1
 				split(s,a,"-")
 				if (a[1]=="M1") print a[2]
