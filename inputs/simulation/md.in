@@ -8,7 +8,6 @@
  cut=8.0,   !PME cutoff (for forces calculation cutoff)
  ntc=2,     !Hydrogen bonds are flexible
  ntf=2,     !Don't skip hydrogen bond computation
- ioutfm=0,  !Binary file result, quicker calculation
 
  irest=1,   !Continue from previous data
  ntx=5,     !Take over the positions and speeds
