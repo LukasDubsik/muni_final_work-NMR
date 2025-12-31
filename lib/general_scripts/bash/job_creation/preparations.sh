@@ -141,41 +141,6 @@ run_antechamber() {
 		check_res_file "${name}_charges_full.mol2" "$JOB_DIR" "$job_name"
 	fi
 
-	# # If we stripped a metal for charge generation, overlay charges back onto the full complex MOL2.
-	# if [[ "$heavy_metal" == "true" && -n "${complex_mol2:-}" && -s "$complex_mol2" ]]; then
-	# 	local lig_charged="${JOB_DIR}/${name}_charges.mol2"
-	# 	local out_complex="${JOB_DIR}/${name}_charges_complex.mol2"
-	# 	local out_user="${JOB_DIR}/${name}_charges_complex_user.mol2"
-
-	# 	# Sum ligand charges from the antechamber output (metal-stripped MOL2)
-	# 	local lig_net
-	# 	lig_net="$(awk 'BEGIN{in_atom=0;sum=0}
-	# 		/^@<TRIPOS>ATOM/{in_atom=1;next}
-	# 		/^@<TRIPOS>/{if(in_atom){in_atom=0}}
-	# 		in_atom && $1~/^[0-9]+$/{sum+=$NF}
-	# 		END{printf "%.6f", sum}' "$lig_charged")"
-
-	# 	# Enforce the configured total charge by assigning the metal the residual charge
-	# 	local metal_charge
-	# 	metal_charge="$(awk -v tot="$total_charge" -v lig="$lig_net" 'BEGIN{printf "%.6f", (tot - lig)}')"
-
-	# 	info "Overlaying ligand charges onto full complex: ligand_net=${lig_net}; total=${total_charge}; metal_charge=${metal_charge}"
-
-	# 	# Apply ligand charges to the full complex and set the metal charge
-	# 	mol2_overlay_ligand_charges "$lig_charged" "$complex_mol2" "$out_complex" "$metal_charge"
-
-	# 	# Ensure USER_CHARGES header
-	# 	mol2_force_user_charges "$out_complex" "$out_user"
-
-	# 	# Keep the ligand-only charged MOL2 for debugging, and replace final output with the full complex
-	# 	mv -f "$lig_charged" "${JOB_DIR}/${name}_ligand_charges.mol2"
-	# 	mv -f "$out_user" "${JOB_DIR}/${name}_charges.mol2"
-	# 	rm -f "$out_complex" || true
-
-	# 	# Re-check final output after overlay
-	# 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
-	# fi
-
 	success "$job_name has finished correctly"
 
 	#Write to the log a finished operation
@@ -1852,12 +1817,7 @@ run_tleap() {
 	# Drop any (possibly corrupted) check/charge lines
 	sed -i -E '/^[[:space:]]*(check|charge|eck|arge)[[:space:]]+SYS([[:space:]]|$)/Id' "$JOB_DIR/$tleap_in"
 
-	# -----------------------------------------------------------------
 	# De-duplicate explicit bond/addBond commands.
-	# teLeap aborts with:
-	#   "1-4: cannot add bond ..."
-	# when the same bond is specified twice (even without PDB CONECT). 
-	# -----------------------------------------------------------------
 	awk '
 	function norm_pair(a,b) { return (a<b) ? a SUBSEP b : b SUBSEP a }
 	{
@@ -1880,12 +1840,7 @@ run_tleap() {
 		print raw
 	}' "$JOB_DIR/$tleap_in" > "$JOB_DIR/${tleap_in}.dedup" && mv -f "$JOB_DIR/${tleap_in}.dedup" "$JOB_DIR/$tleap_in"
 
-
-	# -----------------------------------------------------------------
 	# Strip PDB CONECT records referenced by this teLeap input.
-	# When MCPB bond commands are present, CONECT duplicates them and can
-	# trigger: "1-4: cannot add bond ..."
-	# -----------------------------------------------------------------
 	while IFS= read -r pdb_file; do
 		[[ -z "$pdb_file" ]] && continue
 
@@ -1904,10 +1859,8 @@ run_tleap() {
 			| sort -u
 	)
 
-	# -----------------------------------------------------------------
 	# De-duplicate numeric bond commands (bond X.<i> X.<j>) to prevent
 	# teLeap abort if the same bond is introduced twice in the input.
-	# -----------------------------------------------------------------
 	awk '
 	function key(a,b) { return (a<b) ? a"-"b : b"-"a }
 	{
@@ -1928,12 +1881,7 @@ run_tleap() {
 		print line
 	}' "$JOB_DIR/$tleap_in" > "$JOB_DIR/${tleap_in}.dedup" && mv -f "$JOB_DIR/${tleap_in}.dedup" "$JOB_DIR/$tleap_in"
 
-
-	# -----------------------------------------------------------------
-	# Ensure SYS is defined as a UNIT before solvateBox/addIons/saveAmberParm.
-	# When SYS is undefined, teLeap treats it as a String and solvateBox fails:
-	#   "solvateBox: Argument #1 is type String must be of type: [unit]"
-	# -----------------------------------------------------------------
+	# Ensure SYS is defined as a UNIT before solvateBox/addIons/saveAmberParm
 	if grep -qiE '^[[:space:]]*solvatebox[[:space:]]+SYS\\b' "$JOB_DIR/$tleap_in"; then
 		if ! grep -qiE '^[[:space:]]*SYS[[:space:]]*=' "$JOB_DIR/$tleap_in"; then
 			local sys_var=""
@@ -1952,11 +1900,7 @@ run_tleap() {
 		fi
 	fi
 
-	# -----------------------------------------------------------------
-	# teLeap sometimes fails to locate frcmod.gaff2 in certain installs.
-	# If your leaprc (or MCPB-derived load lines) requests it, ensure a local copy exists.
-	# Prefer the real file if it is present in the Amber installation; otherwise create a safe stub.
-	# -----------------------------------------------------------------
+	# tLeap sometimes fails to locate frcmod.gaff2 in certain installs. Ensure it exists.
 	if grep -qiE '\bfrcmod\.gaff2\b' "$JOB_DIR/$tleap_in" "$JOB_DIR/leaprc.zf" "$JOB_DIR/mcpb_params.in" 2>/dev/null; then
 		if [[ ! -f "$JOB_DIR/frcmod.gaff2" ]]; then
 			if [[ -r "/software/amber-22/v1/dat/leap/parm/frcmod.gaff2" ]]; then
@@ -1981,24 +1925,9 @@ EOF
 		fi
 	fi
 
-	# -----------------------------------------------------------------
-	# Normalize teLeap script:
-	#   - teLeap 'check'/'charge' must operate on a UNIT (SYS), not a string
-	#     (e.g., MOL2 "MOLECULE name" or a quoted token), otherwise teLeap
-	#     throws: "Argument #1 is type String must be of type: [unit ...]".
-	# -----------------------------------------------------------------
+	# Normalize teLeap script
 	# Remove any existing check/charge lines (templates sometimes emit them as strings)
 	sed -i -E '/^[[:space:]]*(check|charge)[[:space:]]+/Id' "$JOB_DIR/$tleap_in"
-
-	# Re-insert check/charge right after SYS is defined (only if SYS exists)
-	# if grep -qiE '^[[:space:]]*SYS[[:space:]]*=' "$JOB_DIR/$tleap_in"; then
-	# 	# Insert charge first, then check, so final order is:
-	# 	#   SYS = ...
-	# 	#   check SYS
-	# 	#   charge SYS
-	# 	#sed -i -E '/^[[:space:]]*SYS[[:space:]]*=/a\\charge SYS' "$JOB_DIR/$tleap_in"
-	# 	#sed -i -E '/^[[:space:]]*SYS[[:space:]]*=/a\\check SYS' "$JOB_DIR/$tleap_in"
-	# fi
 
 	#Construct the job file
 	if [[ $meta == "true" ]]; then
