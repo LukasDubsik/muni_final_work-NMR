@@ -5,12 +5,11 @@
 parm ${name}.parm7
 trajin ${name}_md.mdcrd 1 last 10
 
-#Center around the residue
+#Keep closest N solvents
 autoimage
+strip !:1
 center :1 mass origin
 image origin center
 
-trajout frames.nc nc
-
+trajout ${name}_frame.xyz xyz ftype namexyz multi
 run
-quit
