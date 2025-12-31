@@ -25,21 +25,35 @@ for file in frames/frame_*.xyz; do
 
 			sub(/[0-9].*$/, "", name)
 
-            if (length(name) >= 2 && substr(name,2,1) ~ /[a-z]/) {
-                elem = substr(name, 1, 2)
-            } else {
-                elem = substr(name, 1, 1)
-            }
-
-            printf "%-2s %12.6f %12.6f %12.6f\n", elem, x, y, z
+            # Normalize element symbol for Gaussian: AU -> Au, CL -> Cl, BR -> Br, etc.
+			elem = toupper(substr(name, 1, 1)) tolower(substr(name, 2))
+			printf "%-2s %12.6f %12.6f %12.6f\n", elem, x, y, z
         }
         '
     	echo ""
 	} >> "${base}".gjf
 
+	# Build the light-element basis header only from elements actually present in the XYZ.
+	ELEM_SET=$(
+		tail -n +3 "$file" | grep -v 'XP' | awk '{
+			e=$1
+			sub(/[0-9].*$/, "", e)
+			e=toupper(substr(e,1,1)) tolower(substr(e,2))
+			print e
+		}' | sort -u
+	)
+
+	ELEM_LINE=""
+	for e in H C N O S P F Cl Br I; do
+		if grep -qx "$e" <<< "$ELEM_SET"; then
+			ELEM_LINE+="${e} "
+		fi
+	done
+	ELEM_LINE+="0"
+
 	# Split the atoms by basis
 	{
-        echo "H C N O S P F Cl Br I 0"
+        echo "$ELEM_LINE"
         echo "6-31++G(d,p)"
         echo "****"
         echo "Au 0"
