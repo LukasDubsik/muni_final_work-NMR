@@ -64,6 +64,16 @@ run_gaussian() {
 
 	info "Started running $job_name"
 
+	# Gaussian writes large scratch (RWF etc.). On MetaCentrum we must reserve scratch explicitly,
+	# otherwise $SCRATCHDIR is too small and the job fails with "Disk quota exceeded".
+	local old_extra="${JOB_META_SELECT_EXTRA:-}"
+	if [[ $meta == "true" ]]; then
+		# g16 is licensed only on specific nodes => host_licenses=g16
+		# Pick a scratch size that matches your workload (start with 50gb for GIAO NMR).
+		JOB_META_SELECT_EXTRA="host_licenses=g16:scratch_local=50gb"
+	fi
+
+
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/spectrum/$job_name"
 	ensure_dir $JOB_DIR
@@ -147,6 +157,11 @@ run_gaussian() {
 
 	#Check that the final files are truly present
 	check_res_file "frame_$last_frame.log" "$JOB_DIR/nmr" "$job_name"
+
+	# Restore for other pipeline stages
+	if [[ $meta == "true" ]]; then
+		JOB_META_SELECT_EXTRA="$old_extra"
+	fi
 
 	success "$job_name has finished correctly"
 
