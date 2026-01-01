@@ -114,7 +114,7 @@ run_gaussian() {
 		#Copy the specific frame to the local dir
 		cp $JOB_DIR/gauss/frame_$num.gjf $LOC_DIR
 		#Then submit the job for run
-		( submit_job "$meta" "$job_name" "$LOC_DIR" 16 16 0 "08:00:00" ) &
+		( submit_job "$meta" "$job_name" "$LOC_DIR" 32 32 0 "16:00:00" ) &
 		p=$!
 		pids+=("$p")
 
