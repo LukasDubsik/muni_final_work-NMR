@@ -32,10 +32,40 @@ clean_process() {
 				done
 			else
 				curr_sys="spectrum"
+				# Do not purge partial Gaussian results just because the central log
+				# has not reached the gaussian stage yet. The gaussian stage keeps its
+				# own completion log and can resume.
+				if [[ $key == "gaussian" ]]; then
+					local keep_gaussian=0
+					local gdir="process/${curr_sys}/${key}"
+					if [[ -d "$gdir" ]]; then
+						# 1) explicit completion log (created once at least one frame finishes)
+						if [[ -s "$gdir/finished_jobs.log" ]]; then
+							keep_gaussian=1
+						# 2) any finished gaussian logs already present
+						elif grep -R -q "Normal termination of Gaussian" "$gdir/nmr"/frame_*.log "$gdir"/job_*/frame_*.log 2>/dev/null; then
+							keep_gaussian=1
+						else
+							# 3) if any gaussian job is still queued/running, keep its directory
+							for jf in "$gdir"/job_*/.jobid; do
+								[[ -f "$jf" ]] || continue
+								jid=$( head -n 1 "$jf" || true )
+								[[ -n "$jid" ]] || continue
+								if qstat "$jid" >/dev/null 2>&1; then
+									keep_gaussian=1
+									break
+								fi
+							done
+						fi
+					fi
+					if [[ $keep_gaussian -eq 1 ]]; then
+						continue
+					fi
+				fi
 				rm -rf "process/${curr_sys}/${key}/"
 			fi
-		fi
 
+		fi
 		if [[ $num -lt 11 ]]; then
 			rm -rf "process/spectrum/frames"
 		fi

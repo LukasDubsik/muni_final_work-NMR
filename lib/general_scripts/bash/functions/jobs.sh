@@ -41,6 +41,9 @@ submit_job() {
 	#Check that the job was succesfully submitted and exit
 	[[ -n "$jobid" ]] || die "Failed to submit job '${name}': $out"
 
+	#Persist the jobid in the job directory so interrupted pipelines can resume
+	echo "$jobid" > .jobid
+
 	wait_job "$jobid"
 
 	cd "$curr_dir" || exit 1
