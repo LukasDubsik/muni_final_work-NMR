@@ -144,11 +144,12 @@ run_gaussian() {
 		LOC_DIR="$JOB_DIR/job_${num}/"
 		[[ -d "$LOC_DIR" ]] || continue
 
-		# If a jobid marker exists and the job is still queued/running, wait it out
+		# If a jobid marker exists and the job is still queued/running, skip for now
+		# (do not block the whole pipeline on the first running frame)
 		if [[ -f "$LOC_DIR/.jobid" ]]; then
 			jid=$( head -n 1 "$LOC_DIR/.jobid" || true )
 			if [[ -n "$jid" ]] && qstat "$jid" >/dev/null 2>&1; then
-				wait_job "$jid"
+				continue
 			fi
 		fi
 
@@ -213,6 +214,15 @@ run_gaussian() {
 		fi
 
 		LOC_DIR="$JOB_DIR/job_${num}/"
+
+		# If job already submitted and still queued/running, do not submit it again
+		if [[ -f "$LOC_DIR/.jobid" ]]; then
+			jid=$( head -n 1 "$LOC_DIR/.jobid" || true )
+			if [[ -n "$jid" ]] && qstat "$jid" >/dev/null 2>&1; then
+				continue
+			fi
+		fi
+
 		#create a new dir for the file
 		mkdir -p "$LOC_DIR"
 		#Constrcut the job file
@@ -267,6 +277,16 @@ run_gaussian() {
 		#Already marked as done during resync
 		if [[ -n "${don[$num]:-}" ]]; then
 			continue
+		fi
+
+		# If job is still queued/running, wait it out now (harvest phase)
+		LOC_DIR="$JOB_DIR/job_${num}/"
+		if [[ -f "$LOC_DIR/.jobid" ]]; then
+			jid=$( head -n 1 "$LOC_DIR/.jobid" || true )
+			if [[ -n "$jid" ]] && qstat "$jid" >/dev/null 2>&1; then
+				info "Waiting for gaussian frame $num (job $jid)"
+				wait_job "$jid"
+			fi
 		fi
 
 		log_file="$JOB_DIR/job_${num}/frame_$num.log"
