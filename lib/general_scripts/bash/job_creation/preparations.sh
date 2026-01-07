@@ -619,7 +619,6 @@ EOF
 					if [ "$use_gb" -lt 10 ]; then use_gb=10; fi
 					if [ "$use_gb" -gt 200 ]; then use_gb=200; fi
 					sed -i -E "s#^(%[Rr][Ww][Ff]=[^,]*),[[:space:]]*0MB#\\1,${use_gb}GB#I" "$com" || true
-					echo "[INFO] Patched %RWF size from 0MB -> ${use_gb}GB" >> "$out"
 				fi
 			}
 
@@ -631,9 +630,9 @@ EOF
 
 				# %NProcShared
 				if grep -qiE '^%[Nn][Pp][Rr][Oo][Cc][Ss][Hh][Aa][Rr][Ee][Dd]=' "$com"; then
-					sed -i -E "s@^%[Nn][Pp][Rr][Oo][Cc][Ss][Hh][Aa][Rr][Ee][Dd]=.*@%NProcShared=${ncpus}@I" "$com" || true
+					sed -i -E "s@^%[Nn][Pp][Rr][Oo][Cc][Ss][Hh][Aa][Rr][Ee][Dd]=.*@%NProcShared=${stage2_ncpus}@I" "$com" || true
 				else
-					sed -i "1i %NProcShared=${ncpus}" "$com" || true
+					sed -i "1i %NProcShared=${stage2_ncpus}" "$com" || true
 				fi
 
 				# %Mem
@@ -642,8 +641,6 @@ EOF
 				else
 					sed -i "1i %Mem=${mem_mb}MB" "$com" || true
 				fi
-
-				echo "[INFO] Synced Link0: %NProcShared=${ncpus} %Mem=${mem_mb}MB" >> "$out"
 			}
 
 			fix_au_basis() {
@@ -654,7 +651,6 @@ EOF
 				if grep -qiE 'Geom=AllCheckpoint' "$com"; then
 					# Convert "#... B3LYP/<basis>" -> "#... B3LYP ChkBasis"
 					sed -i -E 's@^#([Pp])?[[:space:]]*B3LYP/[^[:space:]]+@#\1 B3LYP ChkBasis@' "$com" || true
-					echo "[INFO] Au detected: using ChkBasis for checkpoint job." >> "$out"
 					return 0
 				fi
 
@@ -689,8 +685,6 @@ EOF
 						}
 					}
 				' "$com" > "$tmp" && mv -f "$tmp" "$com"
-
-				echo "[INFO] Au detected: converted to GenECP (6-31G* light / SDD(Au))." >> "$out"
 			}
 
 			for com in \
