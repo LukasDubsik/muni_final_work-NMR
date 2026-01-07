@@ -672,13 +672,77 @@ run_gaussian() {
 		fi
 	}
 
-	fix_au_basis() {
-		if grep -qE '^[[:space:]]*Au[[:space:]]' "$com" && grep -qE '^#.*\/6-31G\*' "$com"; then
-			sed -i -E 's@/6-31G\*@/def2SVP@g' "$com" || true
-			echo "[INFO] Detected Au + 6-31G*: switched to def2SVP." >> "$out"
+	fix_link0_resources() {
+		# Keep Link0 in sync with the scheduler allocation.
+		# MetaCentrum g16-prepare often uses ~80% of job mem; keep that convention.
+		local mem_gb=32
+		local mem_mb=$((mem_gb*1024*80/100))
+
+		# %NProcShared
+		if grep -qiE '^%[Nn][Pp][Rr][Oo][Cc][Ss][Hh][Aa][Rr][Ee][Dd]=' "$com"; then
+			sed -i -E "s@^%[Nn][Pp][Rr][Oo][Cc][Ss][Hh][Aa][Rr][Ee][Dd]=.*@%NProcShared=${ncpus}@I" "$com" || true
+		else
+			sed -i "1i %NProcShared=${ncpus}" "$com" || true
 		fi
+
+		# %Mem
+		if grep -qiE '^%[Mm][Ee][Mm]=' "$com"; then
+			sed -i -E "s@^%[Mm][Ee][Mm]=.*@%Mem=${mem_mb}MB@I" "$com" || true
+		else
+			sed -i "1i %Mem=${mem_mb}MB" "$com" || true
+		fi
+
+		echo "[INFO] Synced Link0: %NProcShared=${ncpus} %Mem=${mem_mb}MB" >> "$out"
 	}
 
+	fix_au_basis() {
+		# If no gold, do nothing.
+		grep -qE '^[[:space:]]*Au[[:space:]]' "$com" || return 0
+
+		# For checkpoint-only jobs (freq from chk), read basis from chk to avoid duplicating blocks.
+		if grep -qiE 'Geom=AllCheckpoint' "$com"; then
+			# Convert "#... B3LYP/<basis>" -> "#... B3LYP ChkBasis"
+			sed -i -E 's@^#([Pp])?[[:space:]]*B3LYP/[^[:space:]]+@#\1 B3LYP ChkBasis@' "$com" || true
+			echo "[INFO] Au detected: using ChkBasis for checkpoint job." >> "$out"
+			return 0
+		fi
+
+		# For coordinate-containing jobs (small_opt / large_mk), use GenECP + split basis.
+		# Convert "#... B3LYP/<basis>" -> "#... B3LYP/GenECP"
+		sed -i -E 's@^#([Pp])?[[:space:]]*B3LYP/[^[:space:]]+@#\1 B3LYP/GenECP@' "$com" || true
+
+		# If a basis block already exists, don't append again.
+		grep -qE '^[[:space:]]*\\*\\*\\*\\*[[:space:]]*$' "$com" && return 0
+
+		local tmp="${com}.tmp"
+		awk '
+			BEGIN { in_geom=0; inserted=0 }
+			/^[[:space:]]*-?[0-9]+[[:space:]]+[0-9]+[[:space:]]*$/ { in_geom=1 }
+			{
+				print $0
+				if (in_geom && !inserted && $0 ~ /^[[:space:]]*$/) {
+					# Basis (light atoms)
+					print "H C N O S P F Cl 0"
+					print "6-31G*"
+					print "****"
+					# Basis (Au) + ECP (Au)
+					print "Au 0"
+					print "SDD"
+					print "****"
+					print ""
+					print "Au 0"
+					print "SDD"
+					print ""
+					inserted=1
+					in_geom=0
+				}
+			}
+		' "$com" > "$tmp" && mv -f "$tmp" "$com"
+
+		echo "[INFO] Au detected: converted to GenECP (6-31G* light / SDD(Au))." >> "$out"
+	}
+
+	fix_link0_resources
 	fix_rwf_0mb
 	fix_au_basis
 
