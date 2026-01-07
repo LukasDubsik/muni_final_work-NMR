@@ -329,7 +329,7 @@ mcpb_patch_stage2_gaussian_inputs() {
 				/^-?[0-9]+[[:space:]]+-?[0-9]+[[:space:]]*$/ { in_geom=1; print; next }
 				(in_geom && inserted==0 && /^[[:space:]]*$/) {
 					print
-					print "H C N O S P F Cl 0"
+					print "H C Cl 0"
 					print "6-31G*"
 					print "****"
 					print "Au 0"
