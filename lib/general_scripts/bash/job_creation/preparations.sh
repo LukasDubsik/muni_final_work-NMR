@@ -309,7 +309,8 @@ mcpb_patch_stage2_gaussian_inputs() {
 		if [[ "${metal_elem}" == "AU" ]]; then
 			# For FC jobs that read geometry from checkpoint, force ChkBasis (no explicit basis/GenECP here).
 			if grep -qiE 'Geom[[:space:]]*=[[:space:]]*AllCheck(point)?' "$com"; then
-				sed -i -E '/^[[:space:]]*#/ s@/[A-Za-z0-9+()\-]+@ ChkBasis@' "$com"
+				sed -i -E '/^[[:space:]]*#/ s@/[^[:space:]]+@ ChkBasis@' "$com"
+				sed -i -E '/^[[:space:]]*#/ s@ChkBasis\*@ChkBasis@g' "$com"
 				continue
 			fi
 
