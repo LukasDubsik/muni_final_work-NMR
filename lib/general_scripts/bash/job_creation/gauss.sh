@@ -15,6 +15,51 @@ gaussian_log_ok() {
 	! grep -q "Error termination" "$log_file"
 }
 
+# patch_gaussian_link0_resources GJF_FILE MEM_GB NCPUS
+# Ensures the Gaussian input uses the same resources as the batch allocation.
+patch_gaussian_link0_resources() {
+	local gjf_file=$1 mem_gb=$2 ncpus=$3
+	[[ -f "$gjf_file" ]] || die "Missing Gaussian input file: $gjf_file"
+
+	local tmp
+	tmp=$(mktemp) || die "mktemp failed"
+
+	awk -v mem_gb="$mem_gb" -v ncpus="$ncpus" '
+	BEGIN { inserted=0 }
+	{
+		l=tolower($0)
+
+		# Drop any pre-existing resource directives to avoid duplicates.
+		if (l ~ /^%mem=/) next
+		if (l ~ /^%nprocshared=/) next
+
+		# If we hit the route section before %chk, insert Link0 resources here.
+		if (inserted==0 && $0 ~ /^#/) {
+			print "%mem=" mem_gb "GB"
+			print "%nprocshared=" ncpus
+			inserted=1
+		}
+
+		print $0
+
+		# Normal case: insert right after %chk=...
+		if (inserted==0 && l ~ /^%chk=/) {
+			print "%mem=" mem_gb "GB"
+			print "%nprocshared=" ncpus
+			inserted=1
+		}
+	}
+	END {
+		# Very defensive fallback; should not happen for valid .gjf inputs.
+		if (inserted==0) {
+			print "%mem=" mem_gb "GB"
+			print "%nprocshared=" ncpus
+		}
+	}' "$gjf_file" >"$tmp" || { rm -f "$tmp"; die "Failed to patch Gaussian resources in: $gjf_file"; }
+
+	mv "$tmp" "$gjf_file" || die "Failed to replace patched file: $gjf_file"
+}
+
 # run_gauss_convert META NUM_FRAMES
 # Convert the xyz files from the amber simulation into log files for gaussian
 # Globals: none
@@ -73,6 +118,9 @@ run_gaussian() {
 	local gaussian=$4
 
 	local job_name="gaussian"
+
+	local mem_gb=16
+	local ncpus=16
 
 	info "Started running $job_name"
 
@@ -238,8 +286,10 @@ run_gaussian() {
 		fi
 		#Copy the specific frame to the local dir
 		cp $JOB_DIR/gauss/frame_$num.gjf $LOC_DIR
+		# Patch the resources
+		patch_gaussian_link0_resources "$LOC_DIR/frame_${num}.gjf" "$mem_gb" "$ncpus"
 		#Then submit the job for run
-		( submit_job "$meta" "$job_name" "$LOC_DIR" 16 16 0 "16:00:00" ) &
+		( submit_job "$meta" "$job_name" "$LOC_DIR" "$mem_gb" "$ncpus" 0 "16:00:00" ) &
 		p=$!
 		pids+=("$p")
 
