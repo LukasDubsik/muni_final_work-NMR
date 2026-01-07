@@ -683,9 +683,9 @@ EOF
 		fi
 
 		# Pre-patch Stage2 Gaussian inputs on disk BEFORE submission (Link0, RWF, Au basis / ChkBasis).
-		local stage2_mem_gb=32
-		local stage2_ncpus=16
-		local scratch_gb=50
+		local stage2_mem_gb=8
+		local stage2_ncpus=8
+		local scratch_gb=20
 		mcpb_patch_stage2_gaussian_inputs "$STAGE2_DIR" "$name" "$metal_elem" "$stage2_ncpus" "$stage2_mem_gb" "$meta" "$scratch_gb"
 
 		local need_stage2="true"
