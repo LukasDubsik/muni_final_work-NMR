@@ -246,6 +246,107 @@ EOF
 	add_to_log "$job_name" "$LOG"
 }
 
+# Pre-patch MCPB Stage 2 Gaussian inputs on disk BEFORE submission (so you can inspect .com files).
+# - fixes Link0 resources (%Mem/%NProcShared) to match the job request
+# - fixes broken %RWF sizes (",0MB") to a sane default (Meta: scratch_gb-5; otherwise 20GB)
+# - for AU: converts OPT/MK inputs to /GenECP and injects an SDD block; converts FC (Geom=AllCheck*) to ChkBasis
+mcpb_patch_stage2_gaussian_inputs() {
+	local stage2_dir="$1"
+	local name="$2"
+	local metal_elem="$3"
+	local ncpus="${4:-16}"
+	local mem_gb="${5:-32}"
+	local meta="${6:-false}"
+	local scratch_gb="${7:-50}"
+
+	# Gaussian stability: keep %Mem below total allocation (use 80% of mem_gb)
+	local mem_mb=$(( (mem_gb * 1024 * 8) / 10 ))
+	if [[ $mem_mb -lt 1024 ]]; then
+		mem_mb=1024
+	fi
+
+	# RWF: never leave 0MB; for MetaCentrum, align with scratch_local
+	local rwf_gb=20
+	if [[ "$meta" == "true" ]]; then
+		rwf_gb=$((scratch_gb - 5))
+		if [[ $rwf_gb -lt 10 ]]; then
+			rwf_gb=10
+		fi
+	fi
+
+	local com
+	for com in \
+		"$stage2_dir/${name}_small_opt.com" \
+		"$stage2_dir/${name}_small_fc.com" \
+		"$stage2_dir/${name}_large_mk.com"; do
+
+		[[ -f "$com" ]] || continue
+
+		# Ensure final newline (Gaussian and some tooling are picky)
+		printf "\n" >> "$com"
+
+		# ---- Link0 resources ----
+		if grep -qiE '^%NProcShared=' "$com"; then
+			sed -i -E "s/^%NProcShared=.*/%NProcShared=${ncpus}/I" "$com"
+		else
+			sed -i "1i %NProcShared=${ncpus}" "$com"
+		fi
+
+		if grep -qiE '^%Mem=' "$com"; then
+			sed -i -E "s/^%Mem=.*/%Mem=${mem_mb}MB/I" "$com"
+		else
+			# Insert above existing Link0 so it's visible at the top
+			sed -i "1i %Mem=${mem_mb}MB" "$com"
+		fi
+
+		# ---- RWF size ----
+		# g16-prepare sometimes emits ",0MB" which is fatal; turn it into a real size.
+		if grep -qiE '^%[Rr][Ww][Ff]=.*,[[:space:]]*0MB' "$com"; then
+			sed -i -E "s#^(%[Rr][Ww][Ff]=[^,]*),[[:space:]]*0MB#\\1,${rwf_gb}GB#I" "$com"
+		fi
+
+		# ---- AU basis/ECP fixes ----
+		if [[ "${metal_elem}" == "AU" ]]; then
+			# For FC jobs that read geometry from checkpoint, force ChkBasis (no explicit basis/GenECP here).
+			if grep -qiE 'Geom[[:space:]]*=[[:space:]]*AllCheck(point)?' "$com"; then
+				sed -i -E '/^[[:space:]]*#/ s@/[A-Za-z0-9+\-()]+@ ChkBasis@' "$com"
+				continue
+			fi
+
+			# Convert route basis to GenECP (handles typical MCPB defaults + any earlier def2SVP edits)
+			sed -i -E '/^[[:space:]]*#/ s@/(6-31G\*|6-31G\(d\)|6-31G\(d,p\)|def2SVP|LANL2DZ|SDD)@/GenECP@Ig' "$com"
+
+			# If a Gen/GenECP block is already present, do not inject another one.
+			if grep -qE '^[[:space:]]*\*\*\*\*[[:space:]]*$' "$com"; then
+				continue
+			fi
+
+			# Insert a minimal split basis + ECP block after the geometry section.
+			local tmp="${com}.tmp"
+			awk '
+				BEGIN { inserted=0; in_geom=0; }
+				/^-?[0-9]+[[:space:]]+-?[0-9]+[[:space:]]*$/ { in_geom=1; print; next }
+				(in_geom && inserted==0 && /^[[:space:]]*$/) {
+					print
+					print "H C N O S P F Cl 0"
+					print "6-31G*"
+					print "****"
+					print "Au 0"
+					print "SDD"
+					print "****"
+					print ""
+					print "Au 0"
+					print "SDD"
+					print ""
+					inserted=1
+					next
+				}
+				{ print }
+			' "$com" > "$tmp" && mv -f "$tmp" "$com"
+		fi
+	done
+}
+
 
 # run_mcpb NAME DIRECTORY META AMBER
 # Runs MCPB.py metal-center parametrization and merges the resulting frcmod
@@ -539,10 +640,10 @@ EOF
 			check_res_file "${name}_small_opt.com" "$STAGE1_DIR" "$STAGE1_JOB"
 			check_res_file "${name}_small_fc.com" "$STAGE1_DIR" "$STAGE1_JOB"
 
-			if [[ "${metal_elem}" == "AU" ]]; then
-				sed -i -E '/^[[:space:]]*#/ s@/(6-31G\*|6-31G\(d\)|6-31G\(d,p\))@/def2SVP@Ig' \
-					"$STAGE1_DIR/${name}_small_fc.com"
-			fi
+			# if [[ "${metal_elem}" == "AU" ]]; then
+			# 	sed -i -E '/^[[:space:]]*#/ s@/(6-31G\*|6-31G\(d\)|6-31G\(d,p\))@/def2SVP@Ig' \
+			# 		"$STAGE1_DIR/${name}_small_fc.com"
+			# fi
 
 			touch "$STAGE1_OK"
 		else
@@ -580,12 +681,11 @@ EOF
 			fi
 		fi
 
-		# Ensure FC uses a basis that supports the metal and matches the OPT checkpoint basis.
-		if [[ "${metal_elem}" == "AU" ]]; then
-			# Only touch route lines (start with #)
-			sed -i -E '/^[[:space:]]*#/ s@/(6-31G\*|6-31G\(d\)|6-31G\(d,p\))@/def2SVP@Ig' \
-				"$STAGE2_DIR/${name}_small_fc.com"
-		fi
+		# Pre-patch Stage2 Gaussian inputs on disk BEFORE submission (Link0, RWF, Au basis / ChkBasis).
+		local stage2_mem_gb=32
+		local stage2_ncpus=16
+		local scratch_gb=50
+		mcpb_patch_stage2_gaussian_inputs "$STAGE2_DIR" "$name" "$metal_elem" "$stage2_ncpus" "$stage2_mem_gb" "$meta" "$scratch_gb"
 
 		local need_stage2="true"
 		if [[ -f "$STAGE2_OK" && -s "$STAGE2_DIR/${name}_small_opt.log" && -s "$STAGE2_DIR/${name}_small_fc.log" ]]; then
@@ -859,11 +959,10 @@ EOF
 			# MetaCentrum: Gaussian needs license + local scratch
 			local old_extra="${JOB_META_SELECT_EXTRA:-}"
 			if [[ "$meta" == "true" ]]; then
-				local scratch_gb=50
 				JOB_META_SELECT_EXTRA="host_licenses=g16:scratch_local=${scratch_gb}gb"
 			fi
 
-			submit_job "$meta" "$STAGE2_JOB" "$STAGE2_DIR" 4 4 0 "12:00:00"
+			submit_job "$meta" "$STAGE2_JOB" "$STAGE2_DIR" "$stage2_mem_gb" "$stage2_ncpus" 0 "12:00:00"
 
 			JOB_META_SELECT_EXTRA="$old_extra"
 
