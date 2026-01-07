@@ -322,14 +322,35 @@ mcpb_patch_stage2_gaussian_inputs() {
 				continue
 			fi
 
+			local light_atoms
+			light_atoms=$(
+			awk '
+				BEGIN{in_geom=0}
+				/^[[:space:]]*-?[0-9]+[[:space:]]+[0-9]+[[:space:]]*$/ {in_geom=1; next}
+				in_geom && /^[[:space:]]*$/ {exit}
+				in_geom {
+				sym=$1
+				if(sym ~ /^[A-Za-z][a-z]?$/ && sym!="Au") {
+					if(!seen[sym]++){ order[++n]=sym }
+				}
+				}
+				END{
+				for(i=1;i<=n;i++){
+					printf "%s%s", order[i], (i<n?" ":"")
+				}
+				}
+			' "$com"
+			)
+			[ -n "$light_atoms" ] || light_atoms="H C N Cl"
+
 			# Insert a minimal split basis + ECP block after the geometry section.
 			local tmp="${com}.tmp"
-			awk '
+			awk -v inserted=0 -v light_atoms="$light_atoms" '
 				BEGIN { inserted=0; in_geom=0; }
 				/^-?[0-9]+[[:space:]]+-?[0-9]+[[:space:]]*$/ { in_geom=1; print; next }
 				(in_geom && inserted==0 && /^[[:space:]]*$/) {
 					print
-					print "H C Cl 0"
+					print light_atoms " 0"
 					print "6-31G*"
 					print "****"
 					print "Au 0"
