@@ -341,7 +341,7 @@ mcpb_patch_stage2_gaussian_inputs() {
 				sed -i -E '/^[[:space:]]*IOp\(6\/33=2,6\/42=6\)[[:space:]]*$/Id' "$com"
 
 				# 3) Append the required Pop + IOp once (RESP/MK convention)
-				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Pop=(MK,ReadRadii) IOp(6/33=2,6/42=6)@}' "$com"
+				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Pop=(NBO,ReadRadii) IOp(6/33=2,6/42=6)@}' "$com"
 			fi
 
 			# For FC jobs that read geometry from checkpoint, force ChkBasis (no explicit basis/GenECP here).
