@@ -490,6 +490,7 @@ EOF
 			# Only the RESP ESP job needs MK radii cards (because Pop=(MK,ReadRadii) is used).
 			if [[ "$com" == *"_large_mk.com" ]]; then
     			cat >> "$tmp" <<'EOF'
+				
 Radii=UAKS
 Alpha=1.2
 EOF
@@ -973,13 +974,24 @@ JOB_STATUS=0
 
 set +e
 
+if [ -f "NAME_large_mk.com" ]; then
+    run_gaussian "NAME_large_mk.com"
+    rc_mk=$?
+    if ! gauss_ok "NAME_large_mk.log"; then
+        echo "[ERR] NAME_large_mk did not normally terminate (rc=${rc_mk})."
+        JOB_STATUS=1
+    fi
+else
+    rc_mk=0
+fi
+
 run_gaussian "NAME_small_opt.com"
 rc_opt=$?
 
 if ! gauss_ok "NAME_small_opt.log"; then
 	echo "[WARN] small_opt not normally terminated (rc=${rc_opt}). Will still attempt small_fc using whatever chk exists."
 	# Do not hard-fail here; MCPB can still succeed if small_fc completes.
-	JOB_STATUS=1
+	JOB_STATUS=2
 fi
 
 run_gaussian "NAME_small_fc.com"
@@ -987,18 +999,7 @@ rc_fc=$?
 
 if ! gauss_ok "NAME_small_fc.log"; then
 	echo "[ERR] small_fc not normally terminated (rc=${rc_fc})."
-	JOB_STATUS=2
-fi
-
-if [ -f "NAME_large_mk.com" ]; then
-    run_gaussian "NAME_large_mk.com"
-    rc_mk=$?
-    if ! gauss_ok "NAME_large_mk.log"; then
-        echo "[ERR] NAME_large_mk did not normally terminate (rc=${rc_mk})."
-        JOB_STATUS=3
-    fi
-else
-    rc_mk=0
+	JOB_STATUS=3
 fi
 
 set -e
