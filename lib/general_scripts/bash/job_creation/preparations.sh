@@ -309,8 +309,6 @@ mcpb_patch_stage2_gaussian_inputs() {
 		if [[ "${metal_elem}" == "AU" ]]; then
 			# ---- Route line stabilization for RESP/ESP (gas phase) ----
 			# - enforce PBE0-D3BJ + tight SCF + ultrafine grid
-			# - strip implicit solvent (RESP charges are normally fit in the gas phase)
-			#sed -i -E '/^[[:space:]]*#/ { s/[[:space:]]+SCRF=\([^)]*\)//Ig; s/[[:space:]]+SCRF=[^[:space:]]+//Ig; }' "$com"
 			sed -i -E '/^[[:space:]]*#/ s/\bB3LYP\b/PBE0/Ig' "$com"
 
 			if ! grep -qiE '^[[:space:]]*#.*\bEmpiricalDispersion=GD3BJ\b' "$com"; then
@@ -330,14 +328,18 @@ mcpb_patch_stage2_gaussian_inputs() {
 			fi
 
 			if [[ "$com" == *"_large_mk.com" ]]; then
-				# Merz-Kollman ESP for RESP
-				sed -i -E '/^[[:space:]]*#/ { s/\bPop\([^)]*\)/Pop=(MK,ReadRadii)/I; s/\bPop=[^[:space:]]+/Pop=(MK,ReadRadii)/I; }' "$com"
-				if ! grep -qiE '^[[:space:]]*#.*\bPop=\(MK,ReadRadii\)\b|^[[:space:]]*#.*\bPop\(MK,ReadRadii\)' "$com"; then
-					sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Pop=(MK,ReadRadii)@}' "$com"
-				fi
-				if ! grep -qi 'IOp\(6/33=2,6/42=6\)' "$com"; then
-					sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ IOp(6/33=2,6/42=6)@}' "$com"
-				fi
+				# Merz-Kollman ESP for RESP: normalize route so Pop/IOp appear exactly once.
+				# 1) Remove any Pop(...) / Pop=... and any IOp(...) from the MAIN route line
+				sed -i -E '/^[[:space:]]*#/ {
+					s/[[:space:]]+Pop(\([^)]*\)|=[^[:space:]]+)//Ig
+					s/[[:space:]]+IOp\([^)]*\)//Ig
+				}' "$com"
+
+				# 2) Remove a standalone continuation line that is only the RESP IOp (MCPB often emits it on line 2)
+				sed -i -E '/^[[:space:]]*IOp\(6\/33=2,6\/42=6\)[[:space:]]*$/Id' "$com"
+
+				# 3) Append the required Pop + IOp once (RESP/MK convention)
+				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Pop=(MK,ReadRadii) IOp(6/33=2,6/42=6)@}' "$com"
 			fi
 
 			# For FC jobs that read geometry from checkpoint, force ChkBasis (no explicit basis/GenECP here).
@@ -391,7 +393,7 @@ mcpb_patch_stage2_gaussian_inputs() {
 					print "****"
 					print ""
 					print "Au 0"
-					print "def2ecp"
+					print "def2"
 					print ""
 					inserted=1
 					next
