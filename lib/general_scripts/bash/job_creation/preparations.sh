@@ -309,7 +309,9 @@ mcpb_patch_stage2_gaussian_inputs() {
 		if [[ "${metal_elem}" == "AU" ]]; then
 			# ---- Route line stabilization for RESP/ESP (gas phase) ----
 			# - enforce PBE0-D3BJ + tight SCF + ultrafine grid
-			sed -i -E '/^[[:space:]]*#/ s/\bB3LYP\b/PBE1PBE/Ig' "$com"
+			sed -i -E '/^[[:space:]]*#/ s/\bPBE0\b/B3LYP/Ig' "$com"
+			# Remove continuum solvation for RESP/MCPB stage-2 (gas-phase ESP)
+			sed -i -E '/^[[:space:]]*#/ s/[[:space:]]+SCRF(\([^)]*\)|=[^[:space:]]+)//Ig' "$com"
 
 			if ! grep -qiE '^[[:space:]]*#.*\bEmpiricalDispersion=GD3BJ\b' "$com"; then
 				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ EmpiricalDispersion=GD3BJ@}' "$com"
@@ -349,57 +351,153 @@ mcpb_patch_stage2_gaussian_inputs() {
 				continue
 			fi
 
+			# Ensure ECP cards are read from the input (GenECP + explicit ECP section)
+			if ! grep -qiE '^[[:space:]]*#.*\bPseudo[[:space:]]*=' "$com"; then
+				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Pseudo=Cards@}' "$com"
+			fi
+
 			# Convert route basis to GenECP (handles typical MCPB defaults + any earlier def2SVP edits)
 			sed -i -E '/^[[:space:]]*#/ s@/(6-31G\*|6-31G\(d\)|6-31G\(d,p\)|6-31\+G\(d\)|6-31\+G\(d,p\)|def2SVP|def2TZVP|def2TZVPP|LANL2DZ|SDD)@/GenECP@Ig' "$com"
 
-			# If a Gen/GenECP block is already present, do not inject another one.
-			if grep -qE '^[[:space:]]*\*\*\*\*[[:space:]]*$' "$com"; then
-				continue
-			fi
+			# Replace whatever is after the geometry section with the known-good Au/Cl GenECP cards.
+			# This avoids relying on MCPB.py-generated (often incomplete) split basis blocks.
+			local tmp="${com}.tmp"
 
-			local light_atoms
-			light_atoms=$(
+			# Keep everything up to (and including) the blank line that terminates the geometry,
+			# then rewrite the basis/ECP section from scratch.
 			awk '
 				BEGIN{in_geom=0}
-				/^[[:space:]]*-?[0-9]+[[:space:]]+[0-9]+[[:space:]]*$/ {in_geom=1; next}
-				in_geom && /^[[:space:]]*$/ {exit}
-				in_geom {
-				sym=$1
-				if(sym ~ /^[A-Za-z][a-z]?$/ && sym!="Au") {
-					if(!seen[sym]++){ order[++n]=sym }
-				}
-				}
-				END{
-				for(i=1;i<=n;i++){
-					printf "%s%s", order[i], (i<n?" ":"")
-				}
-				}
-			' "$com"
-			)
-			[ -n "$light_atoms" ] || light_atoms="H C N Cl"
-
-			# Insert a minimal split basis + ECP block after the geometry section.
-			local tmp="${com}.tmp"
-			awk -v inserted=0 -v light_atoms="$light_atoms" '
-				BEGIN { inserted=0; in_geom=0; }
-				/^-?[0-9]+[[:space:]]+-?[0-9]+[[:space:]]*$/ { in_geom=1; print; next }
-				(in_geom && inserted==0 && /^[[:space:]]*$/) {
-					print
-					print light_atoms " 0"
-					print "def2TZVP"
-					print "****"
-					print "Au 0"
-					print "def2TZVP"
-					print "****"
-					print ""
-					print "Au 0"
-					print "def2"
-					print ""
-					inserted=1
-					next
-				}
+				/^-?[0-9]+[[:space:]]+-?[0-9]+[[:space:]]*$/ {in_geom=1; print; next}
+				in_geom && /^[[:space:]]*$/ { print; exit }
 				{ print }
-			' "$com" > "$tmp" && mv -f "$tmp" "$com"
+			' "$com" > "$tmp"
+
+			cat >> "$tmp" <<'EOF'
+H 0
+6-31+G(d)
+****
+C 0
+6-31+G(d)
+****
+N 0
+6-31+G(d)
+****
+Cl 0
+ S 3 1.0
+   14.073076000   0.020345000
+    2.331565000  -0.289223000
+    0.507100000   0.630367000
+ S 1 1.0
+    0.182433000   1.000000000
+S 1 1.0
+    0.0912000       1.00
+ P 3 1.0
+    3.353129000  -0.041552000
+    0.785686000   0.399748000
+    0.267454000   0.591829000
+ P 1 1.0
+    0.078275000   1.000000000
+ P 1 1.0
+   0.015477000   1.000000000
+P 1 1.0
+   0.0075000       1.00
+ D 1  1.0
+   0.61834526   1.00
+****
+Au 0
+S   2   1.00
+     30.1965370              0.0047330
+      9.7259730             -0.3543820
+S   1   1.00
+      5.0804060              1.0000000
+S   1   1.00
+      1.7226570              1.0000000
+S   1   1.00
+      0.7264590              1.0000000
+S   1   1.00
+      0.0903540              1.0000000
+S   1   1.00
+      0.0221060              1.0000000
+S   1   1.00
+      0.0064150              1.0000000
+S   1   1.00
+      0.0032075              1.0000000
+P   4   1.00
+     13.8382190              0.0361790
+      5.1957870             -0.3283030
+      1.7980450              0.6653880
+      0.6661050              0.5526660
+P   1   1.00
+      0.1543360              1.0000000
+P   1   1.00
+      0.0340000              1.0000000
+P   1   1.00
+      0.0170000              1.0000000
+D   2   1.00
+      6.3370010             -0.0441030
+      1.4806970              0.4621150
+D   1   1.00
+      0.5283820              1.0000000
+D   1   1.00
+      0.1711170              1.0000000
+D   1   1.00
+      0.0455120              1.0000000
+D   1   1.00
+      0.0227560              1.0000000
+F   1   1.00
+      1.1386328              1.0000000
+****
+
+Cl 0
+Cl_10_mwb  3  10
+F
+1
+2        1.0000000        0.00000000
+S - F
+2
+2        6.3943000       33.13663200
+2        3.1971000       16.27072800
+P - F
+2
+2        5.6207000       24.41699300
+2        2.8103000        7.68305000
+D - F
+1
+2        5.3381000       -8.58764900
+AU     0
+AU-ECP     4     60
+g-ul potential
+  1
+2      1.000000000            0.000000000
+s-ul potential
+  2
+2     13.205100000          426.709840000
+2      6.602550000           35.938824000
+p-ul potential
+  2
+2     10.452020000          261.161023000
+2      5.226010000           26.626284000
+d-ul potential
+  2
+2      7.851100000          124.756831000
+2      3.925550000           15.772260000
+f-ul potential
+  2
+2      4.789800000           30.568475000
+2      2.394910000            5.183774000
+EOF
+
+			# Only the RESP ESP job needs MK radii cards (because Pop=(MK,ReadRadii) is used).
+			if [[ "$com" == *"_large_mk.com" ]]; then
+    			cat >> "$tmp" <<'EOF'
+Radii=UAKS
+Alpha=1.2
+EOF
+			fi
+
+			printf "\n" >> "$tmp"
+			mv -f "$tmp" "$com"
+
 		fi
 	done
 }
