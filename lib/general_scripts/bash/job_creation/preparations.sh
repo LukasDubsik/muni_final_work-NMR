@@ -307,15 +307,48 @@ mcpb_patch_stage2_gaussian_inputs() {
 
 		# ---- AU basis/ECP fixes ----
 		if [[ "${metal_elem}" == "AU" ]]; then
+			# ---- Route line stabilization for RESP/ESP (gas phase) ----
+			# - enforce PBE0-D3BJ + tight SCF + ultrafine grid
+			# - strip implicit solvent (RESP charges are normally fit in the gas phase)
+			sed -i -E '/^[[:space:]]*#/ { s/[[:space:]]+SCRF=\([^)]*\)//Ig; s/[[:space:]]+SCRF=[^[:space:]]+//Ig; }' "$com"
+			sed -i -E '/^[[:space:]]*#/ s/\bB3LYP\b/PBE0/Ig' "$com"
+
+			if ! grep -qiE '^[[:space:]]*#.*\bEmpiricalDispersion=GD3BJ\b' "$com"; then
+				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ EmpiricalDispersion=GD3BJ@}' "$com"
+			fi
+
+			if grep -qiE '^[[:space:]]*#.*\bSCF[[:space:]]*=' "$com"; then
+				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s/\bSCF[[:space:]]*=[^[:space:]]+/SCF=(XQC,Tight)/I}' "$com"
+			else
+				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ SCF=(XQC,Tight)@}' "$com"
+			fi
+
+			if grep -qiE '^[[:space:]]*#.*\bIntegral[[:space:]]*=' "$com"; then
+				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s/\bIntegral[[:space:]]*=[^[:space:]]+/Integral=(Grid=UltraFine)/I}' "$com"
+			else
+				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Integral=(Grid=UltraFine)@}' "$com"
+			fi
+
+			if [[ "$com" == *"_large_mk.com" ]]; then
+				# Merz-Kollman ESP for RESP
+				sed -i -E '/^[[:space:]]*#/ { s/\bPop\([^)]*\)/Pop=(MK,ReadRadii)/I; s/\bPop=[^[:space:]]+/Pop=(MK,ReadRadii)/I; }' "$com"
+				if ! grep -qiE '^[[:space:]]*#.*\bPop=\(MK,ReadRadii\)\b|^[[:space:]]*#.*\bPop\(MK,ReadRadii\)' "$com"; then
+					sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Pop=(MK,ReadRadii)@}' "$com"
+				fi
+				if ! grep -qi 'IOp\(6/33=2,6/42=6\)' "$com"; then
+					sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ IOp(6/33=2,6/42=6)@}' "$com"
+				fi
+			fi
+
 			# For FC jobs that read geometry from checkpoint, force ChkBasis (no explicit basis/GenECP here).
 			if grep -qiE 'Geom[[:space:]]*=[[:space:]]*AllCheck(point)?' "$com"; then
-				sed -i -E '/^[[:space:]]*#/ s@/[^[:space:]]+@ ChkBasis@' "$com"
+				sed -i -E '/^[[:space:]]*#/ s@([A-Za-z][A-Za-z0-9]*)/[^[:space:]]+@\1 ChkBasis@' "$com"
 				sed -i -E '/^[[:space:]]*#/ s@ChkBasis\*@ChkBasis@g' "$com"
 				continue
 			fi
 
 			# Convert route basis to GenECP (handles typical MCPB defaults + any earlier def2SVP edits)
-			sed -i -E '/^[[:space:]]*#/ s@/(6-31G\*|6-31G\(d\)|6-31G\(d,p\)|def2SVP|LANL2DZ|SDD)@/GenECP@Ig' "$com"
+			sed -i -E '/^[[:space:]]*#/ s@/(6-31G\*|6-31G\(d\)|6-31G\(d,p\)|6-31\+G\(d\)|6-31\+G\(d,p\)|def2SVP|def2TZVP|def2TZVPP|LANL2DZ|SDD)@/GenECP@Ig' "$com"
 
 			# If a Gen/GenECP block is already present, do not inject another one.
 			if grep -qE '^[[:space:]]*\*\*\*\*[[:space:]]*$' "$com"; then
@@ -351,14 +384,14 @@ mcpb_patch_stage2_gaussian_inputs() {
 				(in_geom && inserted==0 && /^[[:space:]]*$/) {
 					print
 					print light_atoms " 0"
-					print "6-31G*"
+					print "def2TZVP"
 					print "****"
 					print "Au 0"
-					print "SDD"
+					print "def2TZVP"
 					print "****"
 					print ""
 					print "Au 0"
-					print "SDD"
+					print "def2ecp"
 					print ""
 					inserted=1
 					next
