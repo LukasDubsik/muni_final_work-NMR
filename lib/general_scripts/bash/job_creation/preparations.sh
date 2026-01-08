@@ -309,7 +309,7 @@ mcpb_patch_stage2_gaussian_inputs() {
 		if [[ "${metal_elem}" == "AU" ]]; then
 			# ---- Route line stabilization for RESP/ESP (gas phase) ----
 			# - enforce PBE0-D3BJ + tight SCF + ultrafine grid
-			sed -i -E '/^[[:space:]]*#/ s/\bB3LYP\b/PBE0/Ig' "$com"
+			sed -i -E '/^[[:space:]]*#/ s/\bB3LYP\b/PBE1PBE/Ig' "$com"
 
 			if ! grep -qiE '^[[:space:]]*#.*\bEmpiricalDispersion=GD3BJ\b' "$com"; then
 				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ EmpiricalDispersion=GD3BJ@}' "$com"
