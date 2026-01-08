@@ -491,8 +491,11 @@ EOF
 			if [[ "$com" == *"_large_mk.com" ]]; then
     			cat >> "$tmp" <<'EOF'
 				
-Radii=UAKS
-Alpha=1.2
+H  1.20
+C  1.70
+N  1.55
+Cl 1.75
+Au 1.66
 EOF
 			fi
 
@@ -503,6 +506,7 @@ EOF
 	done
 }
 
+#p B3LYP/Gen empiricaldispersion=GD3BJ pseudo=cards NMR SCRF=(COSMO) Pop=NBO IOP(2/9=2,6/90=2)
 
 # run_mcpb NAME DIRECTORY META AMBER
 # Runs MCPB.py metal-center parametrization and merges the resulting frcmod
