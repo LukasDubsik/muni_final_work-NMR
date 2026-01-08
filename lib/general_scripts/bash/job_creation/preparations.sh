@@ -310,7 +310,7 @@ mcpb_patch_stage2_gaussian_inputs() {
 			# ---- Route line stabilization for RESP/ESP (gas phase) ----
 			# - enforce PBE0-D3BJ + tight SCF + ultrafine grid
 			# - strip implicit solvent (RESP charges are normally fit in the gas phase)
-			sed -i -E '/^[[:space:]]*#/ { s/[[:space:]]+SCRF=\([^)]*\)//Ig; s/[[:space:]]+SCRF=[^[:space:]]+//Ig; }' "$com"
+			#sed -i -E '/^[[:space:]]*#/ { s/[[:space:]]+SCRF=\([^)]*\)//Ig; s/[[:space:]]+SCRF=[^[:space:]]+//Ig; }' "$com"
 			sed -i -E '/^[[:space:]]*#/ s/\bB3LYP\b/PBE0/Ig' "$com"
 
 			if ! grep -qiE '^[[:space:]]*#.*\bEmpiricalDispersion=GD3BJ\b' "$com"; then
