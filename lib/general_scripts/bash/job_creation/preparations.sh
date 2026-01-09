@@ -394,14 +394,14 @@ mcpb_patch_stage2_gaussian_inputs() {
 				(in_geom && inserted==0 && /^[[:space:]]*$/) {
 					print
 					print light_atoms " 0"
-					print "def2TZVP"
+					print "6-31G*"
 					print "****"
 					print "Au 0"
-					print "def2TZVP"
+					print "SDD"
 					print "****"
 					print ""
 					print "Au 0"
-					print "def2"
+					print "SDD"
 					print ""
 					inserted=1
 					next
