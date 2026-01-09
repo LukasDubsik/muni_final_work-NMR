@@ -323,11 +323,21 @@ mcpb_patch_stage2_gaussian_inputs() {
 				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ SCF=(XQC,Tight)@}' "$com"
 			fi
 
-			if grep -qiE '^[[:space:]]*#.*\bIntegral[[:space:]]*=' "$com"; then
-				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s/\bIntegral[[:space:]]*=[^[:space:]]+/Integral=(Grid=UltraFine)/I}' "$com"
-			else
-				sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Integral=(Grid=UltraFine)@}' "$com"
-			fi
+			# if grep -qiE '^[[:space:]]*#.*\bIntegral[[:space:]]*=' "$com"; then
+			# 	sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s/\bIntegral[[:space:]]*=[^[:space:]]+/Integral=(Grid=UltraFine)/I}' "$com"
+			# else
+			# 	sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Integral=(Grid=UltraFine)@}' "$com"
+			# fi
+
+			# ---- Integral grid normalization (remove duplicates across route section) ----
+			# Route section is from the first line starting with # up to the first blank line.
+			# 1) Remove any existing Integral(...) / Integral=... tokens on ALL route lines
+			sed -i -E '/^[[:space:]]*#/,/^[[:space:]]*$/{
+			s/[[:space:]]+Integral(\([^)]*\)|=[^[:space:]]+)//Ig
+			}' "$com"
+
+			# 2) Append exactly one Integral=(Grid=UltraFine) to the first route line
+			sed -i -E '0,/^[[:space:]]*#/{/^[[:space:]]*#/ s@$@ Integral=(Grid=UltraFine)@}' "$com"
 
 			if [[ "$com" == *"_large_mk.com" ]]; then
 				# Merz-Kollman ESP for RESP: normalize route so Pop/IOp appear exactly once.
