@@ -332,8 +332,12 @@ mcpb_patch_stage2_gaussian_inputs() {
 			# ---- Integral grid normalization (remove duplicates across route section) ----
 			# Route section is from the first line starting with # up to the first blank line.
 			# 1) Remove any existing Integral(...) / Integral=... tokens on ALL route lines
+			#    (also handles continuation lines starting with "Integral" at column 1)
 			sed -i -E '/^[[:space:]]*#/,/^[[:space:]]*$/{
-			s/[[:space:]]+Integral(\([^)]*\)|=[^[:space:]]+)//Ig
+				/^[[:space:]]*(Integral|Int)(\([^)]*\)|=[^[:space:]]+)[[:space:]]*$/Id
+				s/(^|[[:space:]]+)(Integral|Int)(\([^)]*\)|=[^[:space:]]+)/\1/Ig
+				s/[[:space:]]+/ /g
+				s/[[:space:]]+$//g
 			}' "$com"
 
 			# 2) Append exactly one Integral=(Grid=UltraFine) to the first route line
