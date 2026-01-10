@@ -6,18 +6,21 @@ num=1
 SIGMA_TMS_DEFAULT="${sigma}"
 SIGMA_TMS="${SIGMA_TMS_DEFAULT}"
 
-# Prefer extracting SIGMA_TMS from Gaussian output (frame_0) so we do not rely on a hardcoded constant
-ref_log="nmr/frame_0.log"
+# Optional: derive SIGMA_TMS from a dedicated TMS reference log (same method/basis/solvent).
+# Set TMS_LOG to point at it. We only auto-use frame_0 if it *looks like* TMS (contains Si).
+ref_log="${TMS_LOG:-nmr/tms.log}"
 if [[ ! -f "$ref_log" ]]; then
-    ref_log=$(ls -1 nmr/frame_*.log 2>/dev/null | head -n 1)
+    if [[ -f "nmr/frame_0.log" ]] && grep -qE '^[[:space:]]*Si[[:space:]]+Isotropic' "nmr/frame_0.log"; then
+        ref_log="nmr/frame_0.log"
+    fi
 fi
 
 if [[ -f "$ref_log" ]]; then
-    ref_sigma=$(awk -v LIMIT="${limit}" '
+    ref_sigma=$(awk '
         /Magnetic shielding tensor/ { inblock=1; next }
         inblock && /Isotropic/ {
-            atom=$1; elem=$2; iso=$5
-            if (elem=="H" && atom<=LIMIT) { print iso; exit }
+            elem=$2; iso=$5
+            if (elem=="H") { print iso; exit }
         }
         inblock && /^$/ { inblock=0 }
     ' "$ref_log")
