@@ -55,37 +55,89 @@ force_safe_heating_start() {
 #   - retries on CPU with pmemd if pmemd.cuda fails (including segfault exit code)
 #   - retries with sander if pmemd also fails (sander often prints a real diagnostic instead of SIGSEGV)
 wrap_pmemd_cuda_fallback() {
-	local sh_file="$1"
-	local strip_ref="${2:-0}"   # 1 => remove -ref, 0 => keep -ref
+    local script="$1"
+    local strip_ref="${2:-0}"
 
-	[[ -f "$sh_file" ]] || die "Missing job script to patch: $sh_file"
+    awk -v strip_ref="$strip_ref" '
+    BEGIN { wrapped=0 }
 
-	awk -v strip_ref="$strip_ref" '
-	BEGIN { done=0 }
-	{
-		if (!done && $0 ~ /(^|[[:space:];])pmemd\.cuda[[:space:]]/) {
-			cmd=$0
-			if (strip_ref == 1) {
-				gsub(/-ref[[:space:]]+[^[:space:]]+/, "", cmd)
-			}
+    {
+        # Match a pmemd.cuda command line (possibly with leading whitespace)
+        if (!wrapped && $0 ~ /^[[:space:]]*pmemd\.cuda([[:space:]]|$)/) {
 
-			cpu=cmd
-			sub(/pmemd\.cuda/, "pmemd", cpu)
+            # Slurp line continuations ending with "\"
+            cmd = $0
+            while (cmd ~ /\\[[:space:]]*$/) {
+                sub(/\\[[:space:]]*$/, "", cmd)
+                if (getline nxt > 0) cmd = cmd " " nxt
+                else break
+            }
 
-			sand=cmd
-			sub(/pmemd\.cuda/, "sander", sand)
+            # Optionally strip -ref <file>
+            if (strip_ref == 1) {
+                gsub(/[[:space:]]+-ref[[:space:]]+[^[:space:]]+/, "", cmd)
+            }
 
-			print "export OMP_NUM_THREADS=1"
-			print "ulimit -s unlimited"
-			print cmd " || { rc=$?; echo \"[WARN] pmemd.cuda failed (rc=$rc) - retrying with pmemd\" 1>&2; " cpu " || { rc2=$?; echo \"[WARN] pmemd failed (rc=$rc2) - retrying with sander\" 1>&2; " sand "; }; }"
-			done=1
-			next
-		}
-		print
-	}
-	' "$sh_file" > "${sh_file}.tmp" || die "Failed to patch job script: $sh_file"
+            n = split(cmd, a, /[[:space:]]+/)
 
-	mv "${sh_file}.tmp" "$sh_file" || die "Failed to update job script: $sh_file"
+            exe = a[1]
+            crd = ""; rst = ""; out = ""
+            args = ""
+
+            # Build args WITHOUT "-c <something>" so we can swap input coords on restarts
+            for (i = 2; i <= n; i++) {
+                if (a[i] == "-c") { crd = a[i+1]; i++; continue }
+                args = args " " a[i]
+                if (a[i] == "-r") rst = a[i+1]
+                if (a[i] == "-o") out = a[i+1]
+            }
+            sub(/^ /, "", args)
+
+            print ""
+            print "# --- wrapped by wrap_pmemd_cuda_fallback: GPU grid-cell restart handling ---"
+            print "export OMP_NUM_THREADS=1"
+            print "ulimit -s unlimited"
+            print "PMEMD_GPU=\"" exe "\""
+            print "PMEMD_CPU=\"pmemd\""
+            print "PMEMD_SAND=\"sander\""
+            print "OUT_LOG=\"" out "\""
+            print "OUT_RST=\"" rst "\""
+            print "INP0=\"" crd "\""
+            print "INP=\"$INP0\""
+            print "MAX_GPU_RESTARTS=${MAX_GPU_RESTARTS:-25}"
+            print "attempt=0"
+            print "while :; do"
+            print "  attempt=$((attempt+1))"
+            print "  echo \"[INFO] pmemd.cuda attempt ${attempt} (inp=${INP})\" 1>&2"
+            print "  GPU_STDLOG=\"${OUT_LOG}.cuda.try${attempt}.log\""
+            print "  if \"$PMEMD_GPU\" -c \"$INP\" " args " >\"$GPU_STDLOG\" 2>&1; then"
+            print "    break"
+            print "  fi"
+            print "  rc=$?"
+            print "  if grep -q \"Periodic box dimensions have changed too much\" \"$GPU_STDLOG\"; then"
+            print "    if [[ -s \"$OUT_RST\" && $attempt -lt $MAX_GPU_RESTARTS ]]; then"
+            print "      echo \"[WARN] GPU grid-cell rebuild needed; restarting from $OUT_RST\" 1>&2"
+            print "      INP=\"$OUT_RST\""
+            print "      continue"
+            print "    fi"
+            print "  fi"
+            print "  echo \"[WARN] pmemd.cuda failed (rc=$rc) - retrying with pmemd\" 1>&2"
+            print "  if \"$PMEMD_CPU\" -c \"$INP\" " args "; then"
+            print "    break"
+            print "  fi"
+            print "  rc2=$?"
+            print "  echo \"[WARN] pmemd failed (rc=$rc2) - retrying with sander\" 1>&2"
+            print "  \"$PMEMD_SAND\" -c \"$INP\" " args
+            print "  break"
+            print "done"
+            print "# --- end wrapper ---"
+
+            wrapped=1
+            next
+        }
+
+        print
+    }' "$script" > "${script}.tmp" && mv "${script}.tmp" "$script"
 }
 
 # force_cpptraj_xyz_output IN_FILE NAME
