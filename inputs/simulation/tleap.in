@@ -9,6 +9,11 @@ check SYS
 
 #Solvate the system
 solvatebox SYS OPC3BOX 20.0 iso
+
+# Optional: include the displaced chloride explicitly as a free ion
+addIons2 SYS Cl- 1
+
+# Neutralize overall charge
 addIons SYS Na+ 0
 
 #Export and close
