@@ -1199,18 +1199,23 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 		' "$frcmod_file"
 	)
 
-	# 5) Choose "halide-type" vs "nonhalide-type" among the M1 partners by mass heuristics
-	local halide_type="" nonhalide_type=""
+	# 5) Identify which Y* type corresponds to halide vs non-halide (heuristic by mass)
+	#    and (optionally) sulfur/selenium by mass ~32/79
+	local halide_type="" nonhalide_type="" sulfur_type=""
 	local t m
 	for t in $m1_partners; do
 		m="${mass[$t]:-0}"
-		# halide mass (Cl ~35.45) -> pick 30..60
+		# Halide-ish (Cl/Br) range
 		awk -v mm="$m" 'BEGIN{exit !(mm>30 && mm<60)}' && halide_type="$t"
-		# carbon-ish mass (~12.01) -> pick 5..25
+		# Sulfur-ish (S) range
+		awk -v mm="$m" 'BEGIN{exit !(mm>25 && mm<40)}' && sulfur_type="$t"
+		# Light/non-halide (C/N/O) range
 		awk -v mm="$m" 'BEGIN{exit !(mm>5 && mm<25)}' && nonhalide_type="$t"
 	done
-	[[ -n "$nonhalide_type" ]] || nonhalide_type="$(echo "$m1_partners" | head -n1)"
-	[[ -n "$halide_type" ]] || halide_type="$(echo "$m1_partners" | tail -n1)"
+	[[ -n "$halide_type" ]] || halide_type="$(echo "$m1_partners" | head -n1)"
+	[[ -n "$nonhalide_type" ]] || nonhalide_type="$(echo "$m1_partners" | tail -n1)"
+	[[ -n "$sulfur_type" ]] || sulfur_type="$halide_type"
+
 
 	# 6) Build an id:type mapping for mol2 ATOM lines (prefer serial==mol2 id; fallback by atom name)
 	local map_entries=()
@@ -1225,7 +1230,10 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 						el = substr($0,77,2); gsub(/ /,"",el)
 						an = substr($0,13,4); gsub(/ /,"",an)
 						if (el=="") el=an
-						print toupper(el), an
+						u=toupper(el); gsub(/[^A-Z]/,"",u);
+						if (u=="") { u=toupper(an); gsub(/[^A-Z]/,"",u); }
+						if (length(u)>2) u=substr(u,1,2);
+						print u, an
 						exit
 					}
 				}
@@ -1235,8 +1243,10 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 
 		case "$el" in
 			CL|BR|I|F) want="$halide_type" ;;
+			S|SE)      want="$sulfur_type" ;;
 			*)         want="$nonhalide_type" ;;
 		esac
+
 
 		map_entries+=("${sid}:${want}")
 	done <<< "$bonded_serials"
