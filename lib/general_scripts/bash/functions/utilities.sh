@@ -1195,26 +1195,31 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 			BEGIN{inp=0}
 			$1=="MASS"{inp=1; next}
 			inp && $1=="BOND"{exit}
-			inp && NF>=2 {print $1, $2}
+			inp && NF>=2 {
+				if ($1=="YES" || $1=="NON" || $1=="NO") { print $2, $3 }
+				else { print $1, $2 }
+			}
 		' "$frcmod_file"
 	)
 
 	# 5) Identify which Y* type corresponds to halide vs non-halide (heuristic by mass)
 	#    and (optionally) sulfur/selenium by mass ~32/79
-	local halide_type="" nonhalide_type="" sulfur_type=""
+	local halide_type="" nonhalide_type="" sulfur_type="" selenium_type=""
 	local t m
 	for t in $m1_partners; do
 		m="${mass[$t]:-0}"
-		# Halide-ish (Cl/Br) range
-		awk -v mm="$m" 'BEGIN{exit !(mm>30 && mm<60)}' && halide_type="$t"
+		# Halide-ish (Cl) range; keep above sulfur window to avoid S~32
+		awk -v mm="$m" 'BEGIN{exit !(mm>=34 && mm<60)}' && halide_type="$t"
 		# Sulfur-ish (S) range
-		awk -v mm="$m" 'BEGIN{exit !(mm>25 && mm<40)}' && sulfur_type="$t"
+		awk -v mm="$m" 'BEGIN{exit !(mm>28 && mm<34)}' && sulfur_type="$t"
 		# Light/non-halide (C/N/O) range
 		awk -v mm="$m" 'BEGIN{exit !(mm>5 && mm<25)}' && nonhalide_type="$t"
+		awk -v mm="$m" 'BEGIN{exit !(mm>76 && mm<82)}' && selenium_type="$t"
 	done
 	[[ -n "$halide_type" ]] || halide_type="$(echo "$m1_partners" | head -n1)"
 	[[ -n "$nonhalide_type" ]] || nonhalide_type="$(echo "$m1_partners" | tail -n1)"
 	[[ -n "$sulfur_type" ]] || sulfur_type="$halide_type"
+	[[ -n "$selenium_type" ]] || selenium_type="$sulfur_type"
 
 
 	# 6) Build an id:type mapping for mol2 ATOM lines (prefer serial==mol2 id; fallback by atom name)
@@ -1243,7 +1248,8 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 
 		case "$el" in
 			CL|BR|I|F) want="$halide_type" ;;
-			S|SE)      want="$sulfur_type" ;;
+			S)         want="$sulfur_type" ;;
+			SE)        want="$selenium_type" ;;
 			*)         want="$nonhalide_type" ;;
 		esac
 
@@ -1295,8 +1301,8 @@ mol2_write_mcpb_add_atomtypes_for_frcmod() {
 			BEGIN{inp=0}
 			$1=="BOND"{inp=1; next}
 			inp && ($1=="ANGL" || $1=="ANGLE" || $1=="DIHE" || $1=="IMPR" || $1=="NONB" || $1=="MASS") {exit}
-			inp && $1 ~ /-/ {
-				s=$1
+			inp && ($1 ~ /-/ || $2 ~ /-/) {
+				s = ($1 ~ /-/ ? $1 : $2)
 				split(s,a,"-")
 				if (a[1]=="M1") print a[2]
 				else if (a[2]=="M1") print a[1]
@@ -1315,7 +1321,10 @@ mol2_write_mcpb_add_atomtypes_for_frcmod() {
 			BEGIN{inp=0}
 			$1=="MASS"{inp=1; next}
 			inp && $1=="BOND"{exit}
-			inp && NF>=2 {print $1, $2}
+			inp && NF>=2 {
+				if ($1=="YES" || $1=="NON" || $1=="NO") { print $2, $3 }
+				else { print $1, $2 }
+			}
 		' "$frcmod_file"
 	)
 
@@ -1338,8 +1347,10 @@ mol2_write_mcpb_add_atomtypes_for_frcmod() {
 				element="Au"
 				hyb="sp3"
 			else
-				# crude but effective for your case: Y* carbon vs halide
-				awk -v mm="$m" 'BEGIN{exit !(mm>30 && mm<60)}' && element="Cl"
+				# crude but effective for your case: handle S separately (S~32 would otherwise look like Cl by mass)
+				awk -v mm="$m" 'BEGIN{exit !(mm>76 && mm<82)}' && element="Se"
+				awk -v mm="$m" 'BEGIN{exit !(mm>28 && mm<34)}' && element="S"
+				awk -v mm="$m" 'BEGIN{exit !(mm>=34 && mm<60)}' && element="Cl"
 				awk -v mm="$m" 'BEGIN{exit !(mm>5 && mm<25)}' && element="C"
 				[[ "$element" == "C" ]] && hyb="sp2"
 			fi
