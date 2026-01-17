@@ -53,3 +53,6 @@ done
 
 #Then average all the files into singular result -> avg.dat
 bash average_plot.sh
+
+#Also export all per-frame peaks (no averaging) for "sharp peak" plotting
+LC_ALL=C sort -n -k1,1 plots/plot_*.dat > all_peaks.dat

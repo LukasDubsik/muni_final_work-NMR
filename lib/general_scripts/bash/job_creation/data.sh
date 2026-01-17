@@ -44,6 +44,7 @@ run_analysis() {
 
 	#Check that the final files are truly present
 	check_res_file "avg.dat" "$JOB_DIR" "$job_name"
+	check_res_file "all_peaks.dat" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
 
@@ -73,13 +74,16 @@ run_plotting() {
 	SRC_DIR_2="lib/general_scripts/gnuplot"
 
 	move_inp_file "avg.dat" "$SRC_DIR_1" "$JOB_DIR"
+	move_inp_file "all_peaks.dat" "$SRC_DIR_1" "$JOB_DIR"
 
 	if [[ $filter == "none" ]]; then
 		move_inp_file "plot_nmr.plt" "$SRC_DIR_2" "$JOB_DIR"
+		move_inp_file "plot_nmr_all_peaks.plt" "$SRC_DIR_2" "$JOB_DIR"
 	elif [[ $filter == "alpha_beta" ]]; then
 		cp "lib/general_scripts/python/filter/filter_alpha_beta.py" "$JOB_DIR"
 		cp "inputs/structures/$name.mol2" "$JOB_DIR"
 		move_inp_file "plot_nmr_alpha_beta.plt" "$SRC_DIR_2" "$JOB_DIR"
+		move_inp_file "plot_nmr_all_peaks.plt" "$SRC_DIR_2" "$JOB_DIR"
 	else
 		die "Unknown filter parameter"
 	fi
@@ -87,12 +91,16 @@ run_plotting() {
 	#Move to the directory to run the scripts
 	cd $JOB_DIR || die "Couldn't enter the $JOB_DIR"
 
-	#Run the script and average the resulting nmr spectra
+	#Run the script(s) and generate two outputs:
+	#  1) averaged/smoothed spectrum (existing behavior)
+	#  2) all-peaks "stick spectrum" (no averaging, no broadening)
 	if [[ $filter == "none" ]]; then
 		gnuplot plot_nmr.plt
+		gnuplot plot_nmr_all_peaks.plt
 	elif [[ $filter == "alpha_beta" ]]; then
 		python filter_alpha_beta.py avg.dat "$name.mol2" filtered_avg.dat
 		gnuplot plot_nmr_alpha_beta.plt
+		gnuplot plot_nmr_all_peaks.plt
 	else
 		die "Unknown filter parameter"
 	fi
@@ -102,8 +110,10 @@ run_plotting() {
 
 	#Check that the final files are truly present
 	check_res_file "nmr.png" "$JOB_DIR" "$job_name"
+	check_res_file "nmr_all_peaks.png" "$JOB_DIR" "$job_name"
 
 	mv $JOB_DIR/nmr.png $JOB_DIR/"$save_as".png
+	mv $JOB_DIR/nmr_all_peaks.png $JOB_DIR/"${save_as}_all_peaks".png
 
 	success "$job_name has finished correctly"
 
