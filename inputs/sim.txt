@@ -2,8 +2,8 @@
 ##No spaces are expected between ':='
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
-name:=cys_gold1
-save_as:=cys_gold1_sh
+name:=secys_gold1
+save_as:=secys_gold1_sh
 
 ##General option on how the job is run
 #Check that all necessary files and libraries are present on the system and user can access them
