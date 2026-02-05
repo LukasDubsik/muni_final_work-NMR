@@ -1,0 +1,15 @@
+#Sampling done alredy in md amber
+#Only convert results for Gaussian
+
+#inputs
+parm ${name}.parm7
+trajin ${name}_md.mdcrd 1 last 10
+
+#Keep closest N solvents
+autoimage
+strip !:1-3
+center :1 mass origin
+image origin center
+
+trajout ${name}_frame.xyz xyz ftype namexyz multi
+run
