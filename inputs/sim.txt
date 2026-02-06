@@ -2,7 +2,7 @@
 ##No spaces are expected between ':='
 
 ##The name of the starting mol2/rst7-parm7 files, will also be used to name other files during the simulation
-name:=secys_gold1
+name:=di_cys_gold1
 save_as:=di_cys_gold1_sh
 
 ##General option on how the job is run
