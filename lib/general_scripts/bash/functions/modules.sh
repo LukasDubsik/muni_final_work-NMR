@@ -17,7 +17,7 @@ check_module_conda() {
 
 check_modules() {
 	#Load the parametrs
-	local amber_mod=$1
+	local amber_mod=$1 
 	local gauss_mod=$2
 	local meta=$3
 
