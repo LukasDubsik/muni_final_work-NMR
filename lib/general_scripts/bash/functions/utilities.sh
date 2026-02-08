@@ -492,6 +492,81 @@ mol2_sanitize_atom_coords_inplace() {
 	mv "$tmp" "$mol2" || die "Failed to replace MOL2: $mol2"
 }
 
+
+# mol2_write_with_coords_from_xyz MOL2_IN XYZ_IN MOL2_OUT
+# Writes MOL2_OUT identical to MOL2_IN, but with ATOM coordinates replaced by
+# the XYZ coordinates (by atom index). Connectivity (BOND section) is preserved.
+#
+# This is critical for metal-containing systems: XYZ has no bond information and
+# converting XYZ->MOL2 with OpenBabel will *perceive* bonds based on interatomic
+# distances, which can accidentally introduce spurious metal-ligand "covalent"
+# bonds.
+mol2_write_with_coords_from_xyz() {
+	local mol2_in="$1"
+	local xyz_in="$2"
+	local mol2_out="$3"
+
+	[[ -f "$mol2_in" ]] || die "MOL2 input missing: $mol2_in"
+	[[ -f "$xyz_in"  ]] || die "XYZ input missing: $xyz_in"
+
+	awk '
+		function isnum(v) { return (v ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+		# Read XYZ first
+		NR==FNR {
+			if (FNR==1) { natom = int($1); next }
+			if (FNR==2) { next }
+			i = FNR - 2
+			xyz_e[i] = toupper($1)
+			x[i] = $2; y[i] = $3; z[i] = $4
+			next
+		}
+
+		BEGIN { inatom=0; ai=0 }
+		/^@<TRIPOS>ATOM/ { inatom=1; print; next }
+		/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
+		{
+			if (!inatom) { print; next }
+			# Preserve blank lines
+			if ($0 ~ /^[ \t]*$/) { print; next }
+
+			# Only rewrite standard ATOM records
+			if ($1 !~ /^[0-9]+$/) { print; next }
+			ai++
+			if (ai > natom) { print; next }
+
+			# Detect where the x,y,z columns are (field 3-5 or 4-6)
+			cs = 0
+			if (isnum($3) && isnum($4) && isnum($5)) cs = 3
+			else if (isnum($4) && isnum($5) && isnum($6)) cs = 4
+
+
+			if (cs == 0) { print; next }
+
+			# Sanity-check that XYZ atom ordering matches MOL2 ordering.
+			# If the XYZ was re-ordered (rare but possible), index-based mapping will
+			# produce a corrupted structure.
+			# Infer element from MOL2 atom name (field 2) to avoid ambiguity with
+			# force-field atom types (e.g., GAFF "ca" vs element Ca).
+			mol_e = $2
+			gsub(/[^A-Za-z]/, "", mol_e)      # keep letters only
+			mol_e = toupper(mol_e)
+			if (mol_e != "" && xyz_e[ai] != "" && mol_e != xyz_e[ai]) mism++
+
+			$(cs)   = sprintf("%.6f", x[ai])
+			$(cs+1) = sprintf("%.6f", y[ai])
+			$(cs+2) = sprintf("%.6f", z[ai])
+			print
+		}
+
+		END {
+			if (mism > 0) {
+				print "ERROR: XYZ/MOL2 atom ordering mismatch (" mism ")" > "/dev/stderr"
+				exit 2
+			}
+		}
+	' "$xyz_in" "$mol2_in" > "$mol2_out" || die "Failed to write MOL2 with authoritative bonds: $mol2_out"
+}
+
 mol2_sanitize_for_mcpb() {
 	local in_mol2="$1"
 	local subst="${2:-LIG}"
@@ -669,6 +744,108 @@ mol2_atom_name_by_id()
 			exit 0
 		}
 	' "$mol2"
+}
+
+
+# tleap_filter_metal_bonds_by_mol2_connectivity AUTH_MOL2 BONDS_IN [BONDS_OUT]
+# Filters TLeap "bond ..." commands, keeping only metal-ligand bonds present in
+# the authoritative MOL2 connectivity. This is important because MCPB.py can
+# infer extra metal coordination bonds from geometry (distance-based), which can
+# be undesirable when the MOL2 bond table is the single source of truth.
+#
+# If no metal is detected in AUTH_MOL2, the file is copied unmodified.
+tleap_filter_metal_bonds_by_mol2_connectivity()
+{
+	local auth_mol2="$1"
+	local bonds_in="$2"
+	local bonds_out="${3:-$2}"
+	local tmp="${bonds_out}.tmp"
+	local cnt="${bonds_out}.dropped_count"
+
+	[[ -f "$auth_mol2" ]] || die "Authoritative MOL2 missing: $auth_mol2"
+	[[ -f "$bonds_in" ]] || die "Bond commands file missing: $bonds_in"
+
+	local metal_line
+	metal_line="$(mol2_first_metal "$auth_mol2" || true)"
+	if [[ -z "$metal_line" ]]; then
+		cp -f "$bonds_in" "$bonds_out" || die "Failed to copy bond commands: $bonds_out"
+		return 0
+	fi
+
+	local metal_id metal_elem
+	read -r metal_id metal_elem <<<"$metal_line"
+	local metal_pdb
+	metal_pdb="$(echo "$metal_elem" | tr '[:lower:]' '[:upper:]')"
+
+	# Allowed partner atom names are taken from the authoritative MOL2 bond list
+	local allowed_names=()
+	local pid
+	while read -r pid; do
+		[[ -n "$pid" ]] || continue
+		allowed_names+=("$(mol2_atom_name_by_id "$auth_mol2" "$pid")")
+	done < <(mol2_bonded_atoms "$auth_mol2" "$metal_id")
+
+	# Nothing bonded to the metal in the authoritative MOL2 => keep only non-metal bonds
+	if [[ ${#allowed_names[@]} -eq 0 ]]; then
+		cp -f "$bonds_in" "$bonds_out" || die "Failed to copy bond commands: $bonds_out"
+		return 0
+	fi
+
+	local allowed_csv
+	allowed_csv="$(printf '%s,' "${allowed_names[@]}")"
+
+	awk -v metal="$metal_pdb" -v allowed_csv="$allowed_csv" -v cntfile="$cnt" '
+		function atomname(tok,   t) {
+			t = tok
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", t)
+			sub(/.*\./, "", t)          # keep suffix after last dot
+			gsub(/[^A-Za-z0-9_]/, "", t) # strip punctuation
+			return toupper(t)
+		}
+		BEGIN {
+			n = split(allowed_csv, a, ",")
+			for (i=1; i<=n; i++) {
+				if (a[i] != "") ok[toupper(a[i])] = 1
+			}
+			dropped = 0
+		}
+		/^[[:space:]]*bond[[:space:]]+/ {
+			a = $2
+			b = $3
+			an = atomname(a)
+			bn = atomname(b)
+			m  = toupper(metal)
+
+			# If this is a metal bond command, keep only if the partner is allowed
+			if (an == m && bn != m) {
+				if (ok[bn]) print
+				else dropped++
+				next
+			}
+			if (bn == m && an != m) {
+				if (ok[an]) print
+				else dropped++
+				next
+			}
+
+			# Non-metal bond commands are preserved
+			print
+			next
+		}
+		{ print }
+		END {
+			print dropped > cntfile
+		}
+	' "$bonds_in" > "$tmp" || die "Failed to filter TLeap bond commands: $bonds_in"
+
+	mv -f "$tmp" "$bonds_out" || die "Failed to replace filtered bond commands: $bonds_out"
+
+	local dropped
+	dropped="$(cat "$cnt" 2>/dev/null || echo 0)"
+	rm -f "$cnt" 2>/dev/null || true
+	if [[ "$dropped" -gt 0 ]]; then
+		warning "Filtered out $dropped spurious metal bond(s) from MCPB TLeap commands (authoritative connectivity preserved)."
+	fi
 }
 
 mol2_atom_is_halide_by_id()
@@ -1246,11 +1423,27 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 		)
 		[[ -n "${el:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: failed to read PDB element for serial $sid"
 
-		case "$el" in
-			CL|BR|I|F) want="$halide_type" ;;
-			S)         want="$sulfur_type" ;;
-			SE)        want="$selenium_type" ;;
-			*)         want="$nonhalide_type" ;;
+		# choose Y-type based on atom name (for the Au–NHC–O,O,O,S LG1 ligand)
+		# and fall back to element-based classes otherwise
+		case "$an" in
+			# Explicit mapping for LG1 (di_cys_gold1):
+			# C1  – carbene C bound to Au      -> Y5 (carbene-like)
+			# O1  – carboxylate O (C30 is c2)  -> Y2 (carboxylate O)
+			# O3  – Au–O bridge #1             -> Y3
+			# O4  – Au–O bridge #2             -> Y7
+			C1) want="Y5" ;;
+			O1) want="Y2" ;;
+			O3) want="Y3" ;;
+			O4) want="Y7" ;;
+			*)
+				# Generic behaviour for other systems
+				case "$el" in
+					CL|BR|I|F) want="$halide_type" ;;
+					S)         want="$sulfur_type" ;;
+					SE)        want="$selenium_type" ;;
+					*)         want="$nonhalide_type" ;;
+				esac
+				;;
 		esac
 
 		map_entries+=("${sid}:${want}")

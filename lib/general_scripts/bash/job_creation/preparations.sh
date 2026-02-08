@@ -39,12 +39,19 @@ run_crest() {
 	fi
 
     obabel -imol2 "${INPUTS}/structures/${name}.mol2" -oxyz -O "${JOB_DIR}/${name}.xyz" > /dev/null 2>&1
-    #Run the crest simulation
-    submit_job "$meta" "$job_name" "$JOB_DIR" 32 32 0 "16:00:00"
-    #Convert back to mol2 format
-    obabel -ixyz "${JOB_DIR}/crest_best.xyz" -omol2 -O "${JOB_DIR}/${name}_crest.mol2" > /dev/null 2>&1
-	#Convert the symbols
-	sed -i 's/AU/Au /' "${JOB_DIR}/${name}_crest.mol2"
+	#Run the crest simulation
+	submit_job "$meta" "$job_name" "$JOB_DIR" 32 32 0 "16:00:00"
+
+	# IMPORTANT: keep the original MOL2 connectivity as authoritative.
+	# XYZ has no bond information; XYZ->MOL2 conversions will perceive bonds by
+	# distance and can accidentally create spurious metal-ligand bonds.
+	mol2_write_with_coords_from_xyz \
+		"${INPUTS}/structures/${name}.mol2" \
+		"${JOB_DIR}/crest_best.xyz" \
+		"${JOB_DIR}/${name}_crest.mol2"
+
+	# Ensure MCPB.py compatibility if upstream tools injected a non-standard MOL2
+	mol2_sanitize_atom_coords_inplace "${JOB_DIR}/${name}_crest.mol2"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_crest.mol2" "$JOB_DIR" "$job_name"
@@ -1641,6 +1648,27 @@ run_tleap() {
 			| sed -E 's/^[[:space:]]+//; s#[[:space:]]+$##' \
 			| awk '!seen[$0]++' \
 			> "$mcpb_bonds_in" || true
+
+		# Keep authoritative MOL2 connectivity as the single source of truth.
+		# MCPB.py can infer extra metal coordination bonds from geometry (distance-
+		# based). Those "extra" bonds show up here as additional TLeap bond commands
+		# and will then become covalent bonds in the final Amber topology.
+		#
+		# We filter MCPB-generated metal bond commands to only those bonds present in
+		# the authoritative MOL2 bond table.
+		local auth_mol2=""
+		for cand in \
+			"process/preparations/mcpb/01_step1/${name}_mcpb_source.mol2" \
+			"process/preparations/crest/${name}_crest.mol2" \
+			"${INPUTS}/structures/${name}.mol2"; do
+			if [[ -f "$cand" ]]; then
+				auth_mol2="$cand"
+				break
+			fi
+		done
+		if [[ -n "$auth_mol2" ]] && [[ -s "$mcpb_bonds_in" ]]; then
+			tleap_filter_metal_bonds_by_mol2_connectivity "$auth_mol2" "$mcpb_bonds_in" "$mcpb_bonds_in"
+		fi
 
 		# Resolve/validate referenced files; never keep a loadPdb unless templates are present
 		local missing_templates="false"
