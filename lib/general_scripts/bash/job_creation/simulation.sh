@@ -32,7 +32,7 @@ run_opt_water() {
 
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
-
+ 
 	#Construct the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""

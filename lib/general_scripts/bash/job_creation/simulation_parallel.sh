@@ -30,7 +30,7 @@ run_sim_step_parr() {
 		(
 			# Optimaze the water
 			run_"$job_name" "$name" "$directory" "$meta" "$amber" "$in_file" "$run_dir"
-
+ 
 		) &
 		pids+=("$!")
 

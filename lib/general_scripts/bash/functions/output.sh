@@ -22,7 +22,7 @@ info() { log INFO "$1"; }
 success() { printf "\t[%bOK%b] %s\n" "${GREEN}" "${NC}" "$1"; }
 # warning
 # Print a warning to the user
-# Globals: none
+# Globals: none 
 # Returns: Nothing
 warning() { printf "[%bWARN%b] %s\n" "${ORANGE}" "${NC}" "$1"; }
 # die

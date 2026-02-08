@@ -7,7 +7,7 @@
  ntb=2,     !NTP system
  cut=9.0,   !PME cutoff (for forces calculation cutoff)
  ntc=2,     !Hydrogen bonds are flexible
- ntf=2,     !Don't skip hydrogen bond computation
+ ntf=2,     !Don't skip hydrogen bond computation 
 
  irest=1,   !Continue from previous data
  ntx=5,     !Take over the positions and speeds

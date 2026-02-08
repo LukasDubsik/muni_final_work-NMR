@@ -11,7 +11,7 @@ QMMM
  ioutfm=0,  !Binary file result, quicker calculation
 
  irest=1,   !Continue from previous data
- ntx=5,     !Take over the positions and speeds
+ ntx=5,     !Take over the positions and speeds 
 
  ntp=1,     !Berendsen pressure
  taup=2.0,  !Pressure coupling constant - how long till prssure assumes final result

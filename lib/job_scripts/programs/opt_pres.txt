@@ -1,4 +1,4 @@
-module add ${module}
+module add ${module} 
 
 # --- Fix topology molecule tables if needed (metal systems can break ATOMS_PER_MOLECULE) ---
 if command -v parmed >/dev/null 2>&1; then

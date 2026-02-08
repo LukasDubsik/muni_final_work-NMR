@@ -973,7 +973,7 @@ EOF
 			touch "$STAGE2_OK"
 		else
 			info "MCPB Stage 2/3 already done; skipping"
-		fi
+		fi 
 	fi
 
 	# ---------------------------------------------------------------------

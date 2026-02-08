@@ -27,7 +27,7 @@ SIGMA_TMS="${SIGMA_TMS_DEFAULT}"
 #     if [[ -n "$ref_sigma" ]]; then
 #         SIGMA_TMS="$ref_sigma"
 #     fi
-# fi
+# fi 
 
 
 #Extract the NMR data for each *.log file resulting from running Gaussian

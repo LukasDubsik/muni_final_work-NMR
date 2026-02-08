@@ -20,4 +20,4 @@ send_email() {
 
 	#Return back
 	cd ../../.. || die "Couldn't retun back to the root"
-}
+} 

@@ -10,7 +10,7 @@
  ntf=2,     !Don't skip hydrogen bond computation
 
  irest=1,   !Continue from previous data
- ntx=5,     !Take over the positions and speeds
+ ntx=5,     !Take over the positions and speeds 
 
  ntp=1,     !Berendsen pressure
  barostat=1,

@@ -29,7 +29,7 @@ for file in frames/frame_*.xyz; do
 			elem = toupper(substr(name, 1, 1)) tolower(substr(name, 2))
 			printf "%-2s %12.6f %12.6f %12.6f\n", elem, x, y, z
         }
-        '
+        ' 
     	echo ""
 	} >> "${base}".gjf
 

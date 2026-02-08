@@ -23,7 +23,7 @@ declare -A LOG_MAP=(
   ["moving"]=16
 )
 
-# read_log LOG_FILE
+# read_log LOG_FILE 
 # Reads the current log file and returns the number of the last succesfull operation, then nulls it.
 # Globals: none
 # Returns: Nothing

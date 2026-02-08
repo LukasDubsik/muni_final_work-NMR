@@ -32,7 +32,7 @@ run_analysis() {
 
 	#Copy the log files from gaussian runs
 	cp -r $SRC_DIR_3 $JOB_DIR
-
+ 
 	#Move to the directory to run the scripts
 	cd $JOB_DIR || die "Couldn'r enter the $JOB_DIR"
 

@@ -1,4 +1,4 @@
-module add ${module}
+module add ${module} 
 
 g16 < frame_${num}.gjf > frame_${num}.log
 

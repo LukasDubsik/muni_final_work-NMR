@@ -33,7 +33,7 @@ set samples 4000
 # Pre-pass: estimate the max intensity of the smoothed spectrum for auto label placement.
 # set table requires an explicit unset table to return to normal plotting. :contentReference[oaicite:6]{index=6}
 kdtmp = "__kdensity.tmp"
-set table kdtmp
+set table kdtmp 
 plot datafile using 1:2 smooth kdensity bandwidth band
 unset table
 

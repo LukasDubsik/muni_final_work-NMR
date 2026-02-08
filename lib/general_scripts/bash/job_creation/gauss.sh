@@ -32,7 +32,7 @@ patch_gaussian_link0_resources() {
 		# Drop any pre-existing resource directives to avoid duplicates.
 		if (l ~ /^%mem=/) next
 		if (l ~ /^%nprocshared=/) next
-
+ 
 		# If we hit the route section before %chk, insert Link0 resources here.
 		if (inserted==0 && $0 ~ /^#/) {
 			print "%mem=" mem_gb "GB"

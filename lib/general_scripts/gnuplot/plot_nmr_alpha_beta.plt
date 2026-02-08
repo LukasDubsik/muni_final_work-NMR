@@ -27,3 +27,4 @@ label_step    = 5 * 0.06   # vertical spacing between stacked labels
 # 2nd plot: labels at x=ppm, y stacked above each other
 plot datafile using 1:2 smooth kdensity bandwidth band with lines lw 2, \
      "" using 1:(first_label_y - label_step * $0):3 with labels center notitle
+ 

@@ -5,5 +5,5 @@ ion_ids ${METAL_ID}
 ion_mol2files ${METAL_RES}.mol2
 naa_mol2files LIG.mol2
 frcmod_files LIG.frcmod
-large_opt 0
+large_opt 0 
 

@@ -14,7 +14,7 @@ solvatebox SYS OPC3BOX 20.0 iso
 addIons2 SYS Cl- 1
 
 # Neutralize overall charge
-addIons SYS Na+ 0
+addIons SYS Na+ 0 
 
 #Export and close
 saveamberparm SYS ${name}.parm7 ${name}.rst7

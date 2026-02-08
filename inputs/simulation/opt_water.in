@@ -9,7 +9,7 @@
  ntf=1,
  ntr=1,
  restraint_wt=10.0,
- restraintmask=':1 & !@H=',
+ restraintmask=':1 & !@H=', 
  ntpr=25,
 
 &end

@@ -2,7 +2,7 @@
 
 DATADIR=${dir}/${job}
 
-ENV=${env}
+ENV=${env} 
 
 echo "$PBS_JOBID is running on node $(hostname -f) in a scratch directory $SCRATCHDIR" >> "$DATADIR/jobs_info.txt"
 

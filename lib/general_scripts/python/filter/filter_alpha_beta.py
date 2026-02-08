@@ -31,7 +31,7 @@ def parse_mol2(mol2_path: str):
     with open(mol2_path, "r") as f:
         for line in f:
             if line.startswith("@<TRIPOS>ATOM"):
-                mode = "atom"
+                mode = "atom" 
                 continue
             if line.startswith("@<TRIPOS>BOND"):
                 mode = "bond"
