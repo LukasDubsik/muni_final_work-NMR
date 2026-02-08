@@ -954,7 +954,7 @@ EOF
 				JOB_META_SELECT_EXTRA="host_licenses=g16:scratch_local=${scratch_gb}gb"
 			fi
 
-			submit_job "$meta" "$STAGE2_JOB" "$STAGE2_DIR" "$stage2_mem_gb" "$stage2_ncpus" 0 "12:00:00"
+			submit_job "$meta" "$STAGE2_JOB" "$STAGE2_DIR" "$stage2_mem_gb" "$stage2_ncpus" 0 "24:00:00"
 
 			JOB_META_SELECT_EXTRA="$old_extra"
 
