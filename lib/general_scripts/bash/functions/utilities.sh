@@ -1246,27 +1246,11 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 		)
 		[[ -n "${el:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: failed to read PDB element for serial $sid"
 
-		# choose Y-type based on atom name (for the Au–NHC–O,O,O,S LG1 ligand)
-		# and fall back to element-based classes otherwise
-		case "$an" in
-			# Explicit mapping for LG1 (di_cys_gold1):
-			# C1  – carbene C bound to Au      -> Y5 (carbene-like)
-			# O1  – carboxylate O (C30 is c2)  -> Y2 (carboxylate O)
-			# O3  – Au–O bridge #1             -> Y3
-			# O4  – Au–O bridge #2             -> Y7
-			C1) want="Y5" ;;
-			O1) want="Y2" ;;
-			O3) want="Y3" ;;
-			O4) want="Y7" ;;
-			*)
-				# Generic behaviour for other systems
-				case "$el" in
-					CL|BR|I|F) want="$halide_type" ;;
-					S)         want="$sulfur_type" ;;
-					SE)        want="$selenium_type" ;;
-					*)         want="$nonhalide_type" ;;
-				esac
-				;;
+		case "$el" in
+			CL|BR|I|F) want="$halide_type" ;;
+			S)         want="$sulfur_type" ;;
+			SE)        want="$selenium_type" ;;
+			*)         want="$nonhalide_type" ;;
 		esac
 
 		map_entries+=("${sid}:${want}")
