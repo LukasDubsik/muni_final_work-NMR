@@ -80,6 +80,17 @@ run_gauss_prep() {
 	ensure_dir $JOB_DIR
 	ensure_dir $JOB_DIR/frames
 
+	local ok="$JOB_DIR/.ok"
+	last_frame=$((num_frames - 1))
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/gauss/frame_${last_frame}.gjf" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	#Move the frames into the gaussian prep run
 	cp -r process/spectrum/frames/* $JOB_DIR/frames/
 
@@ -100,10 +111,10 @@ run_gauss_prep() {
 	#Check that the final files are truly present
 	check_res_file "frame_$last_frame.gjf" "$JOB_DIR/gauss" "$job_name"
 
+	mark_step_ok "$JOB_DIR"
+
 	success "$job_name has finished correctly"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 # run_gaussian NAME DIRECTORY META GAUSSIAN
@@ -138,6 +149,8 @@ run_gaussian() {
 	JOB_DIR="process/spectrum/$job_name"
 	ensure_dir $JOB_DIR
 
+	local ok="$JOB_DIR/.ok"
+
 	#Directory where to store inputs
 	INP_DIR_1="process/spectrum/$job_name/gauss"
 	ensure_dir $INP_DIR_1
@@ -146,13 +159,25 @@ run_gaussian() {
 	OUT_DIR_1="process/spectrum/$job_name/nmr"
 	ensure_dir $OUT_DIR_1
 
+	local done_log="$JOB_DIR/finished_jobs.log"
+
+	# Fast-path: if already marked OK, trust it but verify the last frame log exists and is valid
+	if [[ -f "$ok" ]]; then
+		last_frame=$((num_frames - 1))
+		if gaussian_log_ok "$OUT_DIR_1/frame_${last_frame}.log"; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	#Copy the input files
 	SRC_DIR_1="process/spectrum/gauss_prep/gauss"
 
 	cp -r $SRC_DIR_1/* $INP_DIR_1
 
 	# Resume support: keep a local completion log and discover already-finished frames
-	local done_log="$JOB_DIR/finished_jobs.log"
 	declare -A don=()
 
 	# Load existing completion log, but trust only entries with an actually valid copied output
@@ -247,7 +272,6 @@ run_gaussian() {
 		fi
 
 		success "$job_name has finished correctly"
-		add_to_log "$job_name" "$LOG"
 		return
 	fi
 
@@ -364,6 +388,4 @@ run_gaussian() {
 
 	success "$job_name has finished correctly"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }

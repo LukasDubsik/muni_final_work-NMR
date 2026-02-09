@@ -20,6 +20,16 @@ run_analysis() {
 	JOB_DIR="process/spectrum/$job_name"
 	ensure_dir $JOB_DIR
 
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/avg.dat" && -s "$JOB_DIR/all_peaks.dat" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	SRC_DIR_1="lib/general_scripts/bash/general"
 	SRC_DIR_2="lib/general_scripts/awk"
 	SRC_DIR_3="process/spectrum/gaussian/nmr"
@@ -47,9 +57,8 @@ run_analysis() {
 	check_res_file "all_peaks.dat" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 # run_plotting
@@ -69,6 +78,21 @@ run_plotting() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/spectrum/$job_name"
 	ensure_dir $JOB_DIR
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		# Final outputs are renamed to save_as; check for both expected PNGs
+		if [[ -s "$JOB_DIR/${save_as}.png" && -s "$JOB_DIR/${save_as}_all_peaks.png" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		fi
+		# If user changed save_as, fall back to generic names
+		if [[ -s "$JOB_DIR/nmr.png" && -s "$JOB_DIR/nmr_all_peaks.png" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		fi
+		rm -f "$ok"
+	fi
 
 	SRC_DIR_1="process/spectrum/analysis"
 	SRC_DIR_2="lib/general_scripts/gnuplot"
@@ -116,7 +140,6 @@ run_plotting() {
 	mv $JOB_DIR/nmr_all_peaks.png $JOB_DIR/"${save_as}_all_peaks".png
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }

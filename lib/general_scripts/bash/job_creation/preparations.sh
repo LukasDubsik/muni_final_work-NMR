@@ -24,6 +24,16 @@ run_crest() {
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir $JOB_DIR
 
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}_crest.mol2" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		module add openbabel > /dev/null 2>&1
@@ -40,7 +50,14 @@ run_crest() {
 
     obabel -imol2 "${INPUTS}/structures/${name}.mol2" -oxyz -O "${JOB_DIR}/${name}.xyz" > /dev/null 2>&1
 	#Run the crest simulation
-	submit_job "$meta" "$job_name" "$JOB_DIR" 32 32 0 "16:00:00"
+	if [[ ! -s "$JOB_DIR/crest_best.xyz" ]]; then
+		wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+	fi
+	if [[ ! -s "$JOB_DIR/crest_best.xyz" ]]; then
+		submit_job "$meta" "$job_name" "$JOB_DIR" 32 32 0 "16:00:00"
+	else
+		info "Detected existing crest output (crest_best.xyz); skipping submission"
+	fi
 
 	# IMPORTANT: keep the original MOL2 connectivity as authoritative.
 	# XYZ has no bond information; XYZ->MOL2 conversions will perceive bonds by
@@ -57,9 +74,8 @@ run_crest() {
 	check_res_file "${name}_crest.mol2" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 # run_antechamber NAME DIRECTORY META AMBER
@@ -90,6 +106,26 @@ run_antechamber() {
 	#Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir "$JOB_DIR"
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		# If metal workflow was used previously, require both ligand and full MOL2
+		if [[ -s "$JOB_DIR/${name}_charges.mol2" ]]; then
+			if [[ -f "$JOB_DIR/${name}_crest_full.mol2" ]]; then
+				if [[ -s "$JOB_DIR/${name}_charges_full.mol2" ]]; then
+					info "$job_name already complete; skipping"
+					return 0
+				else
+					rm -f "$ok"
+				fi
+			else
+				info "$job_name already complete; skipping"
+				return 0
+			fi
+		else
+			rm -f "$ok"
+		fi
+	fi
 
 	SRC_DIR="process/preparations/crest"
 
@@ -132,7 +168,14 @@ run_antechamber() {
 	fi
 
 	#Run the antechamber
-	submit_job "$meta" "$job_name" "$JOB_DIR" 32 16 0 "8:00:00"
+	if [[ ! -s "$JOB_DIR/${name}_charges.mol2" ]]; then
+		wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+	fi
+	if [[ ! -s "$JOB_DIR/${name}_charges.mol2" ]]; then
+		submit_job "$meta" "$job_name" "$JOB_DIR" 32 16 0 "8:00:00"
+	else
+		info "Detected existing antechamber output (${name}_charges.mol2); skipping submission"
+	fi
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
@@ -149,9 +192,8 @@ run_antechamber() {
 	fi
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 
@@ -174,6 +216,16 @@ run_parmchk2() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir $JOB_DIR
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}.frcmod" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
 
 	SRC_DIR="process/preparations/antechamber"
 
@@ -221,8 +273,14 @@ run_parmchk2() {
 	fi
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
-
+if [[ ! -s "$JOB_DIR/${name}.frcmod" ]]; then
+	wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+fi
+if [[ ! -s "$JOB_DIR/${name}.frcmod" ]]; then
+	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
+else
+	info "Detected existing parmchk2 output (${name}.frcmod); skipping submission"
+fi
 	#Check that the final files are truly present
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
 
@@ -248,9 +306,8 @@ EOF
 	fi
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 # Pre-patch MCPB Stage 2 Gaussian inputs on disk BEFORE submission (so you can inspect .com files).
@@ -1553,6 +1610,16 @@ run_nemesis_fix() {
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir $JOB_DIR
 
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}_charges_fix.mol2" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	SRC_DIR="process/preparations/antechamber"
 
 	#Copy the data from antechamber
@@ -1575,9 +1642,8 @@ run_nemesis_fix() {
 	check_res_file "${name}_charges_fix.mol2" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 # run_tleap NAME DIRECTORY META AMBER
@@ -1600,6 +1666,16 @@ run_tleap() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir $JOB_DIR
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}.rst7" && -s "$JOB_DIR/${name}.parm7" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
 
 	SRC_DIR_1="process/preparations/parmchk2"
 	SRC_DIR_2="process/preparations/nemesis_fix"
@@ -2125,8 +2201,14 @@ EOF
 	fi
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
-
+if [[ ! -s "$JOB_DIR/${name}.rst7" || ! -s "$JOB_DIR/${name}.parm7" ]]; then
+	wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+fi
+if [[ ! -s "$JOB_DIR/${name}.rst7" || ! -s "$JOB_DIR/${name}.parm7" ]]; then
+	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
+else
+	info "Detected existing tleap outputs (${name}.rst7/.parm7); skipping submission"
+fi
 	local err_file
 	err_file="$(ls -1t "$JOB_DIR/${job_name}.sh.e"* 2>/dev/null | head -n 1 || true)"
 	if [[ -n "$err_file" ]] && grep -qiE 'corrupted size|munmap_chunk\\(\\): invalid pointer|invalid pointer|Aborted|terminated with signal|Segmentation fault' "$err_file"; then
@@ -2138,7 +2220,6 @@ EOF
 	check_res_file "${name}.parm7" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }

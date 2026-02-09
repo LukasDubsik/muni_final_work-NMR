@@ -65,7 +65,6 @@ run_sim_step_parr() {
 	success "The $job_name has finished!"
 
 	#All the optims have finished
-	add_to_log "$job_name" "$LOG"
 }
 
 # run_cpptraj_parr NAME DIRECTORY META AMBER CURR_RUN
@@ -142,5 +141,4 @@ run_cpptraj_parr() {
 	success "The $job_name has finished!"
 
 	#All the optims have finished
-	add_to_log "$job_name" "$LOG"
 }

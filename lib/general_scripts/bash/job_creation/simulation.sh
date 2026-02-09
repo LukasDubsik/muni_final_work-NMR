@@ -24,6 +24,17 @@ run_opt_water() {
 	JOB_DIR="process/$run_dir/$job_name"
 	ensure_dir "$JOB_DIR"
 
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}_opt_water.rst7" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
+
 	SRC_DIR_1="process/preparations/tleap"
 
 	#Copy the data from antechamber
@@ -51,10 +62,10 @@ run_opt_water() {
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_water.rst7" "$JOB_DIR" "$job_name"
 
+	mark_step_ok "$JOB_DIR"
+
 	#success "$job_name has finished correctly"
 
-	#Write to the log a finished operation
-	#add_to_log "$job_name" "$LOG"
 }
 
 # run_opt_all NAME DIRECTORY META AMBER
@@ -77,6 +88,17 @@ run_opt_all() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
 	ensure_dir "$JOB_DIR"
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}_opt_all.rst7" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 
 	SRC_DIR_1="process/$run_dir/opt_water"
 
@@ -105,10 +127,10 @@ run_opt_all() {
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_all.rst7" "$JOB_DIR" "$job_name"
 
+	mark_step_ok "$JOB_DIR"
+
 	#success "$job_name has finished correctly"
 
-	#Write to the log a finished operation
-	#add_to_log "$job_name" "$LOG"
 }
 
 # run_opt_temp NAME DIRECTORY META AMBER
@@ -131,6 +153,17 @@ run_opt_temp() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
 	ensure_dir "$JOB_DIR"
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}_opt_temp.rst7" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 
 	SRC_DIR_1="process/$run_dir/opt_all"
 
@@ -165,10 +198,10 @@ run_opt_temp() {
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_temp.rst7" "$JOB_DIR" "$job_name"
 
+	mark_step_ok "$JOB_DIR"
+
 	#success "$job_name has finished correctly"
 
-	#Write to the log a finished operation
-	#add_to_log "$job_name" "$LOG"
 }
 
 # run_opt_pres NAME DIRECTORY META AMBER
@@ -191,6 +224,17 @@ run_opt_pres() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
 	ensure_dir "$JOB_DIR"
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}_opt_pres.rst7" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 
 	SRC_DIR_1="process/$run_dir/opt_temp"
 
@@ -223,10 +267,10 @@ run_opt_pres() {
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_pres.rst7" "$JOB_DIR" "$job_name"
 
+	mark_step_ok "$JOB_DIR"
+
 	#success "$job_name has finished correctly"
 
-	#Write to the log a finished operation
-	#add_to_log "$job_name" "$LOG"
 }
 
 # run_md NAME DIRECTORY META AMBER
@@ -249,6 +293,17 @@ run_md() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
 	ensure_dir "$JOB_DIR"
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}_md.rst7" && -s "$JOB_DIR/${name}_md.mdcrd" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 
 	SRC_DIR_1="process/$run_dir/opt_pres"
 
@@ -279,11 +334,12 @@ run_md() {
 
 	#Check that the final files are truly present
 	check_res_file "${name}_md.rst7" "$JOB_DIR" "$job_name"
+	check_res_file "${name}_md.mdcrd" "$JOB_DIR" "$job_name"
+
+	mark_step_ok "$JOB_DIR"
 
 	#success "$job_name has finished correctly"
 
-	#Write to the log a finished operation
-	#add_to_log "$job_name" "$LOG"
 }
 
 # run_cpptraj NAME DIRECTORY META AMBER CURR_RUN
@@ -311,6 +367,18 @@ run_cpptraj() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
 	ensure_dir "$JOB_DIR"
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		# For cpptraj, require that the frames/ directory exists and is non-empty
+		if [[ -d "$JOB_DIR/frames" ]] && ls -1 "$JOB_DIR/frames/"* >/dev/null 2>&1; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 
 	SRC_DIR_1="process/$run_dir/md"
 	SRC_DIR_2="lib/general_scripts/bash/general"
@@ -340,7 +408,17 @@ run_cpptraj() {
 	fi
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "02:00:00"
+    # If the job was already submitted previously, wait for it to finish before resubmitting
+if [[ ! -s "$JOB_DIR/frames.nc" && ! -s "$JOB_DIR/${name}_frame.xyz" ]]; then
+	wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+fi
+
+# Run the job only if its primary output is still missing
+if [[ ! -s "$JOB_DIR/frames.nc" && ! -s "$JOB_DIR/${name}_frame.xyz" ]]; then
+	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "02:00:00"
+else
+	info "Detected existing cpptraj primary output; skipping submission"
+fi
 
 	#Ensure the final dir exists
     ensure_dir "$JOB_DIR"/frames
@@ -374,9 +452,9 @@ run_cpptraj() {
 
 	#success "$job_name has finished correctly"
 
-	#Write to the log a finished operation
-	#add_to_log "$job_name" "$LOG"
+	mark_step_ok "$JOB_DIR"
 }
+
 
 # move_finished_job RUN
 # Move the results into the preparation folder and save these for future analysis

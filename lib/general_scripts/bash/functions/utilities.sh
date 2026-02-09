@@ -9,104 +9,49 @@ _UTILITIES_SH_LOADED=1
 # Returns: Nothing
 ensure_dir() { mkdir -p "$1"; }
 
-clean_process() {
-	local last_command=$1
-	local num_frames=$2
-	local curr_sys=""
+# ----- Pipeline resuming helpers (idempotent steps) -----
 
-	#Delete based on log
-	for key in "${!LOG_MAP[@]}"; do
-		num=${LOG_MAP[$key]}
-		if [[ $num -gt $last_command ]]; then
-			if [[ $num -ge 1 && $num -le 5 ]]; then
-				curr_sys="preparations"
-				rm -rf "process/${curr_sys}/${key}/"
-				if [[ $num -eq 3 ]]; then
-					rm -rf "process/${curr_sys}/mcpb/"
-				fi
-			elif [[ $num -ge 6 && $num -le 11 ]]; then
-				curr_sys="run_"
-				for ((num=0; num < num_frames; num++))
-				do
-					rm -rf "process/${curr_sys}${num}/${key}/"
-				done
-			else
-				curr_sys="spectrum"
-				# Do not purge partial Gaussian results just because the central log
-				# has not reached the gaussian stage yet. The gaussian stage keeps its
-				# own completion log and can resume.
-				if [[ $key == "gaussian" ]]; then
-					local keep_gaussian=0
-					local gdir="process/${curr_sys}/${key}"
-					if [[ -d "$gdir" ]]; then
-						# 1) explicit completion log (created once at least one frame finishes)
-						if [[ -s "$gdir/finished_jobs.log" ]]; then
-							keep_gaussian=1
-						# 2) any finished gaussian logs already present
-						elif grep -R -q "Normal termination of Gaussian" "$gdir/nmr"/frame_*.log "$gdir"/job_*/frame_*.log 2>/dev/null; then
-							keep_gaussian=1
-						else
-							# 3) if any gaussian job is still queued/running, keep its directory
-							for jf in "$gdir"/job_*/.jobid; do
-								[[ -f "$jf" ]] || continue
-								jid=$( head -n 1 "$jf" || true )
-								[[ -n "$jid" ]] || continue
-								if qstat "$jid" >/dev/null 2>&1; then
-									keep_gaussian=1
-									break
-								fi
-							done
-						fi
-					fi
-					if [[ $keep_gaussian -eq 1 ]]; then
-						continue
-					fi
-				fi
-				rm -rf "process/${curr_sys}/${key}/"
-			fi
+# mark_step_ok DIR
+# Creates/updates a .ok stamp in DIR. A step is considered done only if
+# its outputs validate and .ok exists.
+mark_step_ok() {
+	local dir="$1"
+	ensure_dir "$dir"
 
-		fi
-		if [[ $num -lt 11 ]]; then
-			rm -rf "process/spectrum/frames"
-		fi
+	# Write atomically to avoid half-written stamps on disconnects
+	{
+		printf "ok %s\n" "$(date -Iseconds)"
+	} > "${dir}/.ok.tmp" 2>/dev/null || true
+
+	mv -f "${dir}/.ok.tmp" "${dir}/.ok" 2>/dev/null || touch "${dir}/.ok"
+}
+
+# step_is_ok DIR
+step_is_ok() { [[ -f "$1/.ok" ]]; }
+
+# step_invalidate DIR
+step_invalidate() { rm -f "$1/.ok"; }
+
+# wait_for_jobid_file META JOBID_FILE
+# If JOBID_FILE exists and qstat is available, wait until the job is no longer present.
+# (Prevents accidental resubmission when the driver disconnects but the cluster job keeps running.)
+wait_for_jobid_file() {
+	local meta="$1"
+	local jobid_file="$2"
+
+	[[ -f "$jobid_file" ]] || return 0
+	command -v qstat >/dev/null 2>&1 || return 0
+
+	local jid
+	jid="$(head -n 1 "$jobid_file" 2>/dev/null || true)"
+	[[ -n "$jid" ]] || return 0
+
+	while qstat "$jid" >/dev/null 2>&1; do
+		sleep 30
 	done
 }
 
-# find_sim_num MD_ITER
-# Finds what number of job should now be run
-# Globals: none
-# Returns: 0 if everyting okay, otherwise number that causes error
-find_sim_num() {
-	local MD_ITER=$1
-	local log=$2
 
-	SEARCH_DIR="process/"
-
-	#If we are below the jobs becessary for run, delete all the runs
-	if [[ ($log -lt 6) ]]; then
-		for file in "$SEARCH_DIR"/run_*; do
-			rm -rf "$file"
-		done
-	fi
-
-	for ((i=1; i <= MD_ITER; i++)); do 
-		if [[ -d $SEARCH_DIR/run_$i ]]; then
-			continue
-		else
-			COUNTER=$i
-			break
-		fi
-	done
-
-	if [[ $COUNTER -eq 0 ]]; then
-		COUNTER=$MD_ITER
-		info "All the md runs have finished"
-	elif [[ $COUNTER -eq 1 ]]; then
-		info "No md have yet been run"
-	else
-		info "The md runs have stopped at (wasn't completed): $COUNTER"
-	fi
-}
 
 # has_heavy_metal MOL2_FILE
 # Returns 0 (success) if the mol2 file contains at least one atom that is
