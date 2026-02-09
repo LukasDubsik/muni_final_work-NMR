@@ -54,7 +54,7 @@ run_crest() {
 		wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
 	fi
 	if [[ ! -s "$JOB_DIR/crest_best.xyz" ]]; then
-		submit_job "$meta" "$job_name" "$JOB_DIR" 32 32 0 "16:00:00"
+		submit_job "$meta" "$job_name" "$JOB_DIR" 32 32 0 "24:00:00"
 	else
 		info "Detected existing crest output (crest_best.xyz); skipping submission"
 	fi
