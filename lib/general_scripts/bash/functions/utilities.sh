@@ -454,8 +454,11 @@ mol2_write_with_coords_from_xyz() {
 	[[ -f "$mol2_in" ]] || die "MOL2 input missing: $mol2_in"
 	[[ -f "$xyz_in"  ]] || die "XYZ input missing: $xyz_in"
 
-	awk '
+	local tmp="${mol2_out}.tmp"
+
+	if ! awk '
 		function isnum(v) { return (v ~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/) }
+
 		# Read XYZ first
 		NR==FNR {
 			if (FNR==1) { natom = int($1); next }
@@ -466,37 +469,51 @@ mol2_write_with_coords_from_xyz() {
 			next
 		}
 
-		BEGIN { inatom=0; ai=0 }
+		BEGIN { inatom=0; ai=0; mism=0 }
 		/^@<TRIPOS>ATOM/ { inatom=1; print; next }
 		/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
+
 		{
 			if (!inatom) { print; next }
-			# Preserve blank lines
 			if ($0 ~ /^[ \t]*$/) { print; next }
-
-			# Only rewrite standard ATOM records
 			if ($1 !~ /^[0-9]+$/) { print; next }
+
 			ai++
 			if (ai > natom) { print; next }
 
-			# Detect where the x,y,z columns are (field 3-5 or 4-6)
+			# Detect where x,y,z columns are (field 3-5 or 4-6)
 			cs = 0
 			if (isnum($3) && isnum($4) && isnum($5)) cs = 3
 			else if (isnum($4) && isnum($5) && isnum($6)) cs = 4
-
-
 			if (cs == 0) { print; next }
 
-			# Sanity-check that XYZ atom ordering matches MOL2 ordering.
-			# If the XYZ was re-ordered (rare but possible), index-based mapping will
-			# produce a corrupted structure.
-			# Infer element from MOL2 atom name (field 2) to avoid ambiguity with
-			# force-field atom types (e.g., GAFF "ca" vs element Ca).
-			mol_e = $2
-			gsub(/[^A-Za-z]/, "", mol_e)      # keep letters only
-			mol_e = toupper(mol_e)
+			# -----------------------------
+			# Infer element for sanity check
+			# -----------------------------
+			mol_e = ""
+
+			# Prefer MOL2 atom_type (field after z): $(cs+3)
+			# Only trust it if it starts with uppercase (element-like, e.g. H, C, Au, Cl, C.3)
+			t = $(cs+3)
+			if (t != "" && substr(t,1,1) ~ /[A-Z]/) {
+				t2 = t
+				sub(/\..*$/, "", t2)           # drop SYBYL suffix like C.3
+				gsub(/[^A-Za-z]/, "", t2)      # keep letters only
+				mol_e = toupper(t2)
+			}
+
+			# Fallback: infer from atom_name ($2), but treat generic "Atom" as unknown
+			if (mol_e == "") {
+				mol_e = $2
+				gsub(/[^A-Za-z]/, "", mol_e)
+				mol_e = toupper(mol_e)
+				if (mol_e == "ATOM") mol_e = ""
+			}
+
+			# Count mismatch only if we could infer something meaningful
 			if (mol_e != "" && xyz_e[ai] != "" && mol_e != xyz_e[ai]) mism++
 
+			# Rewrite coords
 			$(cs)   = sprintf("%.6f", x[ai])
 			$(cs+1) = sprintf("%.6f", y[ai])
 			$(cs+2) = sprintf("%.6f", z[ai])
@@ -509,8 +526,18 @@ mol2_write_with_coords_from_xyz() {
 				exit 2
 			}
 		}
-	' "$xyz_in" "$mol2_in" > "$mol2_out" || die "Failed to write MOL2 with authoritative bonds: $mol2_out"
+	' "$xyz_in" "$mol2_in" > "$tmp"; then
+		rc=$?
+		rm -f "$tmp"
+		if [[ $rc -eq 2 ]]; then
+			die "XYZ/MOL2 atom ordering mismatch. (If your MOL2 uses generic atom names like \"Atom\", element inference must come from atom_type; patch applied should fix this.)"
+		fi
+		die "Failed to write MOL2 with authoritative bonds: $mol2_out"
+	fi
+
+	mv "$tmp" "$mol2_out" || die "Failed to finalize MOL2: $mol2_out"
 }
+
 
 mol2_sanitize_for_mcpb() {
 	local in_mol2="$1"

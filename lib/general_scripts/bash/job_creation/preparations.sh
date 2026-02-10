@@ -58,7 +58,7 @@ run_crest() {
 	else
 		info "Detected existing crest output (crest_best.xyz); skipping submission"
 	fi
-
+	
 	# IMPORTANT: keep the original MOL2 connectivity as authoritative.
 	# XYZ has no bond information; XYZ->MOL2 conversions will perceive bonds by
 	# distance and can accidentally create spurious metal-ligand bonds.
