@@ -315,7 +315,7 @@ mol2_strip_atom() {
 			if (inmol) {
 				mol_line++
 				if (mol_line == 2) {
-					printf "%d %d 0 0 0\n", nat, nb
+					printf "%d %d 1 0 0\n", nat, nb
 					continue
 				}
 				print lines[i]
@@ -504,10 +504,19 @@ mol2_write_with_coords_from_xyz() {
 
 			# Fallback: infer from atom_name ($2), but treat generic "Atom" as unknown
 			if (mol_e == "") {
-				mol_e = $2
+				# Prefer element from atom type (field 6) if it looks like an element or SYBYL like "C.3"
+				mol_e = $6
+				sub(/\..*$/, "", mol_e)              # drop SYBYL suffix
 				gsub(/[^A-Za-z]/, "", mol_e)
+
+				# If atom_type is GAFF-like (c3, ca, etc.), fall back to atom name
+				if (mol_e ~ /^[a-z]+$/) {
+					mol_e = $2
+					gsub(/[^A-Za-z]/, "", mol_e)
+				}
+
 				mol_e = toupper(mol_e)
-				if (mol_e == "ATOM") mol_e = ""
+				if (mol_e != "" && xyz_e[ai] != "" && mol_e != xyz_e[ai]) mism++
 			}
 
 			# Count mismatch only if we could infer something meaningful
@@ -538,6 +547,44 @@ mol2_write_with_coords_from_xyz() {
 	mv "$tmp" "$mol2_out" || die "Failed to finalize MOL2: $mol2_out"
 }
 
+# mol2_fix_placeholder_atom_names_inplace MOL2FILE
+# Renames placeholder atom names like "Atom" / "Atom123" into element-based unique names (e.g., H1, C10, Se42)
+mol2_fix_placeholder_atom_names_inplace() {
+	local mol2="$1"
+	local tmp="${mol2}.tmp"
+
+	awk '
+	function elem_from_type(t,   s) {
+		s=t
+		sub(/\..*$/, "", s)          # drop SYBYL suffix if present
+		gsub(/[^A-Za-z]/, "", s)     # keep letters only
+		if (s=="") return "X"
+		if (length(s)==1) return toupper(s)
+		return toupper(substr(s,1,1)) tolower(substr(s,2,1))
+	}
+	BEGIN { inatom=0 }
+	/^@<TRIPOS>ATOM/ { inatom=1; print; next }
+	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
+	{
+		if (!inatom) { print; next }
+		if ($1 !~ /^[0-9]+$/) { print; next }
+
+		id=$1
+		name=$2
+		type=$6
+		elem=elem_from_type(type)
+
+		# Only rewrite obvious placeholders
+		if (name=="Atom" || name ~ /^Atom[0-9]*$/) {
+			$2 = elem id
+		}
+
+		print
+	}
+	' "$mol2" > "$tmp" || die "Failed to rename placeholder atom names in: $mol2"
+
+	mv -f "$tmp" "$mol2" || die "Failed to replace: $mol2"
+}
 
 mol2_sanitize_for_mcpb() {
 	local in_mol2="$1"

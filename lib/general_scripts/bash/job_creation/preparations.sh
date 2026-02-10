@@ -150,6 +150,9 @@ run_antechamber() {
 		mol2_strip_atom "$crest_full" "$tmp_lig" "$metal_mid"
 		mv -f "$tmp_lig" "$JOB_DIR/${name}_crest.mol2" || die "Failed to replace antechamber input with metal-stripped ligand MOL2"
 
+		mol2_fix_placeholder_atom_names_inplace "$JOB_DIR/${name}_crest.mol2"
+		mol2_fix_placeholder_atom_names_inplace "$crest_full"
+
 		# Ensure antechamber does NOT compute charges for metal systems (MCPB.py will do that)
 		antechamber_parms="$(echo "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[^[:space:]]+//g; s/(^|[[:space:]])-dr[[:space:]]+[^[:space:]]+//g')"
 		antechamber_parms="${antechamber_parms} -c dc -dr no"
