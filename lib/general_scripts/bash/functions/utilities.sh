@@ -775,96 +775,85 @@ mol2_atom_name_by_id()
 # If no metal is detected in AUTH_MOL2, the file is copied unmodified.
 tleap_filter_metal_bonds_by_mol2_connectivity()
 {
-	local auth_mol2="$1"
-	local bonds_in="$2"
-	local bonds_out="${3:-$2}"
-	local tmp="${bonds_out}.tmp"
-	local cnt="${bonds_out}.dropped_count"
+  local auth_mol2="$1"
+  local bonds_in="$2"
+  local bonds_out="${3:-$2}"
 
-	[[ -f "$auth_mol2" ]] || die "Authoritative MOL2 missing: $auth_mol2"
-	[[ -f "$bonds_in" ]] || die "Bond commands file missing: $bonds_in"
+  if [[ -z "$auth_mol2" || -z "$bonds_in" ]]; then
+    echo "[✘ERR] tleap_filter_metal_bonds_by_mol2_connectivity: missing args (auth_mol2, bonds_in[, bonds_out])" >&2
+    return 2
+  fi
+  if [[ ! -f "$auth_mol2" ]]; then
+    echo "[✘ERR] tleap_filter_metal_bonds_by_mol2_connectivity: auth mol2 not found: $auth_mol2" >&2
+    return 2
+  fi
+  if [[ ! -f "$bonds_in" ]]; then
+    echo "[✔OK] No MCPB bonds file to filter ($bonds_in) – skipping" >&2
+    return 0
+  fi
 
-	local metal_line
-	metal_line="$(mol2_first_metal "$auth_mol2" || true)"
-	if [[ -z "$metal_line" ]]; then
-		cp -f "$bonds_in" "$bonds_out" || die "Failed to copy bond commands: $bonds_out"
-		return 0
-	fi
+  local tmp="${bonds_out}.tmp.$$"
+  awk -v mol2="$auth_mol2" '
+    function canon(s, t) {
+      t = s
+      gsub(/^[ \t]+|[ \t]+$/, "", t)
+      # LEaP selectors: :1@AU, SYS.1.AU, etc.
+      if (index(t, "@") > 0) sub(/^.*@/, "", t)
+      if (index(t, ".") > 0) sub(/^.*\./, "", t)
+      if (index(t, ":") > 0) sub(/^.*:/, "", t)
+      gsub(/[^A-Za-z0-9]/, "", t)
+      t = toupper(t)
+      # PDB atom name field is 4 chars -> truncate to match reality
+      return substr(t, 1, 4)
+    }
+    function isMetal(t, u) {
+      u = toupper(t)
+      return (u ~ /^(AU|AG|CU|ZN|FE|MG|MN|CO|NI|CD|HG|PT|PD|IR|RH|RU|OS|AL|CA|NA|K)$/)
+    }
+    BEGIN {
+      inAtom = 0
+      inBond = 0
+      while ((getline line < mol2) > 0) {
+        if (line ~ /^@<TRIPOS>ATOM/) { inAtom = 1; inBond = 0; continue }
+        if (line ~ /^@<TRIPOS>BOND/) { inAtom = 0; inBond = 1; continue }
+        if (line ~ /^@<TRIPOS>/) { inAtom = 0; inBond = 0; continue }
 
-	local metal_id metal_elem
-	read -r metal_id metal_elem <<<"$metal_line"
-	local metal_pdb
-	metal_pdb="$(echo "$metal_elem" | tr '[:lower:]' '[:upper:]')"
-
-	# Allowed partner atom names are taken from the authoritative MOL2 bond list
-	local allowed_names=()
-	local pid
-	while read -r pid; do
-		[[ -n "$pid" ]] || continue
-		allowed_names+=("$(mol2_atom_name_by_id "$auth_mol2" "$pid")")
-	done < <(mol2_bonded_atoms "$auth_mol2" "$metal_id")
-
-	# Nothing bonded to the metal in the authoritative MOL2 => keep only non-metal bonds
-	if [[ ${#allowed_names[@]} -eq 0 ]]; then
-		cp -f "$bonds_in" "$bonds_out" || die "Failed to copy bond commands: $bonds_out"
-		return 0
-	fi
-
-	local allowed_csv
-	allowed_csv="$(printf '%s,' "${allowed_names[@]}")"
-
-	awk -v metal="$metal_pdb" -v allowed_csv="$allowed_csv" -v cntfile="$cnt" '
-		function atomname(tok,   t) {
-			t = tok
-			gsub(/^[[:space:]]+|[[:space:]]+$/, "", t)
-			sub(/.*\./, "", t)          # keep suffix after last dot
-			gsub(/[^A-Za-z0-9_]/, "", t) # strip punctuation
-			return toupper(t)
-		}
-		BEGIN {
-            n = split(allowed_csv, allow, ",")
-            for (i=1; i<=n; i++) {
-                if (allow[i] != "") ok[toupper(allow[i])] = 1
-            }
-            dropped = 0
+        if (inAtom) {
+          split(line, f, /[ \t]+/)
+          id = f[1]; nm = f[2]; tp = f[6]
+          if (id != "" && nm != "" && tp != "") {
+            atype[id] = tp
+            aname[id] = nm
+          }
+        } else if (inBond) {
+          split(line, f, /[ \t]+/)
+          a1 = f[2]; a2 = f[3]
+          t1 = atype[a1]; t2 = atype[a2]
+          if (isMetal(t1) && !isMetal(t2)) {
+            me = toupper(t1); metals[me] = 1
+            ok[me, canon(aname[a2])] = 1
+          } else if (isMetal(t2) && !isMetal(t1)) {
+            me = toupper(t2); metals[me] = 1
+            ok[me, canon(aname[a1])] = 1
+          }
         }
-        /^[[:space:]]*(bond|add[Bb]ond)[[:space:]]+/ {
-            t1 = $2
-            t2 = $3
-            an = atomname(t1)
-            bn = atomname(t2)
-			m  = toupper(metal)
-
-			# If this is a metal bond command, keep only if the partner is allowed
-			if (an == m && bn != m) {
-				if (ok[bn]) print
-				else dropped++
-				next
-			}
-			if (bn == m && an != m) {
-				if (ok[an]) print
-				else dropped++
-				next
-			}
-
-			# Non-metal bond commands are preserved
-			print
-			next
-		}
-		{ print }
-		END {
-			print dropped > cntfile
-		}
-	' "$bonds_in" > "$tmp" || die "Failed to filter TLeap bond commands: $bonds_in"
-
-	mv -f "$tmp" "$bonds_out" || die "Failed to replace filtered bond commands: $bonds_out"
-
-	local dropped
-	dropped="$(cat "$cnt" 2>/dev/null || echo 0)"
-	rm -f "$cnt" 2>/dev/null || true
-	if [[ "$dropped" -gt 0 ]]; then
-		warning "Filtered out $dropped spurious metal bond(s) from MCPB TLeap commands (authoritative connectivity preserved)."
-	fi
+      }
+      close(mol2)
+    }
+    function keepBond(x, y, cx, cy) {
+      cx = canon(x); cy = canon(y)
+      if (metals[cx] && ok[cx, cy]) return 1
+      if (metals[cy] && ok[cy, cx]) return 1
+      return 0
+    }
+    {
+      if ($1 == "bond") {
+        if (keepBond($2, $3)) print $0
+        next
+      }
+      print $0
+    }
+  ' "$bonds_in" > "$tmp" && mv "$tmp" "$bonds_out"
 }
 
 mol2_atom_is_halide_by_id()

@@ -711,6 +711,13 @@ run_mcpb() {
 		done
 	fi
 
+	# If we have explicit metal connectivity (add_bonded_pairs), disable MCPB automatic bond discovery
+	# (otherwise it will add bonds to nearby hetero atoms within cut_off).
+	local mcpb_cutoff="2.8"
+	if [[ -n "$addbpairs_line" ]]; then
+	mcpb_cutoff="0.1"
+	fi
+
 	# If preserved stages were created without add_bonded_pairs, they are not safe to reuse
 	if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
 		if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
@@ -718,12 +725,44 @@ run_mcpb() {
 			rm -f "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
 		fi
 	fi
+	# Invalidate MCPB cache if explicit connectivity or cut_off policy changed
 	if [[ -f "$STAGE1_OK" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
-		if grep -q "^additional_resids[[:space:]]\\+" "$STAGE1_DIR/${name}_mcpb.in"; then
-			warning "MCPB stage1 cache invalid: contains additional_resids; forcing rebuild"
-			rm -f "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
+		local invalidate_mcpb=false
+
+		# Connectivity: add_bonded_pairs changed (present/absent or different pairs)
+		if [[ -n "$addbpairs_line" ]]; then
+			if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
+			invalidate_mcpb=true
+			fi
+		else
+			if grep -qE '^add_bonded_pairs\b' "$STAGE1_DIR/${name}_mcpb.in"; then
+			invalidate_mcpb=true
+			fi
+		fi
+
+		# Policy: cut_off changed
+		local have_cutoff
+		have_cutoff="$(awk '/^cut_off[[:space:]]/{print $2; exit}' "$STAGE1_DIR/${name}_mcpb.in" 2>/dev/null || true)"
+		if [[ -n "$have_cutoff" && "$have_cutoff" != "$mcpb_cutoff" ]]; then
+			invalidate_mcpb=true
+		fi
+
+		if $invalidate_mcpb; then
+			warning "MCPB connectivity/cut_off changed; invalidating cached MCPB stages (re-run Stage 1-3)."
+			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK" || true
+			rm -rf "$STAGE2_DIR" "$STAGE3_DIR" || true
+			mkdir -p "$STAGE2_DIR" "$STAGE3_DIR"
+
+			# Stage1 outputs depend on connectivity too
+			rm -f \
+			"$STAGE1_DIR/${name}_mcpb.in" \
+			"$STAGE1_DIR/${name}_small_opt.com" "$STAGE1_DIR/${name}_small_fc.com" "$STAGE1_DIR/${name}_small_mk.com" \
+			"$STAGE1_DIR/${name}_small_opt.chk" "$STAGE1_DIR/${name}_small_fc.log" "$STAGE1_DIR/${name}_small_opt.log" \
+			"$STAGE1_DIR/${name}_large_mk.com" "$STAGE1_DIR/${name}_large_mk.chk" "$STAGE1_DIR/${name}_large_mk.log" \
+			2>/dev/null || true
 		fi
 	fi
+
 
 	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
 	# ---------------------------------------------------------------------
@@ -751,7 +790,7 @@ NAME="${name}"
 {
 	echo "original_pdb ${name}_mcpb.pdb"
 	echo "group_name ${name}"
-	echo "cut_off 2.8"
+	echo "cut_off ${mcpb_cutoff}"
 	echo "force_field ff19SB"
 	echo "ion_ids ${metal_id}"
 	echo "${addbpairs_line}"
@@ -1102,7 +1141,7 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 {
 	echo "original_pdb ${name}_mcpb.pdb"
 	echo "group_name ${name}"
-	echo "cut_off 2.8"
+	echo "cut_off ${mcpb_cutoff}"
 	echo "force_field ff19SB"
 	echo "ion_ids ${metal_id}"
 	echo "${addbpairs_line}"
