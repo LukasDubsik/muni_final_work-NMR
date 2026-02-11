@@ -822,17 +822,17 @@ tleap_filter_metal_bonds_by_mol2_connectivity()
 			return toupper(t)
 		}
 		BEGIN {
-			n = split(allowed_csv, a, ",")
-			for (i=1; i<=n; i++) {
-				if (a[i] != "") ok[toupper(a[i])] = 1
-			}
-			dropped = 0
-		}
-		/^[[:space:]]*bond[[:space:]]+/ {
-			a = $2
-			b = $3
-			an = atomname(a)
-			bn = atomname(b)
+            n = split(allowed_csv, allow, ",")
+            for (i=1; i<=n; i++) {
+                if (allow[i] != "") ok[toupper(allow[i])] = 1
+            }
+            dropped = 0
+        }
+        /^[[:space:]]*(bond|add[Bb]ond)[[:space:]]+/ {
+            t1 = $2
+            t2 = $3
+            an = atomname(t1)
+            bn = atomname(t2)
 			m  = toupper(metal)
 
 			# If this is a metal bond command, keep only if the partner is allowed
