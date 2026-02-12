@@ -748,6 +748,110 @@ mol2_bonded_atoms()
 	' "$mol2" | sort -n | uniq
 }
 
+
+# pdb_rewrite_resnames_for_leap INPDB OUTPDB LIG_RES MET_RES
+# Rewrites residue names in a (small-molecule) PDB so LEaP can match loaded MOL2 residue templates.
+# - Metal (AU) lines -> MET_RES (e.g., AU1)
+# - Everything else  -> LIG_RES (e.g., LG1)
+# Keeps coordinates/serials/residue numbers unchanged.
+pdb_rewrite_resnames_for_leap() {
+	local in_pdb=$1
+	local out_pdb=$2
+	local lig_res=${3:-LG1}
+	local met_res=${4:-AU1}
+
+	[[ -f "$in_pdb" ]] || die "pdb_rewrite_resnames_for_leap: missing pdb: $in_pdb"
+	[[ -n "${out_pdb:-}" ]] || die "pdb_rewrite_resnames_for_leap: missing output path"
+
+	awk -v LIG="$lig_res" -v MET="$met_res" '
+		function trim(s){sub(/^ +/,"",s);sub(/ +$/,"",s);return s}
+		function is_au(line,   el,res,an){
+			el=substr(line,77,2); gsub(/[[:space:]]/,"",el); el=toupper(el)
+			res=substr(line,18,3); gsub(/[[:space:]]/,"",res); res=toupper(res)
+			an=trim(substr(line,13,4)); an=toupper(an)
+			return (el=="AU" || res ~ /^AU/ || an ~ /^AU/)
+		}
+		/^(ATOM  |HETATM)/{
+			newres = is_au($0) ? MET : LIG
+			# Replace columns 18-20 (1-based) which is residue name
+			printf "%s%-3s%s\n", substr($0,1,17), newres, substr($0,21)
+			next
+		}
+		{print}
+	' "$in_pdb" > "$out_pdb"
+}
+
+
+# tleap_write_metal_bonds_from_mol2_pdb AUTH_MOL2 PDB VAR
+# Emits LEaP `bond` commands for every (metal, ligand) bond in AUTH_MOL2,
+# mapping atoms by atom NAME in the PDB and converting residue identifiers to
+# the sequential residue indices LEaP uses (order of appearance in the PDB).
+#
+# Output format:
+#   bond <VAR>.<res_i>.<atom_i> <VAR>.<res_m>.<atom_m>
+tleap_write_metal_bonds_from_mol2_pdb() {
+	local auth_mol2=$1
+	local pdb_file=$2
+	local varname=${3:-mol}
+
+	[[ -f "$auth_mol2" ]] || die "tleap_write_metal_bonds_from_mol2_pdb: missing mol2: $auth_mol2"
+	[[ -f "$pdb_file" ]] || die "tleap_write_metal_bonds_from_mol2_pdb: missing pdb: $pdb_file"
+
+	local metal_id
+	metal_id=$(mol2_first_metal "$auth_mol2" | awk 'NR==1{print $1}')
+	[[ -n "$metal_id" && "$metal_id" != "-1" ]] || return 0
+
+	local metal_name
+	metal_name=$(mol2_atom_name_by_id "$auth_mol2" "$metal_id" || true)
+	[[ -n "$metal_name" ]] || return 0
+
+	# Gather ligand atom names bonded to the metal
+	local lig_names=()
+	while read -r nid; do
+		[[ -n "$nid" ]] || continue
+		local nm
+		nm=$(mol2_atom_name_by_id "$auth_mol2" "$nid" || true)
+		[[ -n "$nm" ]] && lig_names+=("$nm")
+	done < <(mol2_bonded_atoms "$auth_mol2" "$metal_id" | grep -v '^$')
+	(( ${#lig_names[@]} )) || return 0
+
+	# Map PDB residues to LEaP sequential indices, and find residue+atom names for metal and ligands.
+	awk -v VAR="$varname" \
+	    -v METAL_NAME="$(echo "$metal_name" | tr '[:lower:]' '[:upper:]')" \
+	    -v LIG_LIST="$(printf '%s ' "${lig_names[@]}" | tr '[:lower:]' '[:upper:]' | xargs)" '
+		function trim(s){sub(/^ +/,"",s);sub(/ +$/,"",s);return s}
+		function is_au(line,   el,res,an){
+			el=substr(line,77,2); gsub(/[[:space:]]/,"",el); el=toupper(el)
+			res=substr(line,18,3); gsub(/[[:space:]]/,"",res); res=toupper(res)
+			an=trim(substr(line,13,4)); an=toupper(an)
+			return (el=="AU" || res ~ /^AU/ || an ~ /^AU/)
+		}
+		BEGIN{
+			n=split(LIG_LIST,a," ");
+			for(i=1;i<=n;i++) if(a[i]!="") want[a[i]]=1;
+		}
+		/^(ATOM  |HETATM)/{
+			reskey = substr($0,22,1) "|" substr($0,23,4) "|" substr($0,27,1) "|" substr($0,18,3)
+			if(!(reskey in ridx)) ridx[reskey]=++rc
+			an_raw = trim(substr($0,13,4))
+			an = toupper(an_raw)
+
+			# Save metal location (prefer exact atom-name match; fallback to element/resname/atomname AU)
+			if (an==METAL_NAME || (met_r==0 && is_au($0))) { met_r = ridx[reskey]; met_an = an_raw }
+
+			# Save ligand locations (atom names are unique in these ligand builds)
+			if (an in want) { lig_r[an]=ridx[reskey]; lig_an[an]=an_raw }
+		}
+		END{
+			for (k in want){
+				if (met_r>0 && (k in lig_r)){
+					printf "bond %s.%d.%s %s.%d.%s\n", VAR, lig_r[k], lig_an[k], VAR, met_r, met_an
+				}
+			}
+		}
+	' "$pdb_file" | sort -u
+}
+
 mol2_atom_name_by_id()
 {
 	local mol2="$1"

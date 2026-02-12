@@ -2010,13 +2010,63 @@ fi
 					mv -f "${mcpb_pdb}.noconect" "$mcpb_pdb"
 				fi
 
+				# Make PDB residue names match our MOL2 templates so LEaP assigns MCPB atom types/charges.
+				# (Critical when multiple ligand residues exist; otherwise LEaP may treat atoms as "unknown".)
+				if [[ -f "$mcpb_pdb" ]]; then
+					pdb_rewrite_resnames_for_leap "$mcpb_pdb" "${mcpb_pdb}.renamed" "LG1" "AU1" && mv -f "${mcpb_pdb}.renamed" "$mcpb_pdb"
+				fi
+
+				# Prefer the PDB unit variable from MCPB lines (e.g., mol = loadpdb ...). We need it for regenerated bond commands.
+				local sys_var_for_bonds=""
+				sys_var_for_bonds="$(
+					grep -Ei "^[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Pp]db[[:space:]]+.*${name}_mcpbpy[.]pdb" \
+						"$mcpb_params_ok" | head -n1 | sed -E 's/[[:space:]]*=.*$//'
+				)"
+				# If MCPB didn't assign the loaded unit to a variable, force an assignment so bond selectors work.
+				if [[ -z "$sys_var_for_bonds" ]]; then
+					sys_var_for_bonds="mol"
+					awk -v nm="${name}_mcpbpy.pdb" '
+						BEGIN{done=0}
+						{
+							if(!done && $0 ~ /^[[:space:]]*load[Pp]db[[:space:]]+.*_mcpbpy[.]pdb/){
+								print "mol = loadpdb " nm
+								done=1
+								next
+							}
+							print $0
+						}
+					' "$mcpb_params_ok" > "$mcpb_params_ok.tmp" && mv -f "$mcpb_params_ok.tmp" "$mcpb_params_ok"
+				fi
+
 				# Align ligand template atom types with MCPB frcmod (e.g., Y2/Y3) so LEaP finds Y*-M1 bonds/angles
-								# Use CREST (bond-authoritative) MOL2 for detecting metal-bonded atoms; nemesis_fix MOL2 may be metal-stripped.
+				# Use CREST (bond-authoritative) MOL2 for detecting metal-bonded atoms; nemesis_fix MOL2 may be metal-stripped.
 				local auth_bonds_mol2="$charges_fix_mol2"
 				if [[ -f "$JOB_DIR/${name}_crest.mol2" ]]; then
 					auth_bonds_mol2="$JOB_DIR/${name}_crest.mol2"
 				fi
 				mol2_apply_mcpb_ytypes_from_pdb "$JOB_DIR/LG1.mol2" "$mcpb_pdb" "$mcpb_frcmod" "$auth_bonds_mol2"
+
+				# Regenerate metal–ligand bonds from authoritative MOL2 + (patched) MCPB PDB.
+				# This fixes multi-ligand cases where MCPB's original bond selectors (mol.<res>.<atom>) no longer match.
+				if [[ -f "$auth_bonds_mol2" && -f "$mcpb_pdb" ]]; then
+						local tmpb="$JOB_DIR/mcpb_bonds.from_pdb.in"
+					tleap_write_metal_bonds_from_mol2_pdb "$auth_bonds_mol2" "$mcpb_pdb" "$sys_var_for_bonds" > "$tmpb" || true
+					if [[ -s "$tmpb" ]]; then
+						cp -f "$tmpb" "$mcpb_bonds_in" 2>/dev/null || true
+						info "Metal bonds regenerated for tleap from auth MOL2 + MCPB PDB: $(wc -l < "$tmpb") bond(s)"
+						# Replace any already-spliced bond lines in the MCPB params block.
+						awk -v bonds="$mcpb_bonds_in" '
+							BEGIN{ins=0}
+							/^[[:space:]]*(bond|add[Bb]ond)[[:space:]]+/ {next}
+							{print $0}
+							(ins==0 && $0 ~ /load[Pp]db[[:space:]]+/) {
+								while ((getline b < bonds) > 0) print b
+								close(bonds)
+								ins=1
+							}
+						' "$mcpb_params_ok" > "$mcpb_params_ok.tmp" && mv -f "$mcpb_params_ok.tmp" "$mcpb_params_ok"
+					fi
+				fi
 
 				# Optional but recommended: define MCPB-generated atom types before loading mol2
 				mol2_write_mcpb_add_atomtypes_for_frcmod "$mcpb_frcmod" "$JOB_DIR/mcpb_atomtypes.in"
