@@ -150,9 +150,6 @@ run_antechamber() {
 		mol2_strip_atom "$crest_full" "$tmp_lig" "$metal_mid"
 		mv -f "$tmp_lig" "$JOB_DIR/${name}_crest.mol2" || die "Failed to replace antechamber input with metal-stripped ligand MOL2"
 
-		mol2_fix_placeholder_atom_names_inplace "$JOB_DIR/${name}_crest.mol2"
-		mol2_fix_placeholder_atom_names_inplace "$crest_full"
-
 		# Ensure antechamber does NOT compute charges for metal systems (MCPB.py will do that)
 		antechamber_parms="$(echo "$antechamber_parms" | sed -E 's/(^|[[:space:]])-c[[:space:]]+[^[:space:]]+//g; s/(^|[[:space:]])-dr[[:space:]]+[^[:space:]]+//g')"
 		antechamber_parms="${antechamber_parms} -c dc -dr no"
@@ -711,13 +708,6 @@ run_mcpb() {
 		done
 	fi
 
-	# If we have explicit metal connectivity (add_bonded_pairs), disable MCPB automatic bond discovery
-	# (otherwise it will add bonds to nearby hetero atoms within cut_off).
-	local mcpb_cutoff="2.8"
-	if [[ -n "$addbpairs_line" ]]; then
-	mcpb_cutoff="0.1"
-	fi
-
 	# If preserved stages were created without add_bonded_pairs, they are not safe to reuse
 	if [[ -f "$STAGE1_OK" && -n "$addbpairs_line" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
 		if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
@@ -725,44 +715,12 @@ run_mcpb() {
 			rm -f "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
 		fi
 	fi
-	# Invalidate MCPB cache if explicit connectivity or cut_off policy changed
 	if [[ -f "$STAGE1_OK" && -f "$STAGE1_DIR/${name}_mcpb.in" ]]; then
-		local invalidate_mcpb=false
-
-		# Connectivity: add_bonded_pairs changed (present/absent or different pairs)
-		if [[ -n "$addbpairs_line" ]]; then
-			if ! grep -qF "$addbpairs_line" "$STAGE1_DIR/${name}_mcpb.in"; then
-			invalidate_mcpb=true
-			fi
-		else
-			if grep -qE '^add_bonded_pairs\b' "$STAGE1_DIR/${name}_mcpb.in"; then
-			invalidate_mcpb=true
-			fi
-		fi
-
-		# Policy: cut_off changed
-		local have_cutoff
-		have_cutoff="$(awk '/^cut_off[[:space:]]/{print $2; exit}' "$STAGE1_DIR/${name}_mcpb.in" 2>/dev/null || true)"
-		if [[ -n "$have_cutoff" && "$have_cutoff" != "$mcpb_cutoff" ]]; then
-			invalidate_mcpb=true
-		fi
-
-		if $invalidate_mcpb; then
-			warning "MCPB connectivity/cut_off changed; invalidating cached MCPB stages (re-run Stage 1-3)."
-			rm -f "$STAGE1_OK" "$STAGE2_OK" "$STAGE3_OK" || true
-			rm -rf "$STAGE2_DIR" "$STAGE3_DIR" || true
-			mkdir -p "$STAGE2_DIR" "$STAGE3_DIR"
-
-			# Stage1 outputs depend on connectivity too
-			rm -f \
-			"$STAGE1_DIR/${name}_mcpb.in" \
-			"$STAGE1_DIR/${name}_small_opt.com" "$STAGE1_DIR/${name}_small_fc.com" "$STAGE1_DIR/${name}_small_mk.com" \
-			"$STAGE1_DIR/${name}_small_opt.chk" "$STAGE1_DIR/${name}_small_fc.log" "$STAGE1_DIR/${name}_small_opt.log" \
-			"$STAGE1_DIR/${name}_large_mk.com" "$STAGE1_DIR/${name}_large_mk.chk" "$STAGE1_DIR/${name}_large_mk.log" \
-			2>/dev/null || true
+		if grep -q "^additional_resids[[:space:]]\\+" "$STAGE1_DIR/${name}_mcpb.in"; then
+			warning "MCPB stage1 cache invalid: contains additional_resids; forcing rebuild"
+			rm -f "$STAGE1_DIR" "$STAGE2_DIR" "$STAGE3_DIR"
 		fi
 	fi
-
 
 	# If user only wants step 1, stage split still makes sense: we run only stage1 job.
 	# ---------------------------------------------------------------------
@@ -790,7 +748,7 @@ NAME="${name}"
 {
 	echo "original_pdb ${name}_mcpb.pdb"
 	echo "group_name ${name}"
-	echo "cut_off ${mcpb_cutoff}"
+	echo "cut_off 2.8"
 	echo "force_field ff19SB"
 	echo "ion_ids ${metal_id}"
 	echo "${addbpairs_line}"
@@ -1141,7 +1099,7 @@ formchk ${name}_small_opt.chk ${name}_small_opt.fchk
 {
 	echo "original_pdb ${name}_mcpb.pdb"
 	echo "group_name ${name}"
-	echo "cut_off ${mcpb_cutoff}"
+	echo "cut_off 2.8"
 	echo "force_field ff19SB"
 	echo "ion_ids ${metal_id}"
 	echo "${addbpairs_line}"
@@ -1945,27 +1903,26 @@ run_tleap() {
 			printf '%s\n' "$line" >> "$mcpb_params_ok"
 		done < "$mcpb_params_in"
 
-		# local mcpb_pdb="$JOB_DIR/${name}_mcpbpy.pdb"
-		# local mcpb_frcmod="$JOB_DIR/${name}_mcpbpy.frcmod"
 
-		# # Always refresh the MCPB-derived ligand template from the original (pre-Y-typing) MOL2.
-		# # Rationale: mol2_apply_mcpb_ytypes_from_pdb edits LG1.mol2 in-place; if tleap fails, reruns must not
-		# # accumulate stale/incorrect atom types (e.g., carbonyl O getting mistagged as Y1).
-		# if [[ -f "$mcpb_pdb" ]]; then
-		# 	if [[ -f "$workdir/LIG.mol2" ]]; then
-		# 		cp -f "$workdir/LIG.mol2" "$workdir/LG1.mol2"
-		# 		mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
-		# 		info "Refreshed MCPB template: LG1.mol2 <- LIG.mol2 (clean base for Y-typing)"
-		# 	elif [[ -f "$charges_fix_mol2" ]]; then
-		# 		local _mid
-		# 		_mid="$(mol2_first_metal "$charges_fix_mol2" | awk 'NR==1{print $1}')"
-		# 		if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
-		# 		mol2_strip_atom "$charges_fix_mol2" "$workdir/LG1.mol2" "$_mid"
-		# 		mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
-		# 		info "Refreshed MCPB template: LG1.mol2 <- charges_fix (strip metal, clean base for Y-typing)"
-		# 		fi
-		# 	fi
-		# fi
+		# Always refresh the MCPB-derived ligand template from the original (pre-Y-typing) MOL2.
+		# Rationale: mol2_apply_mcpb_ytypes_from_pdb edits LG1.mol2 in-place; if tleap fails, reruns must not
+		# accumulate stale/incorrect atom types (e.g., carbonyl O... mis-tagged as Y1).
+		if [[ -f "$mcpb_pdb" ]]; then
+			if [[ -f "$workdir/LIG.mol2" ]]; then
+				cp -f "$workdir/LIG.mol2" "$workdir/LG1.mol2"
+				mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+				info "Refreshed MCPB template: LG1.mol2 <- LIG.mol2"
+			elif [[ -f "$charges_fix_mol2" ]]; then
+				# Fall back to the full authoritative MOL2 and strip the first detected metal atom.
+				local _mid
+				_mid="$(mol2_first_metal "$charges_fix_mol2" | awk 'NR==1{print $1}')"
+				if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
+					mol2_strip_atom "$charges_fix_mol2" "$workdir/LG1.mol2" "$_mid"
+					mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+					info "Refreshed MCPB template: LG1.mol2 <- ${name}_charges_fix.mol2 (metal stripped id=$_mid)"
+				fi
+			fi
+		fi
 
 		# MCPB.py writes explicit bond commands in *_tleap.in to connect the metal center.
 		# If we kept any loadPdb line, splice the bond commands right after the FIRST loadPdb.
