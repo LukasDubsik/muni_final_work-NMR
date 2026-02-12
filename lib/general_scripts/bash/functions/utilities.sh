@@ -779,82 +779,86 @@ tleap_filter_metal_bonds_by_mol2_connectivity()
   local bonds_in="$2"
   local bonds_out="${3:-$2}"
 
-  if [[ -z "$auth_mol2" || -z "$bonds_in" ]]; then
-    echo "[✘ERR] tleap_filter_metal_bonds_by_mol2_connectivity: missing args (auth_mol2, bonds_in[, bonds_out])" >&2
-    return 2
-  fi
-  if [[ ! -f "$auth_mol2" ]]; then
-    echo "[✘ERR] tleap_filter_metal_bonds_by_mol2_connectivity: auth mol2 not found: $auth_mol2" >&2
-    return 2
-  fi
-  if [[ ! -f "$bonds_in" ]]; then
-    echo "[✔OK] No MCPB bonds file to filter ($bonds_in) – skipping" >&2
+  # If inputs are missing, be permissive.
+  if [[ ! -f "$auth_mol2" || ! -f "$bonds_in" ]]; then
+    cp -f "$bonds_in" "$bonds_out" 2>/dev/null || true
     return 0
   fi
 
-  # Name-based filtering (LEaP bond selectors use atom names, not MOL2 atom types like M1)
-  local metal_id metal_name metal_key allowed_csv nm bid
+  # Canonicalize an atom name/selector (strip prefixes, keep alnum, uppercase)
+  _canon()
+  {
+    printf '%s' "$1"       | sed -E 's/^.*[.:@]//; s/[^[:alnum:]]//g'       | tr '[:lower:]' '[:upper:]'
+  }
 
+  # Detect the metal from authoritative MOL2 (by element), then collect the
+  # bonded atom *names* from the MOL2 bond table.
+  local metal_id metal_name metal_key
   metal_id="$(mol2_first_metal "$auth_mol2" | awk 'NR==1{print $1}')"
   if [[ -z "$metal_id" || "$metal_id" == "-1" ]]; then
     cp -f "$bonds_in" "$bonds_out"
     return 0
   fi
 
-  metal_name="$(mol2_atom_name_by_id "$auth_mol2" "$metal_id")"
+  metal_name="$(mol2_atom_name_by_id "$auth_mol2" "$metal_id" | head -n1)"
   if [[ -z "$metal_name" ]]; then
     cp -f "$bonds_in" "$bonds_out"
     return 0
   fi
+  metal_key="$(_canon "$metal_name")"
 
-  metal_key="$(echo "$metal_name" | sed -E 's/^.*[@.:]//; s/[^A-Za-z0-9]//g' | tr '[:lower:]' '[:upper:]' | cut -c1-4)"
+  # Build allow-list of ligand atom names bonded to the metal (canonicalized)
+  local allowed_list=""
+  local nid
+  for nid in $(mol2_bonded_atoms "$auth_mol2" "$metal_id"); do
+    local nm
+    nm="$(mol2_atom_name_by_id "$auth_mol2" "$nid" | head -n1)"
+    [[ -z "$nm" ]] && continue
+    nm="$(_canon "$nm")"
+    [[ -z "$nm" ]] && continue
+    allowed_list+="${nm}	"
+  done
 
-  allowed_csv="$(
-    for bid in $(mol2_bonded_atoms "$auth_mol2" "$metal_id"); do
-      nm="$(mol2_atom_name_by_id "$auth_mol2" "$bid")"
-      [[ -z "$nm" ]] && continue
-      echo "$nm" | sed -E 's/^.*[@.:]//; s/[^A-Za-z0-9]//g' | tr '[:lower:]' '[:upper:]' | cut -c1-4
-    done | awk 'NF{print}' | sort -u | paste -sd, -
-  )"
-
-  # If we couldn't derive partners, do not filter.
-  if [[ -z "$allowed_csv" ]]; then
+  # If the metal has no bonded partners in MOL2, don't filter.
+  if [[ -z "$allowed_list" ]]; then
     cp -f "$bonds_in" "$bonds_out"
     return 0
   fi
 
-  local tmp="${bonds_out}.tmp.$$"
-  awk -v metal="$metal_key" -v allowed="$allowed_csv" '
-    function canon(s, t) {
-      t = s
-      gsub(/^[ \t]+|[ \t]+$/, "", t)
-      if (index(t, "@") > 0) sub(/^.*@/, "", t)
-      if (index(t, ".") > 0) sub(/^.*\./, "", t)
-      if (index(t, ":") > 0) sub(/^.*:/, "", t)
-      gsub(/[^A-Za-z0-9]/, "", t)
-      t = toupper(t)
-      return substr(t, 1, 4)
+  # Filter: keep only metal-involving bonds whose partner is in the allow-list.
+  ALLOWED="$allowed_list"   awk -v metal="$metal_key" '
+    function canon(sel, x) {
+      x = sel
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", x)
+      gsub(/["{}]/, "", x)
+      sub(/^.*[.:@]/, "", x)
+      gsub(/[^[:alnum:]]/, "", x)
+      return toupper(x)
     }
     BEGIN {
-      n = split(allowed, a, /,/)
-      for (i=1; i<=n; i++) if (a[i] != "") ok[a[i]] = 1
-    }
-    function keepBond(x, y, cx, cy) {
-      cx = canon(x); cy = canon(y)
-      if (cx == metal && ok[cy]) return 1
-      if (cy == metal && ok[cx]) return 1
-      return 0
+      n = split(ENVIRON["ALLOWED"], tmp, "	")
+      for (i=1; i<=n; i++) if (tmp[i] != "") allow[tmp[i]] = 1
     }
     {
-      if (tolower($1) == "bond" || tolower($1) == "addbond") {
-        if (keepBond($2, $3)) print $0
+      raw = $0
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+
+      if (match(line, /^(bond|add[Bb]ond)[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+)/, m)) {
+        a = canon(m[2])
+        b = canon(m[3])
+
+        if ((a == metal && allow[b]) || (b == metal && allow[a])) {
+          print raw
+        }
         next
       }
-      print $0
-    }
-  ' "$bonds_in" > "$tmp" && mv "$tmp" "$bonds_out"
-}
 
+      # Keep non-bond lines (should be none, but be safe)
+      print raw
+    }
+  ' "$bonds_in" > "$bonds_out"
+}
 
 mol2_atom_is_halide_by_id()
 {
@@ -1378,8 +1382,6 @@ mol2_apply_mcpb_ytypes_from_pdb() {
       done < <(mol2_bonded_atoms "$auth_mol2_file" "$metal_id" | grep -v '^$')
     fi
   fi
-
-  echo $bonded_names
 
   # (C) Geometry fallback (STRICT: only elements we have MCPB partner types for)
   if [[ -z "$bonded_names" ]]; then

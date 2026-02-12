@@ -1750,7 +1750,15 @@ run_tleap() {
 			fi
 		done
 		if [[ -n "$auth_mol2" ]] && [[ -s "$mcpb_bonds_in" ]]; then
-			tleap_filter_metal_bonds_by_mol2_connectivity "$auth_mol2" "$mcpb_bonds_in" "$mcpb_bonds_in"
+			# Keep a raw copy so we can fall back if filtering removes everything
+			cp -f "$mcpb_bonds_in" "${mcpb_bonds_in}.raw" 2>/dev/null || true
+			tleap_filter_metal_bonds_by_mol2_connectivity "$auth_mol2" "${mcpb_bonds_in}.raw" "$mcpb_bonds_in"
+			if [[ ! -s "$mcpb_bonds_in" ]]; then
+				warning "MCPB metal-bond filtering removed all bond commands; keeping raw MCPB bonds (check auth MOL2 naming)"
+				mv -f "${mcpb_bonds_in}.raw" "$mcpb_bonds_in" 2>/dev/null || true
+			else
+				rm -f "${mcpb_bonds_in}.raw" 2>/dev/null || true
+			fi
 		fi
 
 		# Resolve/validate referenced files; never keep a loadPdb unless templates are present
