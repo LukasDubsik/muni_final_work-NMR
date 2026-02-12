@@ -1336,11 +1336,11 @@ mol2_apply_mcpb_ytypes_from_pdb() {
     awk -v list="$names" '
       BEGIN{
         n=split(list,a,"[[:space:]]+");
-        for (i=1;i<=n;i++) if (a[i]!="") want[a[i]]=1
+        for (i=1;i<=n;i++) if (a[i]!="") want[toupper(a[i])]=1
       }
       /^@<TRIPOS>ATOM/{inA=1; next}
       /^@<TRIPOS>/{inA=0}
-      inA && ($2 in want){print $2}
+      inA && (toupper($2) in want){print $2}
     ' "$mol2_file" | tr "\n" " "
   }
 
@@ -1493,13 +1493,13 @@ mol2_apply_mcpb_ytypes_from_pdb() {
       n=split(map,pairs,",");
       for (i=1;i<=n;i++){
         split(pairs[i],kv,":");
-        if (kv[1]!="" && kv[2]!="") m[kv[1]]=kv[2]
+        if (kv[1]!="" && kv[2]!="") m[toupper(kv[1])]=kv[2]
       }
     }
     /^@<TRIPOS>ATOM/ {inA=1; print; next}
     /^@<TRIPOS>/ {inA=0; print; next}
     inA && NF>=6{
-      if ($2 in m) $6=m[$2]
+      k=toupper($2); if (k in m) $6=m[k]
       print
       next
     }
