@@ -1741,9 +1741,9 @@ run_tleap() {
 		# the authoritative MOL2 bond table.
 		local auth_mol2=""
 		for cand in \
-			"process/preparations/mcpb/01_step1/${name}_mcpb_source.mol2" \
 			"process/preparations/crest/${name}_crest.mol2" \
-			"${INPUTS}/structures/${name}.mol2"; do
+			"${INPUTS}/structures/${name}.mol2" \
+			"process/preparations/mcpb/01_step1/${name}_mcpb_source.mol2"; do
 			if [[ -f "$cand" ]]; then
 				auth_mol2="$cand"
 				break

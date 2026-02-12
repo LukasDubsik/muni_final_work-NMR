@@ -792,62 +792,61 @@ tleap_filter_metal_bonds_by_mol2_connectivity()
     return 0
   fi
 
+  # Name-based filtering (LEaP bond selectors use atom names, not MOL2 atom types like M1)
+  local metal_id metal_name metal_key allowed_csv nm bid
+
+  metal_id="$(mol2_first_metal "$auth_mol2" | awk 'NR==1{print $1}')"
+  if [[ -z "$metal_id" || "$metal_id" == "-1" ]]; then
+    cp -f "$bonds_in" "$bonds_out"
+    return 0
+  fi
+
+  metal_name="$(mol2_atom_name_by_id "$auth_mol2" "$metal_id")"
+  if [[ -z "$metal_name" ]]; then
+    cp -f "$bonds_in" "$bonds_out"
+    return 0
+  fi
+
+  metal_key="$(echo "$metal_name" | sed -E 's/^.*[@.:]//; s/[^A-Za-z0-9]//g' | tr '[:lower:]' '[:upper:]' | cut -c1-4)"
+
+  allowed_csv="$(
+    for bid in $(mol2_bonded_atoms "$auth_mol2" "$metal_id"); do
+      nm="$(mol2_atom_name_by_id "$auth_mol2" "$bid")"
+      [[ -z "$nm" ]] && continue
+      echo "$nm" | sed -E 's/^.*[@.:]//; s/[^A-Za-z0-9]//g' | tr '[:lower:]' '[:upper:]' | cut -c1-4
+    done | awk 'NF{print}' | sort -u | paste -sd, -
+  )"
+
+  # If we couldn't derive partners, do not filter.
+  if [[ -z "$allowed_csv" ]]; then
+    cp -f "$bonds_in" "$bonds_out"
+    return 0
+  fi
+
   local tmp="${bonds_out}.tmp.$$"
-  awk -v mol2="$auth_mol2" '
+  awk -v metal="$metal_key" -v allowed="$allowed_csv" '
     function canon(s, t) {
       t = s
       gsub(/^[ \t]+|[ \t]+$/, "", t)
-      # LEaP selectors: :1@AU, SYS.1.AU, etc.
       if (index(t, "@") > 0) sub(/^.*@/, "", t)
       if (index(t, ".") > 0) sub(/^.*\./, "", t)
       if (index(t, ":") > 0) sub(/^.*:/, "", t)
       gsub(/[^A-Za-z0-9]/, "", t)
       t = toupper(t)
-      # PDB atom name field is 4 chars -> truncate to match reality
       return substr(t, 1, 4)
     }
-    function isMetal(t, u) {
-      u = toupper(t)
-      return (u ~ /^(AU|AG|CU|ZN|FE|MG|MN|CO|NI|CD|HG|PT|PD|IR|RH|RU|OS|AL|CA|NA|K)$/)
-    }
     BEGIN {
-      inAtom = 0
-      inBond = 0
-      while ((getline line < mol2) > 0) {
-        if (line ~ /^@<TRIPOS>ATOM/) { inAtom = 1; inBond = 0; continue }
-        if (line ~ /^@<TRIPOS>BOND/) { inAtom = 0; inBond = 1; continue }
-        if (line ~ /^@<TRIPOS>/) { inAtom = 0; inBond = 0; continue }
-
-        if (inAtom) {
-          split(line, f, /[ \t]+/)
-          id = f[1]; nm = f[2]; tp = f[6]
-          if (id != "" && nm != "" && tp != "") {
-            atype[id] = tp
-            aname[id] = nm
-          }
-        } else if (inBond) {
-          split(line, f, /[ \t]+/)
-          a1 = f[2]; a2 = f[3]
-          t1 = atype[a1]; t2 = atype[a2]
-          if (isMetal(t1) && !isMetal(t2)) {
-            me = toupper(t1); metals[me] = 1
-            ok[me, canon(aname[a2])] = 1
-          } else if (isMetal(t2) && !isMetal(t1)) {
-            me = toupper(t2); metals[me] = 1
-            ok[me, canon(aname[a1])] = 1
-          }
-        }
-      }
-      close(mol2)
+      n = split(allowed, a, /,/)
+      for (i=1; i<=n; i++) if (a[i] != "") ok[a[i]] = 1
     }
     function keepBond(x, y, cx, cy) {
       cx = canon(x); cy = canon(y)
-      if (metals[cx] && ok[cx, cy]) return 1
-      if (metals[cy] && ok[cy, cx]) return 1
+      if (cx == metal && ok[cy]) return 1
+      if (cy == metal && ok[cx]) return 1
       return 0
     }
     {
-      if ($1 == "bond") {
+      if (tolower($1) == "bond" || tolower($1) == "addbond") {
         if (keepBond($2, $3)) print $0
         next
       }
@@ -855,6 +854,7 @@ tleap_filter_metal_bonds_by_mol2_connectivity()
     }
   ' "$bonds_in" > "$tmp" && mv "$tmp" "$bonds_out"
 }
+
 
 mol2_atom_is_halide_by_id()
 {
