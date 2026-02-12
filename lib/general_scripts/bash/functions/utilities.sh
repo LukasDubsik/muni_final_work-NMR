@@ -1274,7 +1274,7 @@ mol2_apply_mcpb_ytypes_from_pdb() {
         el=substr($0,77,2); gsub(/[[:space:]]/,"",el); uel=toupper(el);
         res=substr($0,18,3); gsub(/[[:space:]]/,"",res); ures=toupper(res);
         an=substr($0,13,4); gsub(/^ +| +$/,"",an); uan=toupper(an);
-        if (uel=="AU" || ures=="AU" || uan ~ /^AU/) {print int(substr($0,7,5)); exit}
+        if (uel=="AU" || ures ~ /^AU/ || uan ~ /^AU/) {print int(substr($0,7,5)); exit}
       }' "$pdb_file"
   )
   [[ -n "$au_serial" ]] || { warning "mol2_apply_mcpb_ytypes_from_pdb: no AU found in PDB; skipping"; return 0; }
