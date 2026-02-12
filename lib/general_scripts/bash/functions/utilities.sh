@@ -1275,7 +1275,7 @@ mol2_apply_mcpb_ytypes_from_pdb() {
         if (toupper(el)=="AU") {print int(substr($0,7,5)); exit}
       }' "$pdb_file"
   )
-  [[ -n "$au_serial" ]] || { warn "mol2_apply_mcpb_ytypes_from_pdb: no AU found in PDB; skipping"; return 0; }
+  [[ -n "$au_serial" ]] || { warning "mol2_apply_mcpb_ytypes_from_pdb: no AU found in PDB; skipping"; return 0; }
 
   # 2) Determine MCPB partner atom types (the Y* types bonded to M1 in frcmod)
   mapfile -t m1_partners < <(
@@ -1290,7 +1290,7 @@ mol2_apply_mcpb_ytypes_from_pdb() {
         }
       }' "$frcmod_file" | sort -u
   )
-  (( ${#m1_partners[@]} )) || { warn "mol2_apply_mcpb_ytypes_from_pdb: no M1-* bonds in frcmod; skipping"; return 0; }
+  (( ${#m1_partners[@]} )) || { warning "mol2_apply_mcpb_ytypes_from_pdb: no M1-* bonds in frcmod; skipping"; return 0; }
 
   # 3) Classify partner types by MASS (so we only map elements that MCPB actually defines)
   local halide_type="" sulfur_type="" selenium_type="" carbon_type="" nitrogen_type="" oxygen_type=""
@@ -1424,7 +1424,7 @@ mol2_apply_mcpb_ytypes_from_pdb() {
   fi
 
   bonded_names=$(echo "$bonded_names" | xargs || true)
-  [[ -n "$bonded_names" ]] || { warn "mol2_apply_mcpb_ytypes_from_pdb: no bonded atoms detected; skipping"; return 0; }
+  [[ -n "$bonded_names" ]] || { warning "mol2_apply_mcpb_ytypes_from_pdb: no bonded atoms detected; skipping"; return 0; }
 
   # 5) Build a name->type map. Critically: do NOT map O/N unless MCPB defines oxygen/nitrogen partner types.
   local map_str=""
@@ -1447,7 +1447,7 @@ mol2_apply_mcpb_ytypes_from_pdb() {
     map_str+="${name}:${want},"
   done
   map_str=${map_str%,}
-  [[ -n "$map_str" ]] || { warn "mol2_apply_mcpb_ytypes_from_pdb: nothing to map (likely only O/N near metal but no MCPB O/N types); skipping"; return 0; }
+  [[ -n "$map_str" ]] || { warning "mol2_apply_mcpb_ytypes_from_pdb: nothing to map (likely only O/N near metal but no MCPB O/N types); skipping"; return 0; }
 
   # 6) Apply to MOL2 by ATOM NAME (safer than relying on serial alignment)
   awk -v map="$map_str" '
