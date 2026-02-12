@@ -1903,7 +1903,10 @@ run_tleap() {
 			printf '%s\n' "$line" >> "$mcpb_params_ok"
 		done < "$mcpb_params_in"
 
-		charges_fix_mol2="$JOB_DIR/${name}_charges_fix.mol2"
+		#Copy authoritative crest file
+		cp -f "process/preparations/crest/${name}_crest.mol2" "$JOB_DIR/" 2>/dev/null || true
+
+		charges_fix_mol2="$JOB_DIR/${name}_crest.mol2"
 		mcpb_pdb="$JOB_DIR/${name}_mcpbpy.pdb"
 		workdir="$JOB_DIR"
 
