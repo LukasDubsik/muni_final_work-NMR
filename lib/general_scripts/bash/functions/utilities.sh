@@ -1474,6 +1474,30 @@ mol2_apply_mcpb_ytypes_from_pdb() {
     }
     {print}
   ' "$mol2_file" > "${mol2_file}.tmp" && mv "${mol2_file}.tmp" "$mol2_file"
+
+  # 7) Selenium fallback: if the bonded selenium atom name differs between PDB/auth MOL2 and the residue template,
+  #    retype the unique selenium atom in the residue template to the MCPB selenium partner type.
+  if [[ -n "$selenium_type" ]] && echo "$bonded_names" | grep -qiE '(^|[[:space:]])se'; then
+    # If the desired Y* type is not present in the template, try to map by element (Se) instead of exact atom name.
+    if ! awk -v T="$selenium_type" 'BEGIN{inA=0;f=0} /^@<TRIPOS>ATOM/{inA=1;next} /^@<TRIPOS>/{inA=0} inA && $6==T{f=1} END{exit !f}' "$mol2_file"; then
+      local se_count
+      se_count=$(awk 'BEGIN{inA=0;c=0} /^@<TRIPOS>ATOM/{inA=1;next} /^@<TRIPOS>/{inA=0} inA{ nn=$2; sub(/[^A-Za-z].*$/, "", nn); u=toupper(nn); ut=toupper($6); if (u=="SE" || ut=="SE") c++ } END{print c}' "$mol2_file")
+      if [[ "$se_count" == "1" ]]; then
+        awk -v T="$selenium_type" '
+          BEGIN{inA=0}
+          /^@<TRIPOS>ATOM/ {inA=1; print; next}
+          /^@<TRIPOS>/ {inA=0; print; next}
+          inA && NF>=6{
+            nn=$2; sub(/[^A-Za-z].*$/, "", nn); u=toupper(nn); ut=toupper($6);
+            if (u=="SE" || ut=="SE") $6=T
+            print; next
+          }
+          {print}
+        ' "$mol2_file" > "${mol2_file}.tmp" && mv "${mol2_file}.tmp" "$mol2_file"
+        info "Selenium fallback: retyped unique Se atom in $(basename "$mol2_file") -> $selenium_type"
+      fi
+    fi
+  fi
 }
 
 # mol2_write_mcpb_add_atomtypes_for_frcmod
