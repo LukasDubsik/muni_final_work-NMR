@@ -1257,213 +1257,216 @@ EOF
 #   $2: MCPB PDB file (e.g., gold1_mcpbpy.pdb)
 #   $3: MCPB frcmod file (e.g., gold1_mcpbpy.frcmod)
 mol2_apply_mcpb_ytypes_from_pdb() {
-	local mol2_file=$1
-	local pdb_file=$2
-	local frcmod_file=$3
+  local mol2_file=$1
+  local pdb_file=$2
+  local frcmod_file=$3
+  local auth_mol2_file=${4:-}
 
-	[[ -f "$mol2_file" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: missing mol2: $mol2_file"
-	[[ -f "$pdb_file" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: missing pdb: $pdb_file"
-	[[ -f "$frcmod_file" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: missing frcmod: $frcmod_file"
+  [[ -f "$mol2_file" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: missing mol2: $mol2_file"
+  [[ -f "$pdb_file" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: missing pdb: $pdb_file"
+  [[ -f "$frcmod_file" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: missing frcmod: $frcmod_file"
 
-	# 1) Find AU serial (prefer atom name/element/resname == AU)
-	local au_serial
-	au_serial="$(
-		awk '
-			($1=="ATOM" || $1=="HETATM") {
-				serial = substr($0,7,5)+0
-				an = substr($0,13,4); gsub(/ /,"",an)
-				res = substr($0,18,3); gsub(/ /,"",res)
-				el = substr($0,77,2); gsub(/ /,"",el)
-				tan=toupper(an); tres=toupper(res); tel=toupper(el)
-				if (tan=="AU" || tel=="AU" || tres=="AU") { print serial; exit }
-			}
-		' "$pdb_file"
-	)"
-	[[ -n "${au_serial:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: could not detect AU atom serial in $pdb_file"
+  # 1) Identify metal (AU) serial + coordinates from PDB
+  local au_serial
+  au_serial=$(
+    awk '
+      /^ATOM  /{
+        el=substr($0,77,2); gsub(/[[:space:]]/,"",el);
+        if (toupper(el)=="AU") {print int(substr($0,7,5)); exit}
+      }' "$pdb_file"
+  )
+  [[ -n "$au_serial" ]] || { warn "mol2_apply_mcpb_ytypes_from_pdb: no AU found in PDB; skipping"; return 0; }
 
-	# 2) Collect ligand atom serials bonded to AU from CONECT (both directions)
-	local bonded_serials
-	bonded_serials="$(
-		awk -v au="$au_serial" '
-			$1=="CONECT" {
-				a=$2+0
-				if (a==au) {
-					for (i=3;i<=NF;i++) if ($i ~ /^[0-9]+$/) n[$i+0]=1
-				} else {
-					for (i=3;i<=NF;i++) if (($i+0)==au) n[a]=1
-				}
-			}
-			END { for (k in n) print k }
-		' "$pdb_file" | sort -n
-	)"
-	# If there are no CONECT records (common in MCPB PDBs), fall back to geometry:
-	#  - halides within 3.2 A of AU
-	#  - other heavy atoms within 2.6 A of AU
-	if [[ -z "${bonded_serials:-}" ]]; then
-		local aux auy auz
-		read -r aux auy auz < <(
-			awk -v au="$au_serial" '
-				($1=="ATOM" || $1=="HETATM") {
-					serial = substr($0,7,5)+0
-					if (serial==au) {
-						x=substr($0,31,8)+0
-						y=substr($0,39,8)+0
-						z=substr($0,47,8)+0
-						print x, y, z
-						exit
-					}
-				}
-			' "$pdb_file"
-		)
-		[[ -n "${aux:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: failed to read AU coordinates (serial=$au_serial) in $pdb_file"
+  # 2) Determine MCPB partner atom types (the Y* types bonded to M1 in frcmod)
+  mapfile -t m1_partners < <(
+    awk '
+      $1=="BOND"{inb=1; next}
+      inb && NF>=1{
+        if ($1=="ANGL"||$1=="DIHE"||$1=="IMPR"||$1=="NONB") exit
+        if (index($1,"-")>0){
+          split($1,a,"-");
+          if (a[1]=="M1") print a[2];
+          else if (a[2]=="M1") print a[1];
+        }
+      }' "$frcmod_file" | sort -u
+  )
+  (( ${#m1_partners[@]} )) || { warn "mol2_apply_mcpb_ytypes_from_pdb: no M1-* bonds in frcmod; skipping"; return 0; }
 
-		bonded_serials="$(
-			awk -v au="$au_serial" -v ax="$aux" -v ay="$auy" -v az="$auz" '
-				function d2(x,y,z){dx=x-ax;dy=y-ay;dz=z-az;return dx*dx+dy*dy+dz*dz}
-				($1=="ATOM"||$1=="HETATM"){
-					serial=substr($0,7,5)+0
-					if(serial==au) next
+  # 3) Classify partner types by MASS (so we only map elements that MCPB actually defines)
+  local halide_type="" sulfur_type="" selenium_type="" carbon_type="" nitrogen_type="" oxygen_type=""
+  local nonhalide_type="" best_nonhalide_mass=9999
 
-					an=substr($0,13,4); gsub(/ /,"",an)
-					tan=toupper(an)
+  for t in "${m1_partners[@]}"; do
+    local m
+    m=$(
+      awk -v T="$t" '
+        $1=="MASS"{inm=1; next}
+        inm && NF>=2{
+          if ($1==T){print $2; exit}
+          if ($1=="BOND") exit
+        }' "$frcmod_file"
+    )
+    [[ -n "$m" ]] || continue
 
-					# skip hydrogens (PDB has no element column here, so rely on atom name)
-					if (tan ~ /^H/) next
+    # Keep a “generic non-halide” fallback as the smallest partner mass
+    if awk -v hooking="$m" 'BEGIN{exit !(hooking+0 < 9999)}'; then
+      if awk -v a="$m" -v b="$best_nonhalide_mass" 'BEGIN{exit !(a+0 < b+0)}'; then
+        best_nonhalide_mass="$m"
+        nonhalide_type="$t"
+      fi
+    fi
 
-					x=substr($0,31,8)+0
-					y=substr($0,39,8)+0
-					z=substr($0,47,8)+0
-					dist2=d2(x,y,z)
+    # Element-ish bins by mass (broad, just to avoid mis-typing O/N as carbon)
+    if awk -v x="$m" 'BEGIN{exit !(x+0>=34 && x+0<=60)}'; then halide_type="$t"; fi
+    if awk -v x="$m" 'BEGIN{exit !(x+0>=29 && x+0<=34)}'; then sulfur_type="$t"; fi
+    if awk -v x="$m" 'BEGIN{exit !(x+0>=76 && x+0<=82)}'; then selenium_type="$t"; fi
+    if awk -v x="$m" 'BEGIN{exit !(x+0>=11 && x+0<=13)}'; then carbon_type="$t"; fi
+    if awk -v x="$m" 'BEGIN{exit !(x+0>=13 && x+0<15.6)}'; then nitrogen_type="$t"; fi
+    if awk -v x="$m" 'BEGIN{exit !(x+0>=15.6 && x+0<=18.5)}'; then oxygen_type="$t"; fi
+  done
 
-					# halides within 3.2 A (3.2^2 = 10.24)
-					if (tan ~ /^(CL|BR|I|F)/ && dist2 < 10.24) { h[serial]=dist2; next }
+  # If carbon-type wasn’t identified explicitly, fall back to “smallest non-halide”
+  [[ -n "$carbon_type" ]] || carbon_type="$nonhalide_type"
 
-					# other heavy atoms within 2.6 A (2.6^2 = 6.76)
-					if (dist2 < 6.76) { n[serial]=dist2 }
-				}
-				END{
-					for (k in h) print k
-					for (k in n) print k
-				}
-			' "$pdb_file" | sort -n | uniq
-		)"
+  # 4) Determine which atoms are truly metal-bonded:
+  #    Priority: (A) CONECT in PDB, else (B) authoritative MOL2 connectivity, else (C) strict geometry fallback.
+  local bonded_names=""
 
-		[[ -n "${bonded_serials:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: no AU neighbors found (no CONECT; no close atoms) for serial=$au_serial in $pdb_file"
-	fi
+  # (A) PDB CONECT
+  local bonded_serials
+  bonded_serials=$(
+    awk -v au="$au_serial" '
+      $1=="CONECT"{
+        s=int(substr($0,7,5))
+        if (s==au){
+          for (i=12;i<=length($0);i+=5){
+            x=substr($0,i,5); gsub(/[[:space:]]/,"",x)
+            if (x!="") print x
+          }
+        }
+      }' "$pdb_file" | sort -n | uniq
+  )
 
+  if [[ -n "$bonded_serials" ]]; then
+    bonded_names=$(
+      awk -v list="$bonded_serials" '
+        BEGIN{
+          n=split(list,a,"[[:space:]]+");
+          for (i=1;i<=n;i++) want[a[i]]=1
+        }
+        /^ATOM  /{
+          s=int(substr($0,7,5))
+          if (want[s]){
+            an=substr($0,13,4); gsub(/^ +| +$/,"",an)
+            print an
+          }
+        }' "$pdb_file" | tr '\n' ' '
+    )
+  fi
 
-	# 3) Determine which atom types in frcmod are bonded to M1 (e.g., Y2 and Y3)
-	local m1_partners
-	m1_partners="$(
-		awk '
-			BEGIN{inp=0}
-			$1=="BOND"{inp=1; next}
-			inp && ($1=="ANGL" || $1=="ANGLE" || $1=="DIHE" || $1=="IMPR" || $1=="NONB" || $1=="MASS") {exit}
-			inp && $1 ~ /-/ {
-				s=$1
-				split(s,a,"-")
-				if (a[1]=="M1") print a[2]
-				else if (a[2]=="M1") print a[1]
-			}
-		' "$frcmod_file" | sort -u
-	)"
-	[[ -n "${m1_partners:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: could not detect any *-M1 bonds in frcmod: $frcmod_file"
+  # (B) Authoritative MOL2 (preferred in your pipeline; avoids distance false-positives)
+  if [[ -z "$bonded_names" && -n "$auth_mol2_file" && -f "$auth_mol2_file" ]]; then
+    local metal_id
+    metal_id=$(mol2_first_metal "$auth_mol2_file" | awk 'NR==1{print $1}')
+    if [[ -n "$metal_id" && "$metal_id" != "-1" ]]; then
+      while read -r nid; do
+        local nm
+        nm=$(mol2_atom_name_by_id "$auth_mol2_file" "$nid" || true)
+        [[ -n "$nm" ]] && bonded_names+="$nm "
+      done < <(mol2_bonded_atoms "$auth_mol2_file" "$metal_id" | grep -v '^$')
+    fi
+  fi
 
-	# 4) Build type->mass map from MASS section
-	declare -A mass
-	while read -r t m; do
-		[[ -n "${t:-}" ]] || continue
-		[[ -n "${m:-}" ]] || continue
-		mass["$t"]="$m"
-	done < <(
-		awk '
-			BEGIN{inp=0}
-			$1=="MASS"{inp=1; next}
-			inp && $1=="BOND"{exit}
-			inp && NF>=2 {
-				if ($1=="YES" || $1=="NON" || $1=="NO") { print $2, $3 }
-				else { print $1, $2 }
-			}
-		' "$frcmod_file"
-	)
+  # (C) Geometry fallback (STRICT: only elements we have MCPB partner types for)
+  if [[ -z "$bonded_names" ]]; then
+    local au_xyz
+    au_xyz=$(
+      awk -v au="$au_serial" '
+        /^ATOM  /{
+          s=int(substr($0,7,5))
+          if (s==au){
+            x=substr($0,31,8)+0; y=substr($0,39,8)+0; z=substr($0,47,8)+0;
+            print x,y,z; exit
+          }
+        }' "$pdb_file"
+    )
+    local au_x au_y au_z
+    read -r au_x au_y au_z <<<"$au_xyz"
 
-	# 5) Identify which Y* type corresponds to halide vs non-halide (heuristic by mass)
-	#    and (optionally) sulfur/selenium by mass ~32/79
-	local halide_type="" nonhalide_type="" sulfur_type="" selenium_type=""
-	local t m
-	for t in $m1_partners; do
-		m="${mass[$t]:-0}"
-		# Halide-ish (Cl) range; keep above sulfur window to avoid S~32
-		awk -v mm="$m" 'BEGIN{exit !(mm>=34 && mm<60)}' && halide_type="$t"
-		# Sulfur-ish (S) range
-		awk -v mm="$m" 'BEGIN{exit !(mm>28 && mm<34)}' && sulfur_type="$t"
-		# Light/non-halide (C/N/O) range
-		awk -v mm="$m" 'BEGIN{exit !(mm>5 && mm<25)}' && nonhalide_type="$t"
-		awk -v mm="$m" 'BEGIN{exit !(mm>76 && mm<82)}' && selenium_type="$t"
-	done
-	[[ -n "$halide_type" ]] || halide_type="$(echo "$m1_partners" | head -n1)"
-	[[ -n "$nonhalide_type" ]] || nonhalide_type="$(echo "$m1_partners" | tail -n1)"
-	[[ -n "$sulfur_type" ]] || sulfur_type="$halide_type"
-	[[ -n "$selenium_type" ]] || selenium_type="$sulfur_type"
+    bonded_names=$(
+      awk -v ax="$au_x" -v ay="$au_y" -v az="$au_z" \
+          -v hasC="$carbon_type" -v hasS="$sulfur_type" -v hasSe="$selenium_type" \
+          -v hasO="$oxygen_type" -v hasN="$nitrogen_type" -v hasH="$halide_type" '
+        function dist(x,y,z){dx=x-ax;dy=y-ay;dz=z-az; return sqrt(dx*dx+dy*dy+dz*dz)}
+        function trim(s){sub(/^ +/,"",s);sub(/ +$/,"",s);return s}
+        /^ATOM  /{
+          el=substr($0,77,2); gsub(/[[:space:]]/,"",el); el=toupper(el)
+          if (el=="H") next
+          x=substr($0,31,8)+0; y=substr($0,39,8)+0; z=substr($0,47,8)+0
+          d=dist(x,y,z)
 
+          allow=0
+          if (el=="C"  && hasC!="") allow=1
+          if (el=="S"  && hasS!="") allow=1
+          if (el=="SE" && hasSe!="") allow=1
+          if ((el=="F"||el=="CL"||el=="BR"||el=="I") && hasH!="") allow=1
+          if (el=="O"  && hasO!="") allow=1
+          if (el=="N"  && hasN!="") allow=1
+          if (!allow) next
 
-	# 6) Build an id:type mapping for mol2 ATOM lines (prefer serial==mol2 id; fallback by atom name)
-	local map_entries=()
-	local sid el an want
-	while read -r sid; do
-		# element from PDB (fallback to atom name)
-		read -r el an < <(
-			awk -v s="$sid" '
-				($1=="ATOM" || $1=="HETATM") {
-					serial = substr($0,7,5)+0
-					if (serial==s) {
-						el = substr($0,77,2); gsub(/ /,"",el)
-						an = substr($0,13,4); gsub(/ /,"",an)
-						if (el=="") el=an
-						u=toupper(el); gsub(/[^A-Z]/,"",u);
-						if (u=="") { u=toupper(an); gsub(/[^A-Z]/,"",u); }
-						if (length(u)>2) u=substr(u,1,2);
-						print u, an
-						exit
-					}
-				}
-			' "$pdb_file"
-		)
-		[[ -n "${el:-}" ]] || die "mol2_apply_mcpb_ytypes_from_pdb: failed to read PDB element for serial $sid"
+          if ((el=="F"||el=="CL"||el=="BR"||el=="I")) {
+            if (d<=3.2){an=trim(substr($0,13,4)); print an}
+          } else {
+            if (d<=2.6){an=trim(substr($0,13,4)); print an}
+          }
+        }' "$pdb_file" | tr '\n' ' '
+    )
+  fi
 
-		case "$el" in
-			CL|BR|I|F) want="$halide_type" ;;
-			S)         want="$sulfur_type" ;;
-			SE)        want="$selenium_type" ;;
-			*)         want="$nonhalide_type" ;;
-		esac
+  bonded_names=$(echo "$bonded_names" | xargs || true)
+  [[ -n "$bonded_names" ]] || { warn "mol2_apply_mcpb_ytypes_from_pdb: no bonded atoms detected; skipping"; return 0; }
 
-		map_entries+=("${sid}:${want}")
-	done <<< "$bonded_serials"
+  # 5) Build a name->type map. Critically: do NOT map O/N unless MCPB defines oxygen/nitrogen partner types.
+  local map_str=""
+  local name el want
+  for name in $bonded_names; do
+    el=$(echo "$name" | sed 's/[0-9].*$//' | tr '[:lower:]' '[:upper:]')
+    want=""
 
-	local mapstr
-	mapstr="$(printf "%s " "${map_entries[@]}")"
+    case "$el" in
+      F|CL|BR|I) want="$halide_type" ;;
+      S)         want="$sulfur_type" ;;
+      SE)        want="$selenium_type" ;;
+      C)         want="$carbon_type" ;;
+      N)         want="$nitrogen_type" ;;
+      O)         want="$oxygen_type" ;;
+      *)         want="" ;;
+    esac
 
-	# 7) Apply mapping to mol2 (ATOM section column 6)
-	awk -v map="$mapstr" '
-		BEGIN{
-			in_atoms=0
-			n=split(map,a," ")
-			for(i=1;i<=n;i++){
-				if(a[i]=="") continue
-				split(a[i],kv,":")
-				if(kv[1]!="" && kv[2]!="") t[kv[1]]=kv[2]
-			}
-		}
-		/^@<TRIPOS>ATOM/ {in_atoms=1; print; next}
-		/^@<TRIPOS>BOND/ {in_atoms=0; print; next}
-		in_atoms==1 && $1 ~ /^[0-9]+$/ {
-			if ($1 in t) $6=t[$1]
-			print
-			next
-		}
-		{print}
-	' "$mol2_file" > "${mol2_file}.tmp" && mv -f "${mol2_file}.tmp" "$mol2_file"
+    [[ -n "$want" ]] || continue
+    map_str+="${name}:${want},"
+  done
+  map_str=${map_str%,}
+  [[ -n "$map_str" ]] || { warn "mol2_apply_mcpb_ytypes_from_pdb: nothing to map (likely only O/N near metal but no MCPB O/N types); skipping"; return 0; }
+
+  # 6) Apply to MOL2 by ATOM NAME (safer than relying on serial alignment)
+  awk -v map="$map_str" '
+    BEGIN{
+      n=split(map,pairs,",");
+      for (i=1;i<=n;i++){
+        split(pairs[i],kv,":");
+        if (kv[1]!="" && kv[2]!="") m[kv[1]]=kv[2]
+      }
+    }
+    /^@<TRIPOS>ATOM/ {inA=1; print; next}
+    /^@<TRIPOS>/ {inA=0; print; next}
+    inA && NF>=6{
+      if ($2 in m) $6=m[$2]
+      print
+      next
+    }
+    {print}
+  ' "$mol2_file" > "${mol2_file}.tmp" && mv "${mol2_file}.tmp" "$mol2_file"
 }
 
 # mol2_write_mcpb_add_atomtypes_for_frcmod

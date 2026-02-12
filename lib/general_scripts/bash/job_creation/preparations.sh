@@ -1945,6 +1945,25 @@ run_tleap() {
 			printf '%s\n' "$line" >> "$mcpb_params_ok"
 		done < "$mcpb_params_in"
 
+		# Always refresh the MCPB-derived ligand template from the original (pre-Y-typing) MOL2.
+		# Rationale: mol2_apply_mcpb_ytypes_from_pdb edits LG1.mol2 in-place; if tleap fails, reruns must not
+		# accumulate stale/incorrect atom types (e.g., carbonyl O getting mistagged as Y1).
+		if [[ -f "$mcpb_pdb" ]]; then
+		if [[ -f "$workdir/LIG.mol2" ]]; then
+			cp -f "$workdir/LIG.mol2" "$workdir/LG1.mol2"
+			mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+			info "Refreshed MCPB template: LG1.mol2 <- LIG.mol2 (clean base for Y-typing)"
+		elif [[ -f "$charges_fix_mol2" ]]; then
+			local _mid
+			_mid="$(mol2_first_metal "$charges_fix_mol2" | awk 'NR==1{print $1}')"
+			if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
+			mol2_strip_atom "$charges_fix_mol2" "$workdir/LG1.mol2" "$_mid"
+			mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+			info "Refreshed MCPB template: LG1.mol2 <- charges_fix (strip metal, clean base for Y-typing)"
+			fi
+		fi
+		fi
+
 		# MCPB.py writes explicit bond commands in *_tleap.in to connect the metal center.
 		# If we kept any loadPdb line, splice the bond commands right after the FIRST loadPdb.
 		if [[ -s "$mcpb_bonds_in" ]] && grep -qiE 'load[Pp]db[[:space:]]+' "$mcpb_params_ok"; then
@@ -1990,7 +2009,7 @@ run_tleap() {
 				fi
 
 				# Align ligand template atom types with MCPB frcmod (e.g., Y2/Y3) so LEaP finds Y*-M1 bonds/angles
-				mol2_apply_mcpb_ytypes_from_pdb "$JOB_DIR/LG1.mol2" "$mcpb_pdb" "$mcpb_frcmod"
+				mol2_apply_mcpb_ytypes_from_pdb "$JOB_DIR/LG1.mol2" "$mcpb_pdb" "$mcpb_frcmod" "$charges_fix_mol2"
 
 				# Optional but recommended: define MCPB-generated atom types before loading mol2
 				mol2_write_mcpb_add_atomtypes_for_frcmod "$mcpb_frcmod" "$JOB_DIR/mcpb_atomtypes.in"
