@@ -1903,6 +1903,9 @@ run_tleap() {
 			printf '%s\n' "$line" >> "$mcpb_params_ok"
 		done < "$mcpb_params_in"
 
+		charges_fix_mol2="$JOB_DIR/${name}_charges_fix.mol2"
+		mcpb_pdb="$JOB_DIR/${name}_mcpbpy.pdb"
+
 
 		# Always refresh the MCPB-derived ligand template from the original (pre-Y-typing) MOL2.
 		# Rationale: mol2_apply_mcpb_ytypes_from_pdb edits LG1.mol2 in-place; if tleap fails, reruns must not
