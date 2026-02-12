@@ -1685,6 +1685,13 @@ run_tleap() {
 	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
 
+	# Also copy the CREST-optimized, bond-authoritative MOL2 (contains metal + correct connectivity).
+	# We use this ONLY as a connectivity reference when reconstructing MCPB metal bonds in tleap.
+	local crest_auth="process/preparations/crest/${name}_crest.mol2"
+	if [[ -f "$crest_auth" ]]; then
+		cp -f "$crest_auth" "$JOB_DIR/${name}_crest.mol2" || die "Failed to copy CREST MOL2 into tleap workdir: $crest_auth"
+	fi
+
 	#If also spec, load the necessary files
 	if [[ $params == "yes" ]]; then
 		cp  "$SRC_DIR_3/gaff.zf" "$JOB_DIR"
@@ -1841,6 +1848,21 @@ run_tleap() {
 						cp -f "$JOB_DIR/AU.mol2" "$JOB_DIR/$base"
 						mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
 						info "Derived missing MCPB template: $base <- AU.mol2"
+					elif [[ -f "$JOB_DIR/${name}_crest.mol2" ]]; then
+						local meta mid elem q x y z
+						meta="$(mol2_first_metal "$JOB_DIR/${name}_crest.mol2" | head -n1)"
+						mid="$(awk '{print $1}' <<<"$meta")"
+						elem="$(awk '{print $2}' <<<"$meta")"
+						q="$(awk '{print $3}' <<<"$meta")"
+						x="$(awk '{print $4}' <<<"$meta")"
+						y="$(awk '{print $5}' <<<"$meta")"
+						z="$(awk '{print $6}' <<<"$meta")"
+
+						if [[ -n "$mid" && "$mid" != "-1" ]]; then
+							write_single_ion_mol2 "$JOB_DIR/$base" "$elem" "$q" "$x" "$y" "$z"
+							mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
+							info "Derived missing MCPB template: $base <- ${name}_crest.mol2 (single-ion)"
+						fi
 					elif [[ -f "$JOB_DIR/${name}_charges_fix.mol2" ]]; then
 						local meta mid elem q x y z
 						meta="$(mol2_first_metal "$JOB_DIR/${name}_charges_fix.mol2" | head -n1)"
@@ -1903,10 +1925,7 @@ run_tleap() {
 			printf '%s\n' "$line" >> "$mcpb_params_ok"
 		done < "$mcpb_params_in"
 
-		#Copy authoritative crest file
-		cp -f "process/preparations/crest/${name}_crest.mol2" "$JOB_DIR/" 2>/dev/null || true
-
-		charges_fix_mol2="$JOB_DIR/${name}_crest.mol2"
+		charges_fix_mol2="$JOB_DIR/${name}_charges_fix.mol2"
 		mcpb_pdb="$JOB_DIR/${name}_mcpbpy.pdb"
 		workdir="$JOB_DIR"
 
@@ -1918,16 +1937,25 @@ run_tleap() {
 				cp -f "$workdir/LIG.mol2" "$workdir/LG1.mol2"
 				mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
 				info "Refreshed MCPB template: LG1.mol2 <- LIG.mol2"
-			elif [[ -f "$charges_fix_mol2" ]]; then
-				# Fall back to the full authoritative MOL2 and strip the first detected metal atom.
-				local _mid
-				_mid="$(mol2_first_metal "$charges_fix_mol2" | awk 'NR==1{print $1}')"
-				if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
-					mol2_strip_atom "$charges_fix_mol2" "$workdir/LG1.mol2" "$_mid"
-					mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
-					info "Refreshed MCPB template: LG1.mol2 <- ${name}_charges_fix.mol2 (metal stripped id=$_mid)"
-				fi
-			fi
+elif [[ -f "$workdir/${name}_crest.mol2" ]]; then
+	# Prefer CREST-optimized MOL2 (metal + authoritative bonds) if present; strip metal to build LG1 template.
+	local _mid
+	_mid="$(mol2_first_metal "$workdir/${name}_crest.mol2" | awk 'NR==1{print $1}')"
+	if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
+		mol2_strip_atom "$workdir/${name}_crest.mol2" "$workdir/LG1.mol2" "$_mid"
+		mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+		info "Refreshed MCPB template: LG1.mol2 <- ${name}_crest.mol2 (metal stripped id=$_mid)"
+	fi
+elif [[ -f "$charges_fix_mol2" ]]; then
+	# Fall back to the post-processed MOL2 and strip the first detected metal atom.
+	local _mid
+	_mid="$(mol2_first_metal "$charges_fix_mol2" | awk 'NR==1{print $1}')"
+	if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
+		mol2_strip_atom "$charges_fix_mol2" "$workdir/LG1.mol2" "$_mid"
+		mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+		info "Refreshed MCPB template: LG1.mol2 <- ${name}_charges_fix.mol2 (metal stripped id=$_mid)"
+	fi
+fi
 		fi
 
 		# MCPB.py writes explicit bond commands in *_tleap.in to connect the metal center.
@@ -1975,7 +2003,12 @@ run_tleap() {
 				fi
 
 				# Align ligand template atom types with MCPB frcmod (e.g., Y2/Y3) so LEaP finds Y*-M1 bonds/angles
-				mol2_apply_mcpb_ytypes_from_pdb "$JOB_DIR/LG1.mol2" "$mcpb_pdb" "$mcpb_frcmod" "$charges_fix_mol2"
+								# Use CREST (bond-authoritative) MOL2 for detecting metal-bonded atoms; nemesis_fix MOL2 may be metal-stripped.
+				local auth_bonds_mol2="$charges_fix_mol2"
+				if [[ -f "$JOB_DIR/${name}_crest.mol2" ]]; then
+					auth_bonds_mol2="$JOB_DIR/${name}_crest.mol2"
+				fi
+				mol2_apply_mcpb_ytypes_from_pdb "$JOB_DIR/LG1.mol2" "$mcpb_pdb" "$mcpb_frcmod" "$auth_bonds_mol2"
 
 				# Optional but recommended: define MCPB-generated atom types before loading mol2
 				mol2_write_mcpb_add_atomtypes_for_frcmod "$mcpb_frcmod" "$JOB_DIR/mcpb_atomtypes.in"
@@ -2088,33 +2121,6 @@ run_tleap() {
 	fi
 
 	cp -f "$JOB_DIR/tleap_run.in" "$JOB_DIR/${in_file}.in"
-	# -----------------------------------------------------------------
-	# Hard bind SYS to the MCPB PDB unit when MCPB is in use.
-	# Without this, it's easy to end up saving/solvating a ligand-only unit
-	# (gold disappears even though mcpbpy.pdb was loaded).
-	# -----------------------------------------------------------------
-	if grep -qiE "load[Pp]db[[:space:]]+${name}_mcpbpy[.]pdb\\b" "$JOB_DIR/$tleap_in"; then
-		local pdb_var
-		pdb_var="$(
-			grep -Ei "^[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Pp]db[[:space:]]+.*${name}_mcpbpy[.]pdb\\b" \
-				"$JOB_DIR/$tleap_in" | head -n1 | sed -E 's/[[:space:]]*=.*$//'
-		)"
-
-		if [[ -z "$pdb_var" ]]; then
-			pdb_var="mol"
-			# Rewrite FIRST bare loadPdb line into an assigned unit (keeps bond commands sane)
-			sed -i -E "0,/^[[:space:]]*load[Pp]db[[:space:]]+${name}_mcpbpy[.]pdb\\b/I s//${pdb_var} = loadPdb ${name}_mcpbpy.pdb/" "$JOB_DIR/$tleap_in"
-		fi
-
-		# Remove stale SYS assignment(s) and re-insert the correct one right after the PDB load.
-		sed -i -E "/^[[:space:]]*SYS[[:space:]]*=/Id" "$JOB_DIR/$tleap_in"
-		sed -i -E "/^[[:space:]]*${pdb_var}[[:space:]]*=[[:space:]]*load[Pp]db[[:space:]]+${name}_mcpbpy[.]pdb\\b/Ia\\SYS = ${pdb_var}" "$JOB_DIR/$tleap_in"
-
-		# Ensure we actually save the MCPB-based unit.
-		sed -i -E "s#^([[:space:]]*save[Aa]mber[Pp]arm[[:space:]]+)[[:alnum:]_]+#\\1SYS#I" "$JOB_DIR/$tleap_in"
-	fi
-
-
 
 	# -----------------------------------------------------------------
 	# Sanitize tleap input: remove CRLF, strip inline comments, and remove
