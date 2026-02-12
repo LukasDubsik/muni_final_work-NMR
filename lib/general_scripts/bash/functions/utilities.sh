@@ -1381,6 +1381,7 @@ mol2_apply_mcpb_ytypes_from_pdb() {
 
   # (C) Geometry fallback (STRICT: only elements we have MCPB partner types for)
   if [[ -z "$bonded_names" ]]; then
+    echo "HERE"
     local au_xyz
     au_xyz=$(
       awk -v au="$au_serial" '
