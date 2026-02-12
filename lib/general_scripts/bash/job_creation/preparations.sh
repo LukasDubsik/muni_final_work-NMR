@@ -2085,6 +2085,33 @@ run_tleap() {
 	fi
 
 	cp -f "$JOB_DIR/tleap_run.in" "$JOB_DIR/${in_file}.in"
+	# -----------------------------------------------------------------
+	# Hard bind SYS to the MCPB PDB unit when MCPB is in use.
+	# Without this, it's easy to end up saving/solvating a ligand-only unit
+	# (gold disappears even though mcpbpy.pdb was loaded).
+	# -----------------------------------------------------------------
+	if grep -qiE "load[Pp]db[[:space:]]+${name}_mcpbpy[.]pdb\\b" "$JOB_DIR/$tleap_in"; then
+		local pdb_var
+		pdb_var="$(
+			grep -Ei "^[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Pp]db[[:space:]]+.*${name}_mcpbpy[.]pdb\\b" \
+				"$JOB_DIR/$tleap_in" | head -n1 | sed -E 's/[[:space:]]*=.*$//'
+		)"
+
+		if [[ -z "$pdb_var" ]]; then
+			pdb_var="mol"
+			# Rewrite FIRST bare loadPdb line into an assigned unit (keeps bond commands sane)
+			sed -i -E "0,/^[[:space:]]*load[Pp]db[[:space:]]+${name}_mcpbpy[.]pdb\\b/I s//${pdb_var} = loadPdb ${name}_mcpbpy.pdb/" "$JOB_DIR/$tleap_in"
+		fi
+
+		# Remove stale SYS assignment(s) and re-insert the correct one right after the PDB load.
+		sed -i -E "/^[[:space:]]*SYS[[:space:]]*=/Id" "$JOB_DIR/$tleap_in"
+		sed -i -E "/^[[:space:]]*${pdb_var}[[:space:]]*=[[:space:]]*load[Pp]db[[:space:]]+${name}_mcpbpy[.]pdb\\b/Ia\\SYS = ${pdb_var}" "$JOB_DIR/$tleap_in"
+
+		# Ensure we actually save the MCPB-based unit.
+		sed -i -E "s#^([[:space:]]*save[Aa]mber[Pp]arm[[:space:]]+)[[:alnum:]_]+#\\1SYS#I" "$JOB_DIR/$tleap_in"
+	fi
+
+
 
 	# -----------------------------------------------------------------
 	# Sanitize tleap input: remove CRLF, strip inline comments, and remove

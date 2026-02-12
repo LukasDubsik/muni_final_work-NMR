@@ -808,7 +808,7 @@ tleap_filter_metal_bonds_by_mol2_connectivity()
     }
     function isMetal(t, u) {
       u = toupper(t)
-      return (u ~ /^(AU|AG|CU|ZN|FE|MG|MN|CO|NI|CD|HG|PT|PD|IR|RH|RU|OS|AL|CA|NA|K)$/)
+      return (u ~ /^(AU|AG|CU|ZN|FE|MG|MN|CO|NI|CD|HG|PT|PD|IR|RH|RU|OS|AL|CA|NA|K|M1)$/)
     }
     BEGIN {
       inAtom = 0
@@ -1270,9 +1270,11 @@ mol2_apply_mcpb_ytypes_from_pdb() {
   local au_serial
   au_serial=$(
     awk '
-      /^ATOM  /{
-        el=substr($0,77,2); gsub(/[[:space:]]/,"",el);
-        if (toupper(el)=="AU") {print int(substr($0,7,5)); exit}
+      /^(ATOM  |HETATM)/{
+        el=substr($0,77,2); gsub(/[[:space:]]/,"",el); uel=toupper(el);
+        res=substr($0,18,3); gsub(/[[:space:]]/,"",res); ures=toupper(res);
+        an=substr($0,13,4); gsub(/^ +| +$/,"",an); uan=toupper(an);
+        if (uel=="AU" || ures=="AU" || uan ~ /^AU/) {print int(substr($0,7,5)); exit}
       }' "$pdb_file"
   )
   [[ -n "$au_serial" ]] || { warning "mol2_apply_mcpb_ytypes_from_pdb: no AU found in PDB; skipping"; return 0; }
@@ -1354,7 +1356,7 @@ mol2_apply_mcpb_ytypes_from_pdb() {
           n=split(list,a,"[[:space:]]+");
           for (i=1;i<=n;i++) want[a[i]]=1
         }
-        /^ATOM  /{
+        /^(ATOM  |HETATM)/{
           s=int(substr($0,7,5))
           if (want[s]){
             an=substr($0,13,4); gsub(/^ +| +$/,"",an)
@@ -1382,7 +1384,7 @@ mol2_apply_mcpb_ytypes_from_pdb() {
     local au_xyz
     au_xyz=$(
       awk -v au="$au_serial" '
-        /^ATOM  /{
+        /^(ATOM  |HETATM)/{
           s=int(substr($0,7,5))
           if (s==au){
             x=substr($0,31,8)+0; y=substr($0,39,8)+0; z=substr($0,47,8)+0;
@@ -1399,7 +1401,7 @@ mol2_apply_mcpb_ytypes_from_pdb() {
           -v hasO="$oxygen_type" -v hasN="$nitrogen_type" -v hasH="$halide_type" '
         function dist(x,y,z){dx=x-ax;dy=y-ay;dz=z-az; return sqrt(dx*dx+dy*dy+dz*dz)}
         function trim(s){sub(/^ +/,"",s);sub(/ +$/,"",s);return s}
-        /^ATOM  /{
+        /^(ATOM  |HETATM)/{
           el=substr($0,77,2); gsub(/[[:space:]]/,"",el); el=toupper(el)
           if (el=="H") next
           x=substr($0,31,8)+0; y=substr($0,39,8)+0; z=substr($0,47,8)+0
