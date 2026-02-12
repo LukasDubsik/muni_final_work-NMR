@@ -1379,6 +1379,8 @@ mol2_apply_mcpb_ytypes_from_pdb() {
     fi
   fi
 
+  echo $bonded_names
+
   # (C) Geometry fallback (STRICT: only elements we have MCPB partner types for)
   if [[ -z "$bonded_names" ]]; then
     echo "HERE"
