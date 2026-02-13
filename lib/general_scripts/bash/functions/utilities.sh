@@ -960,6 +960,8 @@ tleap_filter_metal_bonds_by_mol2_connectivity()
   ' "$bonds_in" > "$tmp" && mv "$tmp" "$bonds_out"
 }
 
+
+
 mol2_atom_is_halide_by_id()
 {
 	local mol2="$1"
