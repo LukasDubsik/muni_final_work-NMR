@@ -155,6 +155,10 @@ run_antechamber() {
 		antechamber_parms="${antechamber_parms} -c dc -dr no"
 	fi
 
+	# Antechamber is strict about atomic symbols inferred from atom names.
+	# Fix placeholder atom names like "Atom" / "A123" that can trigger errors (e.g., "Htom").
+	mol2_fix_placeholder_atom_names_inplace "$JOB_DIR/${name}_crest.mol2"
+
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
