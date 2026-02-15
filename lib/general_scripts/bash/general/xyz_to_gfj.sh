@@ -86,6 +86,7 @@ for file in frames/frame_*.xyz; do
             printf "%s 0\n" "${LIGHT_ELEMS[*]}"
             echo "6-31++G(d,p)"
             echo "****"
+            echo ""
         fi
 
         # Au basis (only if Au present)
@@ -113,7 +114,7 @@ for file in frames/frame_*.xyz; do
     # If none selected, don't emit a broken ReadAtoms section
     if [[ -n "${H_ATOMS:-}" ]]; then
         {
-            echo "ReadAtoms"
+            #echo "ReadAtoms"
             echo "atoms=${H_ATOMS}"
             echo ""
         } >> "$gjf"
