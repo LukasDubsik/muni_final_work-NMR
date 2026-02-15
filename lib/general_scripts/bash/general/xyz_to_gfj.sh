@@ -1,164 +1,124 @@
 #!/bin/bash
+set -euo pipefail
 
 # shellcheck disable=SC2154
 N_CORE=${limit}
 char=${charge}
 
+mkdir -p gauss
+
+# "Light" elements that you want on 6-31++G(d,p) (add/remove as needed)
+LIGHT_ORDER=(H C N O S Se P F Cl Br I)
+
 for file in frames/frame_*.xyz; do
+    bas=$(basename "$file" .xyz)
+    base="gauss/${bas}"
+    gjf="${base}.gjf"
 
-    bas=""$(basename "$file" .xyz)
-    base=gauss/${bas}
-    echo "%chk=${bas}.chk" > "${base}".gjf
-    # shellcheck disable=SC2129
-    printf "%s\n" "#P B3LYP/GenECP NMR=(GIAO,ReadAtoms) SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=Ultrafine" >> "${base}".gjf
-
-    echo "" >> "${base}".gjf
-    echo "${bas} — GIAO NMR (Solute with COSMO)" >> "${base}".gjf
-    echo "" >> "${base}".gjf
-    echo "$char 1" >> "${base}".gjf
-
-    {
-		tail -n +3 "$file" | grep -v 'XP' | awk '
+    # Collect elements present (normalized like Gaussian expects: AU->Au, SE->Se, CL->Cl)
+    ELEM_SET=$(
+        tail -n +3 "$file" | grep -v 'XP' | awk '
         {
-            name = $1
-            x = $2; y = $3; z = $4
+            e=$1
+            sub(/[0-9].*$/, "", e)
+            e=toupper(substr(e,1,1)) tolower(substr(e,2))
+            print e
+        }' | sort -u
+    )
 
-			sub(/[0-9].*$/, "", name)
+    has_elem() { grep -Fxq "$1" <<< "$ELEM_SET"; }
 
-            # Normalize element symbol for Gaussian: AU -> Au, CL -> Cl, BR -> Br, etc.
-			elem = toupper(substr(name, 1, 1)) tolower(substr(name, 2))
-			printf "%-2s %12.6f %12.6f %12.6f\n", elem, x, y, z
-        }
-        ' 
-    	echo ""
-	} >> "${base}".gjf
+    HAS_AU=0
+    if has_elem "Au"; then HAS_AU=1; fi
 
-	# Build the light-element basis header only from elements actually present in the XYZ.
-	ELEM_SET=$(
-		tail -n +3 "$file" | grep -v 'XP' | awk '{
-			e=$1
-			sub(/[0-9].*$/, "", e)
-			e=toupper(substr(e,1,1)) tolower(substr(e,2))
-			print e
-		}' | sort -u
-	)
+    # Choose Gen vs GenECP based on whether Au is present
+    ROUTE_BASIS="Gen"
+    if (( HAS_AU )); then ROUTE_BASIS="GenECP"; fi
 
-	ELEM_LINE=""
-	for e in H C N O S P F Cl Br I; do
-		if grep -qx "$e" <<< "$ELEM_SET"; then
-			ELEM_LINE+="${e} "
-		fi
-	done
-	ELEM_LINE+="0"
+    # Build the light-element header line only from elements actually present
+    LIGHT_ELEMS=()
+    for e in "${LIGHT_ORDER[@]}"; do
+        if has_elem "$e"; then
+            LIGHT_ELEMS+=("$e")
+        fi
+    done
 
-	# Split the atoms by basis
-	{
-        echo "$ELEM_LINE"
-        echo "6-31++G(d,p)"
-        echo "****"
-        echo "Au 0"
-        echo "SDD"
-        echo "****"
-        echo ""
-        echo "Au 0"
-        echo "SDD"
-        echo ""
-    } >> "${base}".gjf
+    # Guard: detect unsupported elements (present but not mapped)
+    UNKNOWN=()
+    while read -r e; do
+        [[ -z "$e" ]] && continue
+        [[ "$e" == "Au" ]] && continue
+        found=0
+        for le in "${LIGHT_ORDER[@]}"; do
+            [[ "$e" == "$le" ]] && { found=1; break; }
+        done
+        (( found )) || UNKNOWN+=("$e")
+    done <<< "$ELEM_SET"
+
+    if ((${#UNKNOWN[@]})); then
+        echo "[ERROR] ${bas}: unsupported elements in XYZ (no basis mapping): ${UNKNOWN[*]}" >&2
+        echo "        Add them to LIGHT_ORDER or add a dedicated basis/ECP block." >&2
+        exit 1
+    fi
+
+    # Write header
+    {
+        printf "%%chk=%s.chk\n" "$bas"
+        printf "#P B3LYP/%s NMR=(GIAO,ReadAtoms) SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS"
+        printf "%s — GIAO NMR (Solute with COSMO)\n\n" "$bas"
+        printf "%s 1\n" "$char"
+    } > "$gjf"
+
+    # Write coordinates
+    tail -n +3 "$file" | grep -v 'XP' | awk '
+    {
+        name=$1; x=$2; y=$3; z=$4
+        sub(/[0-9].*$/, "", name)
+        elem=toupper(substr(name,1,1)) tolower(substr(name,2))
+        printf "%-2s %12.6f %12.6f %12.6f\n", elem, x, y, z
+    }' >> "$gjf"
+    echo "" >> "$gjf"
+
+    # Write basis section: only what is present
+    {
+        # Light elements (only if any present)
+        if ((${#LIGHT_ELEMS[@]})); then
+            printf "%s 0\n" "${LIGHT_ELEMS[*]}"
+            echo "6-31++G(d,p)"
+            echo "****"
+        fi
+
+        # Au basis (only if Au present)
+        if (( HAS_AU )); then
+            echo "Au 0"
+            echo "SDD"
+            echo "****"
+            echo ""
+            # ECP section for GenECP (only if Au present)
+            echo "Au 0"
+            echo "SDD"
+            echo ""
+        fi
+    } >> "$gjf"
 
     # Only the selected H atoms will have NMR computed
-    H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | head -n "$N_CORE" | awk '{i++; if ($1 ~ /^H/) h=(h?h","i:i)} END{print h}')
-    {
-		echo "ReadAtoms"
-    	echo "atoms=${H_ATOMS}"
-    	echo "" 
-	} >> "${base}".gjf
+    # (keeps your original behavior: scan first N_CORE atoms, then pick H indices among them)
+    H_ATOMS=$(
+        tail -n +3 "$file" | grep -v 'XP' | head -n "$N_CORE" | awk '
+        {i++; if ($1 ~ /^H/) h=(h?h","i:i)}
+        END{print h}
+        '
+    )
+
+    # If none selected, don't emit a broken ReadAtoms section
+    if [[ -n "${H_ATOMS:-}" ]]; then
+        {
+            echo "ReadAtoms"
+            echo "atoms=${H_ATOMS}"
+            echo ""
+        } >> "$gjf"
+    else
+        echo "[WARN] ${bas}: no H atoms selected for ReadAtoms (atoms=... would be empty)" >&2
+    fi
 
 done
-
-
-#  ESP charges with hydrogens summed into heavy atoms:
-#                1
-#      1  C    0.787946
-#      2  C   -0.004780
-#      3  C    0.000958
-#      6  N   -0.225277
-#      7  N   -0.241868
-#      8  Cl  -0.422541
-#      9  C    0.009268
-#     10  C    0.013553
-#     11  C    0.012683
-#     12  C   -0.097025
-#     13  C   -0.098975
-#     14  C    0.053538
-#     18  C    0.013158
-#     19  C    0.028417
-#     20  C    0.013798
-#     21  C   -0.101376
-#     22  C   -0.096654
-#     23  C    0.054082
-#     27  C    0.449859
-#     28  C   -0.160667
-#     29  C   -0.172039
-#     37  C    0.447207
-#     38  C   -0.170090
-#     39  C   -0.161311
-#     47  C    0.431545
-#     48  C   -0.155665
-#     49  C   -0.167892
-#     57  C    0.443093
-#     58  C   -0.170753
-#     59  C   -0.157344
-#     67  Au  -0.154849
-
-
-#       C   19   -0.00154      1.99882     3.98286    0.01987     6.00154
-#       C   20   -0.00201      1.99882     3.98335    0.01985     6.00201
-#       C   21   -0.22809      1.99890     4.21567    0.01352     6.22809
-#       C   22   -0.22842      1.99890     4.21601    0.01352     6.22842
-#       C   23   -0.20761      1.99900     4.19269    0.01592     6.20761
-#       H   24    0.24112      0.00000     0.75802    0.00086     0.75888
-#       H   25    0.24106      0.00000     0.75808    0.00086     0.75894
-#       H   26    0.24514      0.00000     0.75395    0.00091     0.75486
-#       C   27   -0.29596      1.99911     4.28246    0.01439     6.29596
-#       C   28   -0.65862      1.99936     4.64995    0.00932     6.65862
-#       C   29   -0.66258      1.99936     4.65454    0.00868     6.66258
-#       H   30    0.24365      0.00000     0.75454    0.00182     0.75635
-#       H   31    0.23063      0.00000     0.76875    0.00061     0.76937
-#       H   32    0.25138      0.00000     0.74761    0.00102     0.74862
-#       H   33    0.23340      0.00000     0.76604    0.00055     0.76660
-#       H   34    0.23785      0.00000     0.76161    0.00054     0.76215
-#       H   35    0.23451      0.00000     0.76489    0.00059     0.76549
-#       H   36    0.23035      0.00000     0.76900    0.00065     0.76965
-#       C   37   -0.29613      1.99911     4.28265    0.01438     6.29613
-#       C   38   -0.66275      1.99936     4.65471    0.00868     6.66275
-#       C   39   -0.65859      1.99936     4.64994    0.00930     6.65859
-#       H   40    0.24342      0.00000     0.75478    0.00180     0.75658
-#       H   41    0.23477      0.00000     0.76465    0.00059     0.76523
-#       H   42    0.23790      0.00000     0.76156    0.00054     0.76210
-#       H   43    0.23022      0.00000     0.76913    0.00065     0.76978
-#       H   44    0.23112      0.00000     0.76827    0.00061     0.76888
-#       H   45    0.23314      0.00000     0.76630    0.00056     0.76686
-#       H   46    0.25107      0.00000     0.74793    0.00100     0.74893
-#       C   47   -0.29599      1.99911     4.28249    0.01440     6.29599
-#       C   48   -0.65868      1.99936     4.65000    0.00932     6.65868
-#       C   49   -0.66234      1.99936     4.65430    0.00867     6.66234
-#       H   50    0.24360      0.00000     0.75458    0.00182     0.75640
-#       H   51    0.25150      0.00000     0.74748    0.00102     0.74850
-#       H   52    0.23350      0.00000     0.76594    0.00056     0.76650
-#       H   53    0.23045      0.00000     0.76893    0.00061     0.76955
-#       H   54    0.23444      0.00000     0.76496    0.00059     0.76556
-#       H   55    0.23025      0.00000     0.76910    0.00065     0.76975
-#       H   56    0.23780      0.00000     0.76166    0.00054     0.76220
-#       C   57   -0.29613      1.99911     4.28264    0.01438     6.29613
-#       C   58   -0.66286      1.99936     4.65482    0.00868     6.66286
-#       C   59   -0.65864      1.99936     4.64999    0.00929     6.65864
-#       H   60    0.24346      0.00000     0.75474    0.00180     0.75654
-#       H   61    0.23482      0.00000     0.76459    0.00059     0.76518
-#       H   62    0.23799      0.00000     0.76147    0.00054     0.76201
-#       H   63    0.23032      0.00000     0.76903    0.00065     0.76968
-#       H   64    0.23112      0.00000     0.76827    0.00061     0.76888
-#       H   65    0.23315      0.00000     0.76629    0.00056     0.76685
-#       H   66    0.25119      0.00000     0.74781    0.00100     0.74881
-#      Au   67    0.29084     67.99346    10.70363    0.01207    78.70916
-#  =======================================================================
-#    * Total *    0.00000    135.96599   171.49399    0.54002   308.00000
