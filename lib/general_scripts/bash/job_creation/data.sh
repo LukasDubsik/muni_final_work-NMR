@@ -20,6 +20,16 @@ run_analysis() {
 	JOB_DIR="process/spectrum/$job_name"
 	ensure_dir $JOB_DIR
 
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/avg.dat" && -s "$JOB_DIR/all_peaks.dat" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	SRC_DIR_1="lib/general_scripts/bash/general"
 	SRC_DIR_2="lib/general_scripts/awk"
 	SRC_DIR_3="process/spectrum/gaussian/nmr"
@@ -32,12 +42,141 @@ run_analysis() {
 
 	#Copy the log files from gaussian runs
 	cp -r $SRC_DIR_3 $JOB_DIR
-
-	#Move to the directory to run the scripts
+ 
+		# Move to the directory to run the scripts
 	cd $JOB_DIR || die "Couldn'r enter the $JOB_DIR"
 
-	#Run the script and average the resulting nmr spectra
-	bash log_to_plot.sh
+	#############################################
+	# TMS reference: compute SIGMA_TMS (absolute shielding)
+	# If user passed sigma explicitly, keep it. If sigma is "auto" or empty => compute via Gaussian(TMS).
+	#############################################
+	if [[ -z "${sigma:-}" || "${sigma}" == "auto" ]]; then
+		local tms_dir="tms_ref"
+		local tms_job="${tms_dir}/job_tms"
+		local tms_log="${tms_dir}/frame_tms.log"
+		local tms_ref_out="nmr/tms.log"
+
+		local mem_gb=8
+		local ncpus=8
+
+		ensure_dir "$tms_dir"
+		ensure_dir "$tms_job"
+		ensure_dir "nmr"
+
+		# If we already have a valid cached reference log in this analysis dir, reuse it
+		if gaussian_log_ok "$tms_ref_out"; then
+			info "TMS reference already present; reusing $tms_ref_out"
+		else
+			info "Creating and running Gaussian TMS reference job (to compute SIGMA_TMS)"
+
+			# Clean any previous failed attempt
+			rm -f "$tms_job/frame_tms.gjf" "$tms_job/frame_tms.log" "$tms_job/.jobid" 2>/dev/null || true
+
+			# Build TMS Gaussian input (Opt + NMR) with COSMO, consistent with your solute settings
+			# Geometry from NIST CCCBDB cartesian coordinates :contentReference[oaicite:2]{index=2}
+			cat > "$tms_job/frame_tms.gjf" <<'EOF'
+%chk=tms.chk
+#P B3LYP/6-31++G(d,p) Opt SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine
+
+TMS reference (Opt, COSMO)
+
+0 1
+Si   0.0000   0.0000   0.0000
+C    1.0825   1.0825   1.0825
+C   -1.0825  -1.0825   1.0825
+C   -1.0825   1.0825  -1.0825
+C    1.0825  -1.0825  -1.0825
+H    1.7241   0.4345   1.7241
+H    1.7241   1.7241   0.4345
+H    0.4345   1.7241   1.7241
+H   -1.7241  -1.7241   0.4345
+H   -0.4345  -1.7241   1.7241
+H   -1.7241  -0.4345   1.7241
+H   -1.7241   0.4345  -1.7241
+H   -1.7241   1.7241  -0.4345
+H   -0.4345   1.7241  -1.7241
+H    1.7241  -1.7241  -0.4345
+H    0.4345  -1.7241  -1.7241
+H    1.7241  -0.4345  -1.7241
+
+--Link1--
+%chk=tms.chk
+#P B3LYP/6-31++G(d,p) NMR=GIAO SCRF=COSMO Geom=AllCheck Guess=Read SCFX=(QC,Tight) Int=UltraFine CPHF=Grid=UltraFine
+
+TMS reference (NMR, COSMO)
+
+0 1
+EOF
+
+			# Make sure gaussian input resource lines match allocation
+			patch_gaussian_link0_resources "$tms_job/frame_tms.gjf" "$mem_gb" "$ncpus"
+
+			# If on MetaCentrum: reserve scratch + require g16 license just like your main gaussian stage
+			local old_extra="${JOB_META_SELECT_EXTRA:-}"
+			if [[ "${meta:-false}" == "true" ]]; then
+				JOB_META_SELECT_EXTRA="host_licenses=g16:scratch_local=10gb"
+			fi
+
+			# Build and submit the job using the SAME gaussian job-template machinery you already use,
+			# but with num="tms" so the template runs frame_tms.gjf -> frame_tms.log.
+			if [[ "${meta:-false}" == "true" ]]; then
+				substitute_name_sh_meta_start "$tms_job" "${directory}" ""
+				substitute_name_sh_meta_end "$tms_job"
+				substitute_name_sh "gaussian" "$tms_job" "${gaussian}" "tms_ref" "" "tms" "" ""
+				construct_sh_meta "$tms_job" "gaussian"
+			else
+				substitute_name_sh_wolf_start "$tms_job"
+				substitute_name_sh "gaussian" "$tms_job" "${gaussian}" "tms_ref" "" "tms" "" ""
+				construct_sh_wolf "$tms_job" "gaussian"
+			fi
+
+			# Submit + wait
+			submit_job "${meta:-false}" "gaussian" "$tms_job" "$mem_gb" "$ncpus" 0 "01:00:00"
+
+			local jid=""
+			jid=$(head -n 1 "$tms_job/.jobid" 2>/dev/null || true)
+			[[ -n "$jid" ]] || die "TMS reference: submission did not produce a jobid"
+
+			wait_job "$jid"
+
+			# Validate and cache into nmr/tms.log
+			gaussian_log_ok "$tms_log" || die "TMS reference Gaussian did not finish normally: $tms_log"
+			cp "$tms_log" "$tms_ref_out"
+
+			# Restore scheduler extras
+			if [[ "${meta:-false}" == "true" ]]; then
+				JOB_META_SELECT_EXTRA="$old_extra"
+			fi
+		fi
+
+		# Extract σ(TMS) from the reference log (first H isotropic shielding in the NMR block)
+		# Gaussian prints "Magnetic shielding tensor ... H Isotropic = ..." :contentReference[oaicite:3]{index=3}
+		sigma=$(
+			awk '
+			/Magnetic shielding tensor/ {inblock=1}
+			inblock && /Isotropic/ {
+				line=$0
+				gsub(/Isotropic=/,"Isotropic =",line)
+				n=split(line,a,/[[:space:]]+/)
+				# Expected:  <idx> <elem> Isotropic = <value>
+				for (i=1;i<=n-4;i++) {
+					if (a[i] ~ /^[0-9]+$/ && a[i+1]=="H" && a[i+2]=="Isotropic") {
+						v = (a[i+3]=="="?a[i+4]:a[i+3])
+						gsub(/[dD]/,"E",v)
+						print v
+						exit
+					}
+				}
+			}
+			inblock && /^$/ {inblock=0}
+			' "$tms_ref_out"
+		)
+		[[ -n "$sigma" ]] || die "Failed to parse SIGMA_TMS from $tms_ref_out"
+		info "Computed SIGMA_TMS (TMS reference) = $sigma ppm"
+	fi
+
+	# Run the script and average the resulting nmr spectra (export global reference!)
+	SIGMA_TMS="$sigma" bash log_to_plot.sh
 
 	#Return back
 	cd ../../.. || die "Couldn't back to the main directory"
@@ -47,9 +186,8 @@ run_analysis() {
 	check_res_file "all_peaks.dat" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 # run_plotting
@@ -69,6 +207,21 @@ run_plotting() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/spectrum/$job_name"
 	ensure_dir $JOB_DIR
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		# Final outputs are renamed to save_as; check for both expected PNGs
+		if [[ -s "$JOB_DIR/${save_as}.png" && -s "$JOB_DIR/${save_as}_all_peaks.png" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		fi
+		# If user changed save_as, fall back to generic names
+		if [[ -s "$JOB_DIR/nmr.png" && -s "$JOB_DIR/nmr_all_peaks.png" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		fi
+		rm -f "$ok"
+	fi
 
 	SRC_DIR_1="process/spectrum/analysis"
 	SRC_DIR_2="lib/general_scripts/gnuplot"
@@ -116,7 +269,6 @@ run_plotting() {
 	mv $JOB_DIR/nmr_all_peaks.png $JOB_DIR/"${save_as}_all_peaks".png
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }

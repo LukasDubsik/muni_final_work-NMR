@@ -24,6 +24,16 @@ run_crest() {
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir $JOB_DIR
 
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}_crest.mol2" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		module add openbabel > /dev/null 2>&1
@@ -39,20 +49,33 @@ run_crest() {
 	fi
 
     obabel -imol2 "${INPUTS}/structures/${name}.mol2" -oxyz -O "${JOB_DIR}/${name}.xyz" > /dev/null 2>&1
-    #Run the crest simulation
-    submit_job "$meta" "$job_name" "$JOB_DIR" 32 32 0 "16:00:00"
-    #Convert back to mol2 format
-    obabel -ixyz "${JOB_DIR}/crest_best.xyz" -omol2 -O "${JOB_DIR}/${name}_crest.mol2" > /dev/null 2>&1
-	#Convert the symbols
-	sed -i 's/AU/Au /' "${JOB_DIR}/${name}_crest.mol2"
+	#Run the crest simulation
+	if [[ ! -s "$JOB_DIR/crest_best.xyz" ]]; then
+		wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+	fi
+	if [[ ! -s "$JOB_DIR/crest_best.xyz" ]]; then
+		submit_job "$meta" "$job_name" "$JOB_DIR" 32 32 0 "24:00:00"
+	else
+		info "Detected existing crest output (crest_best.xyz); skipping submission"
+	fi
+	
+	# IMPORTANT: keep the original MOL2 connectivity as authoritative.
+	# XYZ has no bond information; XYZ->MOL2 conversions will perceive bonds by
+	# distance and can accidentally create spurious metal-ligand bonds.
+	mol2_write_with_coords_from_xyz \
+		"${INPUTS}/structures/${name}.mol2" \
+		"${JOB_DIR}/crest_best.xyz" \
+		"${JOB_DIR}/${name}_crest.mol2"
+
+	# Ensure MCPB.py compatibility if upstream tools injected a non-standard MOL2
+	mol2_sanitize_atom_coords_inplace "${JOB_DIR}/${name}_crest.mol2"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_crest.mol2" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 # run_antechamber NAME DIRECTORY META AMBER
@@ -84,6 +107,26 @@ run_antechamber() {
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir "$JOB_DIR"
 
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		# If metal workflow was used previously, require both ligand and full MOL2
+		if [[ -s "$JOB_DIR/${name}_charges.mol2" ]]; then
+			if [[ -f "$JOB_DIR/${name}_crest_full.mol2" ]]; then
+				if [[ -s "$JOB_DIR/${name}_charges_full.mol2" ]]; then
+					info "$job_name already complete; skipping"
+					return 0
+				else
+					rm -f "$ok"
+				fi
+			else
+				info "$job_name already complete; skipping"
+				return 0
+			fi
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	SRC_DIR="process/preparations/crest"
 
 	#Copy the data from crest
@@ -112,6 +155,10 @@ run_antechamber() {
 		antechamber_parms="${antechamber_parms} -c dc -dr no"
 	fi
 
+	# Antechamber is strict about atomic symbols inferred from atom names.
+	# Fix placeholder atom names like "Atom" / "A123" that can trigger errors (e.g., "Htom").
+	mol2_fix_placeholder_atom_names_inplace "$JOB_DIR/${name}_crest.mol2"
+
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
 		substitute_name_sh_meta_start "$JOB_DIR" "${directory}" ""
@@ -125,7 +172,14 @@ run_antechamber() {
 	fi
 
 	#Run the antechamber
-	submit_job "$meta" "$job_name" "$JOB_DIR" 32 16 0 "8:00:00"
+	if [[ ! -s "$JOB_DIR/${name}_charges.mol2" ]]; then
+		wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+	fi
+	if [[ ! -s "$JOB_DIR/${name}_charges.mol2" ]]; then
+		submit_job "$meta" "$job_name" "$JOB_DIR" 32 16 0 "8:00:00"
+	else
+		info "Detected existing antechamber output (${name}_charges.mol2); skipping submission"
+	fi
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
@@ -142,9 +196,8 @@ run_antechamber() {
 	fi
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 
@@ -167,6 +220,16 @@ run_parmchk2() {
     #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir $JOB_DIR
+
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}.frcmod" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
 
 	SRC_DIR="process/preparations/antechamber"
 
@@ -214,8 +277,14 @@ run_parmchk2() {
 	fi
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
-
+if [[ ! -s "$JOB_DIR/${name}.frcmod" ]]; then
+	wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+fi
+if [[ ! -s "$JOB_DIR/${name}.frcmod" ]]; then
+	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
+else
+	info "Detected existing parmchk2 output (${name}.frcmod); skipping submission"
+fi
 	#Check that the final files are truly present
 	check_res_file "${name}.frcmod" "$JOB_DIR" "$job_name"
 
@@ -241,9 +310,8 @@ EOF
 	fi
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 # Pre-patch MCPB Stage 2 Gaussian inputs on disk BEFORE submission (so you can inspect .com files).
@@ -761,9 +829,9 @@ EOF
 		fi
 
 		# Pre-patch Stage2 Gaussian inputs on disk BEFORE submission (Link0, RWF, Au basis / ChkBasis).
-		local stage2_mem_gb=8
-		local stage2_ncpus=8
-		local scratch_gb=20
+		local stage2_mem_gb=16
+		local stage2_ncpus=16
+		local scratch_gb=30
 		mcpb_patch_stage2_gaussian_inputs "$STAGE2_DIR" "$name" "$metal_elem" "$stage2_ncpus" "$stage2_mem_gb" "$meta" "$scratch_gb"
 
 		local need_stage2="true"
@@ -954,7 +1022,7 @@ EOF
 				JOB_META_SELECT_EXTRA="host_licenses=g16:scratch_local=${scratch_gb}gb"
 			fi
 
-			submit_job "$meta" "$STAGE2_JOB" "$STAGE2_DIR" "$stage2_mem_gb" "$stage2_ncpus" 0 "12:00:00"
+			submit_job "$meta" "$STAGE2_JOB" "$STAGE2_DIR" "$stage2_mem_gb" "$stage2_ncpus" 0 "24:00:00"
 
 			JOB_META_SELECT_EXTRA="$old_extra"
 
@@ -973,7 +1041,7 @@ EOF
 			touch "$STAGE2_OK"
 		else
 			info "MCPB Stage 2/3 already done; skipping"
-		fi
+		fi 
 	fi
 
 	# ---------------------------------------------------------------------
@@ -1546,6 +1614,16 @@ run_nemesis_fix() {
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir $JOB_DIR
 
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}_charges_fix.mol2" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	SRC_DIR="process/preparations/antechamber"
 
 	#Copy the data from antechamber
@@ -1568,9 +1646,8 @@ run_nemesis_fix() {
 	check_res_file "${name}_charges_fix.mol2" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }
 
 # run_tleap NAME DIRECTORY META AMBER
@@ -1594,6 +1671,16 @@ run_tleap() {
 	JOB_DIR="process/preparations/$job_name"
 	ensure_dir $JOB_DIR
 
+	local ok="$JOB_DIR/.ok"
+	if [[ -f "$ok" ]]; then
+		if [[ -s "$JOB_DIR/${name}.rst7" && -s "$JOB_DIR/${name}.parm7" ]]; then
+			info "$job_name already complete; skipping"
+			return 0
+		else
+			rm -f "$ok"
+		fi
+	fi
+
 	SRC_DIR_1="process/preparations/parmchk2"
 	SRC_DIR_2="process/preparations/nemesis_fix"
 	SRC_DIR_3="inputs/params"
@@ -1601,6 +1688,13 @@ run_tleap() {
 	#Copy the data from antechamber
 	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
+
+	# Also copy the CREST-optimized, bond-authoritative MOL2 (contains metal + correct connectivity).
+	# We use this ONLY as a connectivity reference when reconstructing MCPB metal bonds in tleap.
+	local crest_auth="process/preparations/crest/${name}_crest.mol2"
+	if [[ -f "$crest_auth" ]]; then
+		cp -f "$crest_auth" "$JOB_DIR/${name}_crest.mol2" || die "Failed to copy CREST MOL2 into tleap workdir: $crest_auth"
+	fi
 
 	#If also spec, load the necessary files
 	if [[ $params == "yes" ]]; then
@@ -1641,6 +1735,35 @@ run_tleap() {
 			| sed -E 's/^[[:space:]]+//; s#[[:space:]]+$##' \
 			| awk '!seen[$0]++' \
 			> "$mcpb_bonds_in" || true
+
+		# Keep authoritative MOL2 connectivity as the single source of truth.
+		# MCPB.py can infer extra metal coordination bonds from geometry (distance-
+		# based). Those "extra" bonds show up here as additional TLeap bond commands
+		# and will then become covalent bonds in the final Amber topology.
+		#
+		# We filter MCPB-generated metal bond commands to only those bonds present in
+		# the authoritative MOL2 bond table.
+		local auth_mol2=""
+		for cand in \
+			"process/preparations/crest/${name}_crest.mol2" \
+			"${INPUTS}/structures/${name}.mol2" \
+			"process/preparations/mcpb/01_step1/${name}_mcpb_source.mol2"; do
+			if [[ -f "$cand" ]]; then
+				auth_mol2="$cand"
+				break
+			fi
+		done
+		if [[ -n "$auth_mol2" ]] && [[ -s "$mcpb_bonds_in" ]]; then
+			# Keep a raw copy so we can fall back if filtering removes everything
+			cp -f "$mcpb_bonds_in" "${mcpb_bonds_in}.raw" 2>/dev/null || true
+			tleap_filter_metal_bonds_by_mol2_connectivity "$auth_mol2" "${mcpb_bonds_in}.raw" "$mcpb_bonds_in"
+			if [[ ! -s "$mcpb_bonds_in" ]]; then
+				warning "MCPB metal-bond filtering removed all bond commands; keeping raw MCPB bonds (check auth MOL2 naming)"
+				mv -f "${mcpb_bonds_in}.raw" "$mcpb_bonds_in" 2>/dev/null || true
+			else
+				rm -f "${mcpb_bonds_in}.raw" 2>/dev/null || true
+			fi
+		fi
 
 		# Resolve/validate referenced files; never keep a loadPdb unless templates are present
 		local missing_templates="false"
@@ -1737,6 +1860,21 @@ run_tleap() {
 						cp -f "$JOB_DIR/AU.mol2" "$JOB_DIR/$base"
 						mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
 						info "Derived missing MCPB template: $base <- AU.mol2"
+					elif [[ -f "$JOB_DIR/${name}_crest.mol2" ]]; then
+						local meta mid elem q x y z
+						meta="$(mol2_first_metal "$JOB_DIR/${name}_crest.mol2" | head -n1)"
+						mid="$(awk '{print $1}' <<<"$meta")"
+						elem="$(awk '{print $2}' <<<"$meta")"
+						q="$(awk '{print $3}' <<<"$meta")"
+						x="$(awk '{print $4}' <<<"$meta")"
+						y="$(awk '{print $5}' <<<"$meta")"
+						z="$(awk '{print $6}' <<<"$meta")"
+
+						if [[ -n "$mid" && "$mid" != "-1" ]]; then
+							write_single_ion_mol2 "$JOB_DIR/$base" "$elem" "$q" "$x" "$y" "$z"
+							mol2_sanitize_for_mcpb "$JOB_DIR/$base" "${base%.mol2}"
+							info "Derived missing MCPB template: $base <- ${name}_crest.mol2 (single-ion)"
+						fi
 					elif [[ -f "$JOB_DIR/${name}_charges_fix.mol2" ]]; then
 						local meta mid elem q x y z
 						meta="$(mol2_first_metal "$JOB_DIR/${name}_charges_fix.mol2" | head -n1)"
@@ -1799,6 +1937,39 @@ run_tleap() {
 			printf '%s\n' "$line" >> "$mcpb_params_ok"
 		done < "$mcpb_params_in"
 
+		charges_fix_mol2="$JOB_DIR/${name}_charges_fix.mol2"
+		mcpb_pdb="$JOB_DIR/${name}_mcpbpy.pdb"
+		workdir="$JOB_DIR"
+
+		# Always refresh the MCPB-derived ligand template from the original (pre-Y-typing) MOL2.
+		# Rationale: mol2_apply_mcpb_ytypes_from_pdb edits LG1.mol2 in-place; if tleap fails, reruns must not
+		# accumulate stale/incorrect atom types (e.g., carbonyl O... mis-tagged as Y1).
+		if [[ -f "$mcpb_pdb" ]]; then
+			if [[ -f "$workdir/LIG.mol2" ]]; then
+				cp -f "$workdir/LIG.mol2" "$workdir/LG1.mol2"
+				mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+				info "Refreshed MCPB template: LG1.mol2 <- LIG.mol2"
+elif [[ -f "$workdir/${name}_crest.mol2" ]]; then
+	# Prefer CREST-optimized MOL2 (metal + authoritative bonds) if present; strip metal to build LG1 template.
+	local _mid
+	_mid="$(mol2_first_metal "$workdir/${name}_crest.mol2" | awk 'NR==1{print $1}')"
+	if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
+		mol2_strip_atom "$workdir/${name}_crest.mol2" "$workdir/LG1.mol2" "$_mid"
+		mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+		info "Refreshed MCPB template: LG1.mol2 <- ${name}_crest.mol2 (metal stripped id=$_mid)"
+	fi
+elif [[ -f "$charges_fix_mol2" ]]; then
+	# Fall back to the post-processed MOL2 and strip the first detected metal atom.
+	local _mid
+	_mid="$(mol2_first_metal "$charges_fix_mol2" | awk 'NR==1{print $1}')"
+	if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
+		mol2_strip_atom "$charges_fix_mol2" "$workdir/LG1.mol2" "$_mid"
+		mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+		info "Refreshed MCPB template: LG1.mol2 <- ${name}_charges_fix.mol2 (metal stripped id=$_mid)"
+	fi
+fi
+		fi
+
 		# MCPB.py writes explicit bond commands in *_tleap.in to connect the metal center.
 		# If we kept any loadPdb line, splice the bond commands right after the FIRST loadPdb.
 		if [[ -s "$mcpb_bonds_in" ]] && grep -qiE 'load[Pp]db[[:space:]]+' "$mcpb_params_ok"; then
@@ -1843,8 +2014,63 @@ run_tleap() {
 					mv -f "${mcpb_pdb}.noconect" "$mcpb_pdb"
 				fi
 
+				# Make PDB residue names match our MOL2 templates so LEaP assigns MCPB atom types/charges.
+				# (Critical when multiple ligand residues exist; otherwise LEaP may treat atoms as "unknown".)
+				if [[ -f "$mcpb_pdb" ]]; then
+					pdb_rewrite_resnames_for_leap "$mcpb_pdb" "${mcpb_pdb}.renamed" "LG1" "AU1" && mv -f "${mcpb_pdb}.renamed" "$mcpb_pdb"
+				fi
+
+				# Prefer the PDB unit variable from MCPB lines (e.g., mol = loadpdb ...). We need it for regenerated bond commands.
+				local sys_var_for_bonds=""
+				sys_var_for_bonds="$(
+					grep -Ei "^[[:alnum:]_]+[[:space:]]*=[[:space:]]*load[Pp]db[[:space:]]+.*${name}_mcpbpy[.]pdb" \
+						"$mcpb_params_ok" | head -n1 | sed -E 's/[[:space:]]*=.*$//'
+				)"
+				# If MCPB didn't assign the loaded unit to a variable, force an assignment so bond selectors work.
+				if [[ -z "$sys_var_for_bonds" ]]; then
+					sys_var_for_bonds="mol"
+					awk -v nm="${name}_mcpbpy.pdb" '
+						BEGIN{done=0}
+						{
+							if(!done && $0 ~ /^[[:space:]]*load[Pp]db[[:space:]]+.*_mcpbpy[.]pdb/){
+								print "mol = loadpdb " nm
+								done=1
+								next
+							}
+							print $0
+						}
+					' "$mcpb_params_ok" > "$mcpb_params_ok.tmp" && mv -f "$mcpb_params_ok.tmp" "$mcpb_params_ok"
+				fi
+
 				# Align ligand template atom types with MCPB frcmod (e.g., Y2/Y3) so LEaP finds Y*-M1 bonds/angles
-				mol2_apply_mcpb_ytypes_from_pdb "$JOB_DIR/LG1.mol2" "$mcpb_pdb" "$mcpb_frcmod"
+				# Use CREST (bond-authoritative) MOL2 for detecting metal-bonded atoms; nemesis_fix MOL2 may be metal-stripped.
+				local auth_bonds_mol2="$charges_fix_mol2"
+				if [[ -f "$JOB_DIR/${name}_crest.mol2" ]]; then
+					auth_bonds_mol2="$JOB_DIR/${name}_crest.mol2"
+				fi
+				mol2_apply_mcpb_ytypes_from_pdb "$JOB_DIR/LG1.mol2" "$mcpb_pdb" "$mcpb_frcmod" "$auth_bonds_mol2"
+
+				# Regenerate metal–ligand bonds from authoritative MOL2 + (patched) MCPB PDB.
+				# This fixes multi-ligand cases where MCPB's original bond selectors (mol.<res>.<atom>) no longer match.
+				if [[ -f "$auth_bonds_mol2" && -f "$mcpb_pdb" ]]; then
+						local tmpb="$JOB_DIR/mcpb_bonds.from_pdb.in"
+					tleap_write_metal_bonds_from_mol2_pdb "$auth_bonds_mol2" "$mcpb_pdb" "$sys_var_for_bonds" > "$tmpb" || true
+					if [[ -s "$tmpb" ]]; then
+						cp -f "$tmpb" "$mcpb_bonds_in" 2>/dev/null || true
+						info "Metal bonds regenerated for tleap from auth MOL2 + MCPB PDB: $(wc -l < "$tmpb") bond(s)"
+						# Replace any already-spliced bond lines in the MCPB params block.
+						awk -v bonds="$mcpb_bonds_in" '
+							BEGIN{ins=0}
+							/^[[:space:]]*(bond|add[Bb]ond)[[:space:]]+/ {next}
+							{print $0}
+							(ins==0 && $0 ~ /load[Pp]db[[:space:]]+/) {
+								while ((getline b < bonds) > 0) print b
+								close(bonds)
+								ins=1
+							}
+						' "$mcpb_params_ok" > "$mcpb_params_ok.tmp" && mv -f "$mcpb_params_ok.tmp" "$mcpb_params_ok"
+					fi
+				fi
 
 				# Optional but recommended: define MCPB-generated atom types before loading mol2
 				mol2_write_mcpb_add_atomtypes_for_frcmod "$mcpb_frcmod" "$JOB_DIR/mcpb_atomtypes.in"
@@ -2097,8 +2323,14 @@ EOF
 	fi
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
-
+if [[ ! -s "$JOB_DIR/${name}.rst7" || ! -s "$JOB_DIR/${name}.parm7" ]]; then
+	wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+fi
+if [[ ! -s "$JOB_DIR/${name}.rst7" || ! -s "$JOB_DIR/${name}.parm7" ]]; then
+	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "01:00:00"
+else
+	info "Detected existing tleap outputs (${name}.rst7/.parm7); skipping submission"
+fi
 	local err_file
 	err_file="$(ls -1t "$JOB_DIR/${job_name}.sh.e"* 2>/dev/null | head -n 1 || true)"
 	if [[ -n "$err_file" ]] && grep -qiE 'corrupted size|munmap_chunk\\(\\): invalid pointer|invalid pointer|Aborted|terminated with signal|Segmentation fault' "$err_file"; then
@@ -2110,7 +2342,6 @@ EOF
 	check_res_file "${name}.parm7" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
+	mark_step_ok "$JOB_DIR"
 
-	#Write to the log a finished operation
-	add_to_log "$job_name" "$LOG"
 }

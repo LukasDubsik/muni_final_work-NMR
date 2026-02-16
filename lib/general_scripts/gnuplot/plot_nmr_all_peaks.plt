@@ -26,3 +26,4 @@ set xrange [xmax + xmargin : xmin - xmargin]
 set yrange [0:1.2]
 
 plot datafile using 1:2 with impulses lw 1
+ 

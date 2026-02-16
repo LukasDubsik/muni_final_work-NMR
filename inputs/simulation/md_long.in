@@ -11,7 +11,7 @@
  ioutfm=0,  !Binary file result, quicker calculation
 
  irest=1,   !Continue from previous data
- ntx=5,     !Take over the positions and speeds
+ ntx=5,     !Take over the positions and speeds 
 
  ntp=1,     !Berendsen pressure
  barostat=2,!Monte-Carlo barostat

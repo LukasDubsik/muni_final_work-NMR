@@ -12,7 +12,7 @@
   ntx=1,
 
   ntt=3,
-  tempi=1.0,
+  tempi=1.0, 
   temp0=300.0,
   gamma_ln=2.0,
   ig=-1,

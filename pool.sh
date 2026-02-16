@@ -16,4 +16,4 @@ while true; do
     #Clear from there to the end of the screen
     printf '\033[J'
 
-done
+done 

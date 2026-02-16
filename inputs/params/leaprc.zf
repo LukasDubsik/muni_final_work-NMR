@@ -1,5 +1,5 @@
 #
-# ----- leaprc for loading the general Amber Force field.
+# ----- leaprc for loading the general Amber Force field. 
 #       This file is mostly for use with Antechamber
 #
 #	load atom type hybridizations

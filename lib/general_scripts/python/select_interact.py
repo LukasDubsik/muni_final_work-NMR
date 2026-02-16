@@ -29,7 +29,7 @@ def main() -> None:
     # Check that correct number of params were provided
     if len(sys.argv) != 3:
         print(f"Usage: python {sys.argv[0]} TOPOLOGY FRAME_START_NUM")
-        sys.exit(1)
+        sys.exit(1) 
 
     # Load the parameters of the script
     TOPOLOGY: str = sys.argv[1]

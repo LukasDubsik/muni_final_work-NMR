@@ -1,1 +1,1 @@
-#p B3LYP/6-31G(d,p) SCF(XQC,MaxConventionalCycles=70)
+#p B3LYP/6-31G(d,p) SCF(XQC,MaxConventionalCycles=70) 

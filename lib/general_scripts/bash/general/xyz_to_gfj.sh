@@ -52,31 +52,18 @@ for file in frames/frame_*.xyz; do
 	ELEM_LINE+="0"
 
 	# Split the atoms by basis
-	# {
-    #     echo "$ELEM_LINE"
-    #     echo "6-31++G(d,p)"
-    #     echo "****"
-    #     echo "Au 0"
-    #     echo "SDD"
-    #     echo "****"
-    #     echo ""
-    #     echo "Au 0"
-    #     echo "SDD"
-    #     echo ""
-    # } >> "${base}".gjf
-	# Split the atoms by basis (GenECP: basis section, blank line, then ECP section)
-    cat >> "${base}.gjf" <<EOF
-$ELEM_LINE
-6-31++G(d,p)
-****
-Au 0
-SDD
-****
-
-Au 0
-SDD
-
-EOF
+	{
+        echo "$ELEM_LINE"
+        echo "6-31++G(d,p)"
+        echo "****"
+        echo "Au 0"
+        echo "SDD"
+        echo "****"
+        echo ""
+        echo "Au 0"
+        echo "SDD"
+        echo ""
+    } >> "${base}".gjf
 
     # Only the selected H atoms will have NMR computed
     H_ATOMS=$(tail -n +3 "$file" | grep -v 'XP' | head -n "$N_CORE" | awk '{i++; if ($1 ~ /^H/) h=(h?h","i:i)} END{print h}')

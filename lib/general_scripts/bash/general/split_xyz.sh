@@ -27,4 +27,4 @@ while read line; do
     #Otherwise Atom line... just append
     echo "$line" >> $name
 
-done
+done 

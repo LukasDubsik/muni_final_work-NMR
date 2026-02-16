@@ -30,7 +30,7 @@ def main() -> None:
     msg["To"] = TO
     msg["Subject"] = subject
     msg.set_content(BODY)
-
+ 
     # Connect to SMTP server with STARTTLS
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
         smtp.ehlo()

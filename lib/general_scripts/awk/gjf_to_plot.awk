@@ -1,12 +1,32 @@
-#Start the block for NMR
-/Magnetic shielding tensor/ { inblock=1; next }
-#If the block contains Isotropic it contains our data
+# Start the block for NMR (do NOT `next` — some logs put the first record on the same line)
+/Magnetic shielding tensor/ { inblock=1 }
+BEGIN {
+    if (A == "") A = 1.0
+    if (B == "") B = 0.0
+}
+# Parse shielding records robustly (Gaussian formatting varies: "Isotropic=" vs "Isotropic =")
 inblock && /Isotropic/ {
-    atom=$1; elem=$2; iso=$5                    #Split the line
-    if (elem=="H" && atom<=LIMIT) {             #If it is a hydrogen (1H) belonging to cysteine (atoms 1-14 in the input)
-        delta = SIGMA_TMS - iso                 #Apply the shift
-        printf("%.6f\t1.0\t%d\n", delta, atom)  #Print to the result along with the number label
+    line = $0
+    gsub(/Isotropic=/,  "Isotropic =",  line)
+    gsub(/Anisotropy=/, "Anisotropy =", line)
+
+    n = split(line, a, /[[:space:]]+/)
+    for (i = 1; i <= n - 3; i++) {
+        # Match: <idx> <elem> Isotropic [=] <value>
+        if (a[i] ~ /^[0-9]+$/ && a[i+1] ~ /^[A-Za-z]{1,2}$/ && a[i+2] == "Isotropic") {
+            atom = a[i] + 0
+            elem = toupper(a[i+1])
+            iso  = (a[i+3] == "=" ? a[i+4] : a[i+3])
+            gsub(/[dD]/, "E", iso)  # tolerate Fortran exponents
+
+            if (elem == "H" && atom <= LIMIT) {
+                delta = SIGMA_TMS - (iso + 0)
+                delta = A * delta + B
+                printf("%.6f\t1.0\t%d\n", delta, atom)
+            }
+        }
     }
 }
-#Ending the NMR block
+
+# End NMR block
 inblock && /^$/ { inblock=0 }
