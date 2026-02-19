@@ -5,20 +5,19 @@ _DATA_SH_LOADED=1
 
 # run_analysis SIGMA LIMIT
 # Analyze the results from the gauss nmr run and get necessary data
-# Globals: none
-# Returns: Nothing
+# Globals used: meta, directory, gauss_mod (or derived), JOB_META_SELECT_EXTRA (optional)
 run_analysis() {
-	#Load the inputs
-	local sigma=$1
+	# Inputs
+	local sigma_in=$1
 	local limit=$2
-
 	local job_name="analysis"
+	local start_dir="$PWD"
 
 	info "Started running $job_name"
 
-    #Start by converting the input mol into a xyz format -necessary for crest
-	JOB_DIR="process/spectrum/$job_name"
-	ensure_dir $JOB_DIR
+	# Workspace
+	local JOB_DIR="process/spectrum/$job_name"
+	ensure_dir "$JOB_DIR"
 
 	local ok="$JOB_DIR/.ok"
 	if [[ -f "$ok" ]]; then
@@ -30,51 +29,62 @@ run_analysis() {
 		fi
 	fi
 
-	SRC_DIR_1="lib/general_scripts/bash/general"
-	SRC_DIR_2="lib/general_scripts/awk"
-	SRC_DIR_3="process/spectrum/gaussian/nmr"
+	# Source locations (relative to project root; keep CWD in root!)
+	local SRC_DIR_1="lib/general_scripts/bash/general"
+	local SRC_DIR_2="lib/general_scripts/awk"
+	local SRC_DIR_3="process/spectrum/gaussian/nmr"
 
-	substitute_name_sh_data "general/log_to_plot.sh" "$JOB_DIR/log_to_plot.sh" "" "$limit" "$sigma" ""
+	# Stage analysis helpers
+	ensure_dir "$JOB_DIR/plots"
 	move_inp_file "average_plot.sh" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "gjf_to_plot.awk" "$SRC_DIR_2" "$JOB_DIR"
 
-	ensure_dir $JOB_DIR/plots
-
-	#Copy the log files from gaussian runs
-	cp -r $SRC_DIR_3 $JOB_DIR
- 
-		# Move to the directory to run the scripts
-	cd $JOB_DIR || die "Couldn'r enter the $JOB_DIR"
+	# Copy/refresh Gaussian logs (merge contents; preserve any existing tms.log)
+	ensure_dir "$JOB_DIR/nmr"
+	if [[ -d "$SRC_DIR_3" ]]; then
+		cp -a "$SRC_DIR_3/." "$JOB_DIR/nmr/" || die "Failed to copy gaussian logs from $SRC_DIR_3 to $JOB_DIR/nmr"
+	else
+		die "Missing gaussian NMR log directory: $SRC_DIR_3"
+	fi
 
 	#############################################
-	# TMS reference: compute SIGMA_TMS (absolute shielding)
-	# If user passed sigma explicitly, keep it. If sigma is "auto" or empty => compute via Gaussian(TMS).
+	# TMS reference: compute SIGMA_TMS (absolute shielding) if sigma_in is empty or "auto"
 	#############################################
+	local sigma="$sigma_in"
+
+	# Resolve Gaussian module name (fixes your undefined ${gaussian})
+	local GAUSS_MOD="${gauss_mod:-}"
+	if [[ -z "$GAUSS_MOD" ]]; then
+		if [[ "${meta:-false}" == "true" ]]; then
+			GAUSS_MOD="g16"
+		else
+			GAUSS_MOD="gaussian"
+		fi
+	fi
+
 	if [[ -z "${sigma:-}" || "${sigma}" == "auto" ]]; then
-		local tms_dir="tms_ref"
-		local tms_job="${tms_dir}/job_tms"
-		local tms_log="${tms_dir}/frame_tms.log"
-		local tms_ref_out="nmr/tms.log"
+		local tms_dir="$JOB_DIR/tms_ref"
+		local tms_job="$tms_dir/job_tms"
+		local tms_gjf="$tms_job/frame_tms.gjf"
+		local tms_log="$tms_job/frame_tms.log"
+		local tms_ref_out="$JOB_DIR/nmr/tms.log"
 
 		local mem_gb=8
 		local ncpus=8
 
 		ensure_dir "$tms_dir"
 		ensure_dir "$tms_job"
-		ensure_dir "nmr"
 
-		# If we already have a valid cached reference log in this analysis dir, reuse it
+		# Reuse cached reference if it finished normally
 		if gaussian_log_ok "$tms_ref_out"; then
 			info "TMS reference already present; reusing $tms_ref_out"
 		else
 			info "Creating and running Gaussian TMS reference job (to compute SIGMA_TMS)"
 
-			# Clean any previous failed attempt
-			rm -f "$tms_job/frame_tms.gjf" "$tms_job/frame_tms.log" "$tms_job/.jobid" 2>/dev/null || true
+			rm -f "$tms_gjf" "$tms_log" "$tms_job/.jobid" 2>/dev/null || true
 
-			# Build TMS Gaussian input (Opt + NMR) with COSMO, consistent with your solute settings
-			# Geometry from NIST CCCBDB cartesian coordinates :contentReference[oaicite:2]{index=2}
-			cat > "$tms_job/frame_tms.gjf" <<'EOF'
+			# Geometry from NIST CCCBDB (tetramethylsilane Cartesian coordinates)
+			cat > "$tms_gjf" <<'EOF'
 %chk=tms.chk
 #P B3LYP/6-31++G(d,p) Opt SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine
 
@@ -101,45 +111,38 @@ H    1.7241  -0.4345  -1.7241
 
 --Link1--
 %chk=tms.chk
-#P B3LYP/6-31++G(d,p) NMR=GIAO SCRF=COSMO Geom=AllCheck Guess=Read SCFX=(QC,Tight) Int=UltraFine CPHF=Grid=UltraFine
+#P B3LYP/6-31++G(d,p) NMR=GIAO SCRF=COSMO Geom=AllCheck Guess=Read SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine
 
 TMS reference (NMR, COSMO)
 
 0 1
 EOF
 
-			# Make sure gaussian input resource lines match allocation
-			patch_gaussian_link0_resources "$tms_job/frame_tms.gjf" "$mem_gb" "$ncpus"
+			# Match resources to allocation
+			patch_gaussian_link0_resources "$tms_gjf" "$mem_gb" "$ncpus"
 
-			# If on MetaCentrum: reserve scratch + require g16 license just like your main gaussian stage
+			# Scheduler extras (MetaCentrum: license + scratch)
 			local old_extra="${JOB_META_SELECT_EXTRA:-}"
 			if [[ "${meta:-false}" == "true" ]]; then
 				JOB_META_SELECT_EXTRA="host_licenses=g16:scratch_local=10gb"
 			fi
 
-			# Build and submit the job using the SAME gaussian job-template machinery you already use,
-			# but with num="tms" so the template runs frame_tms.gjf -> frame_tms.log.
+			# Build & submit job script in tms_job (templates are relative to project root -> keep CWD in root)
 			if [[ "${meta:-false}" == "true" ]]; then
 				substitute_name_sh_meta_start "$tms_job" "${directory}" ""
-				substitute_name_sh_meta_end "$tms_job"
-				substitute_name_sh "gaussian" "$tms_job" "${gaussian}" "tms_ref" "" "tms" "" ""
+				substitute_name_sh_meta_end   "$tms_job"
+				substitute_name_sh "gaussian" "$tms_job" "$GAUSS_MOD" "tms_ref" "" "tms" "" ""
 				construct_sh_meta "$tms_job" "gaussian"
 			else
 				substitute_name_sh_wolf_start "$tms_job"
-				substitute_name_sh "gaussian" "$tms_job" "${gaussian}" "tms_ref" "" "tms" "" ""
+				substitute_name_sh "gaussian" "$tms_job" "$GAUSS_MOD" "tms_ref" "" "tms" "" ""
 				construct_sh_wolf "$tms_job" "gaussian"
 			fi
 
-			# Submit + wait
+			# Submit (submit_job already waits)
 			submit_job "${meta:-false}" "gaussian" "$tms_job" "$mem_gb" "$ncpus" 0 "01:00:00"
 
-			local jid=""
-			jid=$(head -n 1 "$tms_job/.jobid" 2>/dev/null || true)
-			[[ -n "$jid" ]] || die "TMS reference: submission did not produce a jobid"
-
-			wait_job "$jid"
-
-			# Validate and cache into nmr/tms.log
+			# Validate and cache
 			gaussian_log_ok "$tms_log" || die "TMS reference Gaussian did not finish normally: $tms_log"
 			cp "$tms_log" "$tms_ref_out"
 
@@ -149,45 +152,50 @@ EOF
 			fi
 		fi
 
-		# Extract σ(TMS) from the reference log (first H isotropic shielding in the NMR block)
-		# Gaussian prints "Magnetic shielding tensor ... H Isotropic = ..." :contentReference[oaicite:3]{index=3}
+		# Extract σ(TMS) as average over all H in the shielding tensor block
 		sigma=$(
 			awk '
-			/Magnetic shielding tensor/ {inblock=1}
-			inblock && /Isotropic/ {
-				line=$0
-				gsub(/Isotropic=/,"Isotropic =",line)
-				n=split(line,a,/[[:space:]]+/)
-				# Expected:  <idx> <elem> Isotropic = <value>
-				for (i=1;i<=n-4;i++) {
-					if (a[i] ~ /^[0-9]+$/ && a[i+1]=="H" && a[i+2]=="Isotropic") {
-						v = (a[i+3]=="="?a[i+4]:a[i+3])
-						gsub(/[dD]/,"E",v)
-						print v
-						exit
-					}
+			/Magnetic shielding tensor/ {in=1; next}
+			in {
+				# Match: <idx> H Isotropic = <value>
+				if (match($0, /^[[:space:]]*[0-9]+[[:space:]]+H[[:space:]]+Isotropic[[:space:]]*=[[:space:]]*/, m)) {
+					line=$0
+					sub(/.*Isotropic[[:space:]]*=[[:space:]]*/, "", line)
+					split(line, a, /[[:space:]]+/)
+					v=a[1]
+					gsub(/[dD]/, "E", v)
+					sum += v
+					n++
 				}
 			}
-			inblock && /^$/ {inblock=0}
-			' "$tms_ref_out"
+			in && /^[[:space:]]*$/ {
+				if (n > 0) { printf "%.10f\n", sum/n; exit }
+				in=0
+			}
+			END {
+				if (n > 0) printf "%.10f\n", sum/n
+			}
+			' "$JOB_DIR/nmr/tms.log"
 		)
-		[[ -n "$sigma" ]] || die "Failed to parse SIGMA_TMS from $tms_ref_out"
+		[[ -n "$sigma" ]] || die "Failed to parse SIGMA_TMS from $JOB_DIR/nmr/tms.log"
 		info "Computed SIGMA_TMS (TMS reference) = $sigma ppm"
 	fi
 
-	# Run the script and average the resulting nmr spectra (export global reference!)
-	SIGMA_TMS="$sigma" bash log_to_plot.sh
+	# Now that sigma is final, generate log_to_plot.sh with the correct value embedded
+	substitute_name_sh_data "general/log_to_plot.sh" "$JOB_DIR/log_to_plot.sh" "" "$limit" "$sigma" ""
 
-	#Return back
-	cd ../../.. || die "Couldn't back to the main directory"
+	# Run the spectrum processing in the analysis directory (don’t change global CWD)
+	( cd "$JOB_DIR" && SIGMA_TMS="$sigma" bash log_to_plot.sh ) || die "log_to_plot.sh failed in $JOB_DIR"
 
-	#Check that the final files are truly present
+	# Return to original dir
+	cd "$start_dir" || die "Couldn't return to: $start_dir"
+
+	# Validate outputs
 	check_res_file "avg.dat" "$JOB_DIR" "$job_name"
 	check_res_file "all_peaks.dat" "$JOB_DIR" "$job_name"
 
 	success "$job_name has finished correctly"
 	mark_step_ok "$JOB_DIR"
-
 }
 
 # run_plotting
