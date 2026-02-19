@@ -80,27 +80,33 @@ for file in frames/frame_*.xyz; do
     echo "" >> "$gjf"
 
     # Write basis section: only what is present
-    {
-        # Light elements (only if any present)
-        if ((${#LIGHT_ELEMS[@]})); then
-            printf "%s 0\n" "${LIGHT_ELEMS[*]}"
-            echo "6-31++G(d,p)"
-            echo "****"
-            echo ""
-        fi
+	{
+		# Light elements (only if any present)
+		if ((${#LIGHT_ELEMS[@]})); then
+			printf "%s 0\n" "${LIGHT_ELEMS[*]}"
+			echo "6-31++G(d,p)"
+			echo "****"
+		fi
 
-        # Au basis (only if Au present)
-        if (( HAS_AU )); then
-            echo "Au 0"
-            echo "SDD"
-            echo "****"
-            echo ""
-            # ECP section for GenECP (only if Au present)
-            echo "Au 0"
-            echo "SDD"
-            echo ""
-        fi
-    } >> "$gjf"
+		# Au basis (only if Au present)
+		if (( HAS_AU )); then
+			echo "Au 0"
+			echo "SDD"
+			echo "****"
+		fi
+
+		# IMPORTANT: terminate basis input with a blank line.
+		# For GenECP this blank line also separates basis blocks from the ECP blocks.
+		echo ""
+
+		# ECP section for GenECP (only if Au present)
+		if (( HAS_AU )); then
+			echo "Au 0"
+			echo "SDD"
+			echo ""
+		fi
+	} >> "$gjf"
+
 
     # Only the selected H atoms will have NMR computed
     # (keeps your original behavior: scan first N_CORE atoms, then pick H indices among them)
