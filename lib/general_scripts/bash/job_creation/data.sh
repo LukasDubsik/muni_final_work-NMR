@@ -78,6 +78,10 @@ run_analysis() {
 		# Reuse cached reference if it finished normally
 		if gaussian_log_ok "$tms_ref_out"; then
 			info "TMS reference already present; reusing $tms_ref_out"
+		# NEW: if the job directory already has a valid log, reuse it and cache it
+		elif gaussian_log_ok "$tms_log"; then
+			info "TMS reference log already present and valid; reusing $tms_log"
+			cp "$tms_log" "$tms_ref_out"
 		else
 			info "Creating and running Gaussian TMS reference job (to compute SIGMA_TMS)"
 
@@ -155,10 +159,10 @@ EOF
 		# Extract σ(TMS) as average over all H in the shielding tensor block
 		sigma=$(
 			awk '
-			/Magnetic shielding tensor/ {in=1; next}
-			in {
+			/Magnetic shielding tensor/ {inblock=1; next}
+			inblock {
 				# Match: <idx> H Isotropic = <value>
-				if (match($0, /^[[:space:]]*[0-9]+[[:space:]]+H[[:space:]]+Isotropic[[:space:]]*=[[:space:]]*/, m)) {
+				if (match($0, /^[[:space:]]*[0-9]+[[:space:]]+H[[:space:]]+Isotropic[[:space:]]*=[[:space:]]*/)) {
 					line=$0
 					sub(/.*Isotropic[[:space:]]*=[[:space:]]*/, "", line)
 					split(line, a, /[[:space:]]+/)
@@ -168,16 +172,16 @@ EOF
 					n++
 				}
 			}
-			in && /^[[:space:]]*$/ {
+			inblock && /^[[:space:]]*$/ {
 				if (n > 0) { printf "%.10f\n", sum/n; exit }
-				in=0
+				inblock=0
 			}
 			END {
 				if (n > 0) printf "%.10f\n", sum/n
 			}
-			' "$JOB_DIR/nmr/tms.log"
+			' "$tms_ref_out"
 		)
-		[[ -n "$sigma" ]] || die "Failed to parse SIGMA_TMS from $JOB_DIR/nmr/tms.log"
+		[[ -n "$sigma" ]] || die "Failed to parse SIGMA_TMS from $tms_ref_out"
 		info "Computed SIGMA_TMS (TMS reference) = $sigma ppm"
 	fi
 
