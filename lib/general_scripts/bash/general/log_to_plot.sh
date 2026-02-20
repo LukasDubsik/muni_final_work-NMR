@@ -26,7 +26,7 @@ for file in nmr/frame_*.log; do
   bas=$(basename "$file" .log)
   out="plots/plot_${bas}.dat"
 
-  awk -v SIGMA_TMS="$sig" -v LIMIT="$N_CORE" -f gjf_to_plot.awk "$file" > "$out"
+  awk -v SIGMA_TMS="${SIGMA_TMS}" -v LIMIT="${limit}}" -f gjf_to_plot.awk "$file" > "$out"
 
   if [[ ! -s "$out" ]]; then
     echo "[WARN] No shielding data extracted from: $file" >&2
