@@ -159,9 +159,8 @@ EOF
 		# Extract σ(TMS) as average over all H in the shielding tensor block
 		sigma=$(
 			awk '
-			/Magnetic shielding tensor/ {inblock=1; next}
-			inblock {
-				# Match: <idx> H Isotropic = <value>
+				/Magnetic shielding tensor/ {inblock=1; next}
+				inblock {
 				if (match($0, /^[[:space:]]*[0-9]+[[:space:]]+H[[:space:]]+Isotropic[[:space:]]*=[[:space:]]*/)) {
 					line=$0
 					sub(/.*Isotropic[[:space:]]*=[[:space:]]*/, "", line)
@@ -171,17 +170,19 @@ EOF
 					sum += v
 					n++
 				}
-			}
-			inblock && /^[[:space:]]*$/ {
-				if (n > 0) { printf "%.10f\n", sum/n; exit }
+				}
+				inblock && /^[[:space:]]*$/ {
+				if (n > 0) { printf "%.10f\n", sum/n; printed=1; exit }
 				inblock=0
-			}
-			END {
-				if (n > 0) printf "%.10f\n", sum/n
-			}
+				}
+				END {
+				if (!printed && n > 0) printf "%.10f\n", sum/n
+				}
 			' "$tms_ref_out"
 		)
 		[[ -n "$sigma" ]] || die "Failed to parse SIGMA_TMS from $tms_ref_out"
+		# Safety: ensure single-line value (avoid breaking sed)
+		sigma=${sigma%%$'\n'*}
 		info "Computed SIGMA_TMS (TMS reference) = $sigma ppm"
 	fi
 
