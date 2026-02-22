@@ -313,7 +313,7 @@ run_gaussian() {
 		# Patch the resources
 		patch_gaussian_link0_resources "$LOC_DIR/frame_${num}.gjf" "$mem_gb" "$ncpus"
 		#Then submit the job for run
-		( submit_job "$meta" "$job_name" "$LOC_DIR" "$mem_gb" "$ncpus" 0 "16:00:00" ) &
+		( submit_job "$meta" "$job_name" "$LOC_DIR" "$mem_gb" "$ncpus" 0 "02:00:00" ) &
 		p=$!
 		pids+=("$p")
 
