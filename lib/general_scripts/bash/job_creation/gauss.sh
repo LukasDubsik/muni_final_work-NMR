@@ -70,19 +70,18 @@ run_gauss_prep() {
 	local num_frames=$2
 	local limit=$3
 	local charge=$4
-	local water_mode=${5:-discard}
+	local water_mode=$5
 
 	local job_name="gauss_prep"
 
 	info "Started running $job_name"
 
-    #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/spectrum/$job_name"
-	ensure_dir $JOB_DIR
-	ensure_dir $JOB_DIR/frames
+	ensure_dir "$JOB_DIR"
+	ensure_dir "$JOB_DIR/frames"
 
 	local ok="$JOB_DIR/.ok"
-	last_frame=$((num_frames - 1))
+	local last_frame=$((num_frames - 1))
 	if [[ -f "$ok" ]]; then
 		if [[ -s "$JOB_DIR/gauss/frame_${last_frame}.gjf" ]]; then
 			info "$job_name already complete; skipping"
@@ -93,21 +92,24 @@ run_gauss_prep() {
 	fi
 
 	#Move the frames into the gaussian prep run
-	cp -r process/spectrum/frames/* $JOB_DIR/frames/
+	cp -r process/spectrum/frames/* "$JOB_DIR/frames/"
 
-	SRC_DIR_1="lib/general_scripts/bash/general"
-
-	substitute_name_sh_data "general/xyz_to_gfj.sh" "$JOB_DIR/xyz_to_gfj.sh" "" "$limit" "" "$charge" "$water_mode"
+	substitute_name_sh_data \
+		"general/xyz_to_gfj.sh" \
+		"$JOB_DIR/xyz_to_gfj.sh" \
+		"" \
+		"$limit" \
+		"" \
+		"$charge" \
+		"$water_mode"
 
 	#Ensure the final dir exists
-    ensure_dir $JOB_DIR/gauss
+	ensure_dir "$JOB_DIR/gauss"
 
 	#Run the bash script
-	cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
+	cd "$JOB_DIR" || die "Couldn't enter the gauss_prep directory"
 	bash xyz_to_gfj.sh
-	cd ../../../ || die "Couldn't return back from the cpptraj dir"
-
-	last_frame=$((num_frames - 1))
+	cd ../../../ || die "Couldn't return back from the gauss_prep dir"
 
 	#Check that the final files are truly present
 	check_res_file "frame_$last_frame.gjf" "$JOB_DIR/gauss" "$job_name"
@@ -115,7 +117,6 @@ run_gauss_prep() {
 	mark_step_ok "$JOB_DIR"
 
 	success "$job_name has finished correctly"
-
 }
 
 # run_gaussian NAME DIRECTORY META GAUSSIAN
