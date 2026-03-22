@@ -13,9 +13,14 @@ trajin ${name}_md.mdcrd 1 last 10
 #Re-image so the solute is whole and centred before distance selection
 autoimage
 
-#Keep residue 1 (solute) plus any WAT residue whose oxygen is within 3.5 Å
-#of any atom of residue 1.  Adjust the cutoff (3.5) to taste.
-strip !(:1 | :WAT<:3.5)
+#Step 1: strip all non-solute, non-water residues (ions, co-solvents, etc.)
+strip !(:1,WAT)
+
+#Step 2: strip water molecules whose oxygen is further than 3.5 Å from
+#        any atom of residue 1 (the solute).
+#        ":WAT@O" selects water oxygens; ">:3.5" means "more than 3.5 Å
+#        from residue :1"; byres propagates the decision to H atoms.
+strip :WAT@O >:1 3.5 byres
 
 #Re-centre on the solute and re-image after stripping bulk water
 center :1 mass origin
