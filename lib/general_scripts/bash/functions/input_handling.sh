@@ -170,7 +170,7 @@ load_cfg() {
 	#How to handle solvation-shell waters in xyz_to_gfj.sh
 	# Valid values: discard | point_charges | full_qm
 	water_mode=$(get_cfg_opt 'water_mode')
-	[[ -n "$water_mode" ]] || water_mode='discard'
+	if [[ -z "$water_mode" ]]; then water_mode='discard'; fi
 
 	info "filter: $filter"
 	info "water_mode: $water_mode"
