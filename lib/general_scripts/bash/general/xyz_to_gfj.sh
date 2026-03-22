@@ -4,9 +4,9 @@ set -euo pipefail
 # shellcheck disable=SC2154
 N_CORE=${limit}
 char=${charge}
-WATER_MODE=${water_mode}
-TIP3P_O=${water_oxygen_charge}
-TIP3P_H=${water_hydrogen_charge}
+WATER_MODE=${water_mode:-discard}
+TIP3P_O=${water_oxygen_charge:--0.834}
+TIP3P_H=${water_hydrogen_charge:-0.417}
 
 mkdir -p gauss
 

@@ -190,7 +190,7 @@ force_cpptraj_xyz_output() {
 # Substitute values directly into the data processing script for the job.
 # WATER_MODE controls how solvation-shell waters are handled in xyz_to_gfj.sh:
 #   discard       - strip all water atoms before writing the .gjf
-#   point_charges - replace water with TIP3P Bq point charges (Gaussian 'Charge')
+#   point_charges - replace water with TIP3P point charges (Gaussian 'Charge')
 #   full_qm       - include water as full QM atoms
 # Globals: none
 # Returns: Nothing
@@ -199,8 +199,23 @@ substitute_name_sh_data() {
 	local src="lib/general_scripts/bash/${fil}"
 	local dst_full="${dst}"
 	[[ -f "$src" ]] || die "Missing input file: $src"
-	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g; s#\${sigma}#${sigma}#g; s#\${charge}#${charge}#g; s#\${water_mode}#${water_mode}#g" \
+
+	local _water_oxygen_charge="${water_oxygen_charge:--0.834}"
+	local _water_hydrogen_charge="${water_hydrogen_charge:-0.417}"
+
+	sed \
+		-e "s#\${name}#${name}#g" \
+		-e "s#\${limit}#${limit}#g" \
+		-e "s#\${sigma}#${sigma}#g" \
+		-e "s#\${charge}#${charge}#g" \
+		-e "s#\${water_mode}#${water_mode}#g" \
+		-e "s#\${water_oxygen_charge}#${_water_oxygen_charge}#g" \
+		-e "s#\${water_hydrogen_charge}#${_water_hydrogen_charge}#g" \
 		"$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+
+	if grep -q '\${[^}][^}]*}' "$dst_full"; then
+		die "substitute_name_sh_data: unresolved template placeholders remain in $dst_full"
+	fi
 }
 
 # substitute_name_sh_meta_start DST COPY DIR JOB
