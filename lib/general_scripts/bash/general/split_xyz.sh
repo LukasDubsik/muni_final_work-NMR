@@ -1,30 +1,30 @@
 #!/bin/bash
 
-reading=0
 file="frames/frame_"
 num=$1
 name=""
 str=0
 
-while read line; do
+while IFS= read -r line; do
 
     if [ $str -eq 2 ]; then
-        echo "$line" >> $name #Append the Conf x ... line to the current file
-        ((str--)) #Return str to normal format
-        continue #Go to the atom names
-    fi
-    
-    #If we have started reading a new frame, start svaing to a new file
-    if [ ${#line} -eq 2 ]; then
-        name="${file}${num}.xyz" #Change the name of the file to save into
-        rm -f $name #Remove if exists
-        ((str++)) #Indicate that we are passing onto a Conf x. ... line
-        echo "$line" >> $name #Write into the results
-		((num++)) #Increase the file safe name
-        continue #Just go next, nothing new to do    
+        echo "$line" >> "$name"   # Append the "Conf x ..." comment line
+        ((str--))
+        continue
     fi
 
-    #Otherwise Atom line... just append
-    echo "$line" >> $name
+    # Detect the atom-count header: a line containing only a positive integer
+    # (handles any number of atoms, not just 2-digit counts)
+    if [[ "$line" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]]; then
+        name="${file}${num}.xyz"
+        rm -f "$name"
+        ((str++))
+        echo "$line" >> "$name"
+        ((num++))
+        continue
+    fi
 
-done 
+    # Otherwise it is a coordinate line — append to current file
+    echo "$line" >> "$name"
+
+done
