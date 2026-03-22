@@ -422,12 +422,11 @@ else
 	info "Detected existing cpptraj primary output; skipping submission"
 fi
 
-	#Ensure the final dir exists
-    ensure_dir "$JOB_DIR"/frames
-
 	if [[ $mode == "no_water" ]]; then
 		#Check that the final files are truly present
 		check_res_file "${name}_frame.xyz" "$JOB_DIR" "$job_name"
+		#Ensure the frames dir exists only now, right before we write into it
+		ensure_dir "$JOB_DIR"/frames
 		#Split the .xyz file into individual files
 		#Move the bash script for it
 		move_inp_file "split_xyz.sh" "$SRC_DIR_2" "$JOB_DIR"
@@ -438,6 +437,8 @@ fi
 	else 
 		#Check that the final files are truly present
 		check_res_file "frames.nc" "$JOB_DIR" "$job_name"
+		#Ensure the frames dir exists only now, right before we write into it
+		ensure_dir "$JOB_DIR"/frames
 		#Copy the python script
 		move_inp_file "select_interact.py" "$SRC_DIR_3" "$JOB_DIR"
 		#Move to the job dir
