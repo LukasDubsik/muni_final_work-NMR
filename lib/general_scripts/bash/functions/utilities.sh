@@ -595,7 +595,7 @@ mol2_force_selenium_type_upper_inplace() {
 
 	[[ -n "$mol2" && -f "$mol2" ]] || die "mol2_force_selenium_type_upper_inplace: Missing file"
 
-	awk '\''
+	awk '
 	BEGIN { inatom=0 }
 	/^@<TRIPOS>ATOM/ { inatom=1; print; next }
 	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
@@ -610,7 +610,7 @@ mol2_force_selenium_type_upper_inplace() {
 		}
 		print
 	}
-	'\'' "$mol2" > "$tmp" || die "Failed to force selenium atom type in: $mol2"
+	' "$mol2" > "$tmp" || die "Failed to force selenium atom type in: $mol2"
 
 	mv -f "$tmp" "$mol2" || die "Failed to replace: $mol2"
 }
