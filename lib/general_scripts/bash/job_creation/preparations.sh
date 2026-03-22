@@ -1725,6 +1725,20 @@ run_tleap() {
 	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
 
+	# DEBUG + fixup for unsupported lower-case selenium atom types coming from MOL2.
+	# addAtomTypes in tleap only defines the element/type identity; it does NOT provide LJ params.
+	# If parmchk2 did not emit se MASS/NONBON lines, inject a minimal fallback here.
+	frcmod_ensure_default_se_vdw_from_mol2 "$JOB_DIR/${name}.frcmod" "$JOB_DIR/${name}_charges_fix.mol2"
+	awk '
+		BEGIN { in_atom=0 }
+		/^@<TRIPOS>ATOM/ { in_atom=1; next }
+		/^@<TRIPOS>/ { if (in_atom) in_atom=0 }
+		in_atom && NF>=6 { print tolower($6) }
+	' "$JOB_DIR/${name}_charges_fix.mol2" | sort -u > "$JOB_DIR/_debug_atomtypes.txt"
+	grep -niE '(^MASS$|^NONBON$|(^|[^A-Za-z])[Ss][Ee]([^A-Za-z]|$))' "$JOB_DIR/${name}.frcmod" > "$JOB_DIR/_debug_se_frcmod.txt" || true
+	info "[DEBUG] tleap atom types written to $JOB_DIR/_debug_atomtypes.txt"
+	info "[DEBUG] selenium frcmod excerpt written to $JOB_DIR/_debug_se_frcmod.txt"
+
 	# Also copy the CREST-optimized, bond-authoritative MOL2 (contains metal + correct connectivity).
 	# We use this ONLY as a connectivity reference when reconstructing MCPB metal bonds in tleap.
 	local crest_auth="process/preparations/crest/${name}_crest.mol2"
@@ -1738,34 +1752,8 @@ run_tleap() {
 		cp  "$SRC_DIR_3/leaprc.zf" "$JOB_DIR"
 	fi
 
-
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
-
-	# Generic selenium fallback for secys-like / aliphatic selenol residues.
-	# Keep the base tleap template, but inject one extra frcmod after the ligand
-	# frcmod when atom type "se" is present in the MOL2.
-	local se_general_patch=""
-	if frcmod_write_general_selenium_patch_from_mol2 "$JOB_DIR/${name}_charges_fix.mol2" "$JOB_DIR/${name}_selenium_general.frcmod"; then
-		se_general_patch="${name}_selenium_general.frcmod"
-		info "Detected atom type se in ${name}_charges_fix.mol2 - adding general selenium patch"
-
-		if ! grep -qiE "\\b(loadAmberParams|loadamberparams)[[:space:]]+${name}_selenium_general[.]frcmod\\b" "$JOB_DIR/${in_file}.in"; then
-			sed -i -E \
-				"/\\b(loadAmberParams|loadamberparams)[[:space:]]+${name}[.]frcmod\\b/a\\loadamberparams ${name}_selenium_general.frcmod" \
-				"$JOB_DIR/${in_file}.in"
-		fi
-
-		# Lightweight debug output
-		awk '
-			/^@<TRIPOS>ATOM/ {inA=1; next}
-			/^@<TRIPOS>/ {inA=0}
-			inA {print $1, $2, $6}
-		' "$JOB_DIR/${name}_charges_fix.mol2" > "$JOB_DIR/_debug_atomtypes.txt"
-		cp -f "$JOB_DIR/${name}_selenium_general.frcmod" "$JOB_DIR/_debug_se_general_frcmod.txt"
-		info "[DEBUG] tleap atom types written to $JOB_DIR/_debug_atomtypes.txt"
-		info "[DEBUG] general selenium frcmod written to $JOB_DIR/_debug_se_general_frcmod.txt"
-	fi
 
 	# If MCPB produced a tleap input, reuse its parameter/library load statements
 	# so teLeap knows the metal atom type + metal-ligand bonded terms.
@@ -2245,8 +2233,6 @@ fi
 	fi
 
 	cp -f "$JOB_DIR/tleap_run.in" "$JOB_DIR/${in_file}.in"
-	cp -f "$JOB_DIR/${in_file}.in" "$JOB_DIR/_debug_tleap_input.txt"
-	info "[DEBUG] rendered tleap input written to $JOB_DIR/_debug_tleap_input.txt"
 
 	# -----------------------------------------------------------------
 	# Sanitize tleap input: remove CRLF, strip inline comments, and remove
