@@ -438,45 +438,44 @@ run_cpptraj() {
 		echo 0.01
 		#Check that the final files are truly present
 		check_res_file "${name}_frame.xyz" "$JOB_DIR" "$job_name"
-
+		echo 1
 		#Ensure the frames dir exists only now, right before we write into it
 		ensure_dir "$JOB_DIR/frames"
-
+		echo 2
 		#Move helper scripts
 		move_inp_file "split_xyz.sh" "$SRC_DIR_2" "$JOB_DIR"
 		move_inp_file "select_first_shell_surface.py" "$SRC_DIR_3" "$JOB_DIR"
-
+		echo 3
 		#Run the postprocessing
 		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
-
+		echo 4
 		bash split_xyz.sh "$curr_run" < "${name}_frame.xyz"
-
+		echo 5
 		ls -1 frames/frame_*.xyz >/dev/null 2>&1 || die "No split XYZ frames were created from ${name}_frame.xyz"
-
+		echo 6
 		"$py_exec" -W "ignore" select_first_shell_surface.py \
 			--frames-dir frames \
 			--solute-atoms "$limit" \
 			--surface-cutoff "$surface_cutoff" \
 			--use-solute-hydrogens "$use_solute_hydrogens"
-
+		echo 7
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
 	else
-		echo 0.02
 		#Check that the final files are truly present
 		check_res_file "frames.nc" "$JOB_DIR" "$job_name"
-		echo 1
+		
 		#Ensure the frames dir exists only now, right before we write into it
 		ensure_dir "$JOB_DIR/frames"
-		echo 2
+		
 		#Copy the python script
 		move_inp_file "select_interact.py" "$SRC_DIR_3" "$JOB_DIR"
-		echo 3
+		
 		#Move to the job dir
 		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
-		echo 4
+		
 		#Run the python script without conda activate; use env python directly
 		"$py_exec" -W "ignore" select_interact.py "${name}.parm7" "$curr_run"
-		echo 5
+		
 		#Return to the base dir
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
 	fi
