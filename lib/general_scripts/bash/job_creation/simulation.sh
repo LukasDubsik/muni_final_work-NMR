@@ -435,6 +435,7 @@ run_cpptraj() {
 	local use_solute_hydrogens="${shell_use_solute_hydrogens:-false}"
 	echo 0.1
 	if [[ $mode == "no_water" ]]; then
+		echo 0.01
 		#Check that the final files are truly present
 		check_res_file "${name}_frame.xyz" "$JOB_DIR" "$job_name"
 
@@ -460,6 +461,7 @@ run_cpptraj() {
 
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
 	else
+		echo 0.02
 		#Check that the final files are truly present
 		check_res_file "frames.nc" "$JOB_DIR" "$job_name"
 		echo 1
