@@ -1,26 +1,31 @@
-#Sampling done already in md amber
-#Select solute + first solvation shell for Gaussian QM/MM
+# Sampling done already in Amber MD
+# Pre-select a generous solvent region around the solute and let the
+# subsequent Python step refine that to a true frame-wise first shell
+# around the solute surface.
 #
-#Uses cpptraj 'closest' command to retain the N water molecules nearest to
-#the solute (residue 1) for each frame.  N=30 covers the first solvation
-#shell for a small molecule (~14 atoms) with comfortable margin; reduce to
-#20 if you want a tighter shell or increase to 50 for a larger solute.
-#The resulting XYZ will have solute atoms first, then the retained waters.
-#water_mode in sim.txt controls what happens to those waters in Gaussian.
+# Why this two-step approach:
+#   1) cpptraj closest keeps a fixed NUMBER of waters, not a true first shell.
+#   2) frame-updating distance masks in cpptraj are only supported by the mask
+#      action, which is awkward for directly writing the desired per-frame XYZ.
+# So here cpptraj only produces a safe preselection; the exact first-shell
+# trimming is done afterwards on each split XYZ frame.
 
-#inputs
 parm ${name}.parm7
 trajin ${name}_md.mdcrd 1 last 10
 
-#Re-image so the solute is whole and centred before distance selection
+# Make the solute whole and keep nearby solvent imaged around it.
 autoimage
+solvent ${solvent_mask}
 
-#Keep the 30 water molecules closest to residue 1 (the solute).
-#'oxygen' keyword tells cpptraj to measure distance to water O atoms.
-#'closestout' writes a summary but we don't need it - /dev/null it.
-closest 30 :1 oxygen closestout /dev/null
+# Diagnostic only: shell statistics around the solute.
+watershell :1 out ${name}_watershell.dat lower ${shell_lower} upper ${shell_upper} ${solvent_mask}
 
-#Re-centre on the solute after selecting the shell
+# Keep a generous number of closest waters so the later Python trimming has
+# enough candidates even for larger metal complexes.
+# 'first' measures to the first atom of the solvent molecule and is the
+# recommended fast mode for standard water models.
+closest ${shell_preselect_waters} :1 first closestout ${name}_closest.dat
+
 center :1 mass origin
 image origin center
 

@@ -81,3 +81,17 @@ filter:=none
 #point_charges -> Replace water O/H with TIP3P Bq point charges (fast, no QM cost)
 #full_qm       -> Keep water as full QM atoms in the .gjf (expensive, most accurate)
 water_mode:=point_charges
+
+# cpptraj preselection only; not the final shell size
+shell_preselect_waters:=160
+shell_lower:=3.4
+shell_upper:=5.0
+solvent_mask:=:WAT
+
+# exact per-frame first-shell selector
+shell_surface_cutoff:=1.8
+shell_use_solute_hydrogens:=false
+
+# point charges for Gaussian Charge mode
+water_oxygen_charge:=-0.834
+water_hydrogen_charge:=0.417

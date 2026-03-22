@@ -2,47 +2,48 @@
 set -euo pipefail
 
 # shellcheck disable=SC2154
-N_CORE=${limit}      # number of solute heavy atoms (for ReadAtoms H selection)
+N_CORE=${limit}
 char=${charge}
-WATER_MODE=${water_mode}   # discard | point_charges | full_qm
-
-# TIP3P point charges used when WATER_MODE=point_charges
-#   O: -0.834 e    H: +0.417 e  (AMBER TIP3P)
-TIP3P_O=-0.834
-TIP3P_H=0.417
+WATER_MODE=${water_mode}
+TIP3P_O=${water_oxygen_charge}
+TIP3P_H=${water_hydrogen_charge}
 
 mkdir -p gauss
 
 # "Light" elements that you want on 6-31++G(d,p) (add/remove as needed)
 LIGHT_ORDER=(H C N O S Se P F Cl Br I)
 
+case "$WATER_MODE" in
+    discard|point_charges|full_qm) ;;
+    *)
+        echo "[ERROR] Unsupported water mode: $WATER_MODE" >&2
+        exit 1
+        ;;
+esac
+
 for file in frames/frame_*.xyz; do
+    [[ -f "$file" ]] || continue
+
     bas=$(basename "$file" .xyz)
-    base="gauss/${bas}"
-    gjf="${base}.gjf"
+    gjf="gauss/${bas}.gjf"
 
-    # ------------------------------------------------------------------
-    # Split the XYZ into two groups:
-    #   - solute atoms  (first N_CORE lines after the header)
-    #   - water atoms   (the remainder, expected to be O/H only)
-    # ------------------------------------------------------------------
-    total_atoms=$(head -n 1 "$file")
-    n_water=$(( total_atoms - N_CORE ))
+    solute_block=$(tail -n +3 "$file" | awk -v ncore="$N_CORE" 'NR <= ncore { print }')
+    water_block=$(tail -n +3 "$file" | awk -v ncore="$N_CORE" 'NR > ncore { print }')
 
-    # Extract solute and water coordinate blocks (skip 2-line XYZ header)
-    solute_block=$(tail -n +3 "$file" | grep -v 'XP' | head -n "$N_CORE")
-
-    if (( n_water > 0 )); then
-        water_block=$(tail -n +3 "$file" | grep -v 'XP' | tail -n "$n_water")
-    else
-        water_block=""
+    if [[ -z "$solute_block" ]]; then
+        echo "[ERROR] ${bas}: empty solute block after XYZ split" >&2
+        exit 1
     fi
 
-    # ------------------------------------------------------------------
-    # Collect elements present in the SOLUTE for basis set assignment
-    # ------------------------------------------------------------------
+    if [[ "$WATER_MODE" == "full_qm" && -n "$water_block" ]]; then
+        qm_block=$(printf "%s\n%s\n" "$solute_block" "$water_block")
+    else
+        qm_block="$solute_block"
+    fi
+
+    # Collect elements present in the QM region only.
     ELEM_SET=$(
-        echo "$solute_block" | awk '
+        printf "%s\n" "$qm_block" | awk '
         {
             e=$1
             sub(/[0-9].*$/, "", e)
@@ -51,13 +52,18 @@ for file in frames/frame_*.xyz; do
         }' | sort -u
     )
 
-    has_elem() { echo "$ELEM_SET" | grep -qFx "$1"; }
+    has_elem() { grep -Fxq "$1" <<< "$ELEM_SET"; }
 
     HAS_AU=0
     if has_elem "Au"; then HAS_AU=1; fi
 
     ROUTE_BASIS="Gen"
     if (( HAS_AU )); then ROUTE_BASIS="GenECP"; fi
+
+    ROUTE_EXTRA=""
+    if [[ "$WATER_MODE" == "point_charges" && -n "$water_block" ]]; then
+        ROUTE_EXTRA=" Charge NoSymm"
+    fi
 
     LIGHT_ELEMS=()
     for e in "${LIGHT_ORDER[@]}"; do
@@ -66,7 +72,6 @@ for file in frames/frame_*.xyz; do
         fi
     done
 
-    # Guard: detect unsupported elements in solute
     UNKNOWN=()
     while read -r e; do
         [[ -z "$e" ]] && continue
@@ -79,58 +84,53 @@ for file in frames/frame_*.xyz; do
     done <<< "$ELEM_SET"
 
     if ((${#UNKNOWN[@]})); then
-        echo "[ERROR] ${bas}: unsupported elements in XYZ (no basis mapping): ${UNKNOWN[*]}" >&2
+        echo "[ERROR] ${bas}: unsupported elements in QM region (no basis mapping): ${UNKNOWN[*]}" >&2
         echo "        Add them to LIGHT_ORDER or add a dedicated basis/ECP block." >&2
         exit 1
     fi
 
-    # ------------------------------------------------------------------
-    # Write the Gaussian input file
-    # ------------------------------------------------------------------
     {
         printf "%%chk=%s.chk\n" "$bas"
-
-        # For point charges we add Charge to the route card so Gaussian reads
-        # the Bq atoms as external point charges rather than QM atoms.
-        if [[ "$WATER_MODE" == "point_charges" && -n "$water_block" ]]; then
-            printf "#P B3LYP/%s NMR=(GIAO,ReadAtoms) SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine Charge\n\n" "$ROUTE_BASIS"
-        else
-            printf "#P B3LYP/%s NMR=(GIAO,ReadAtoms) SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS"
-        fi
-
-        printf "%s — GIAO NMR (Solute with COSMO)\n\n" "$bas"
+        printf "#P B3LYP/%s NMR=(GIAO,ReadAtoms)%s SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS" "$ROUTE_EXTRA"
+        printf "%s -- GIAO NMR\n\n" "$bas"
         printf "%s 1\n" "$char"
     } > "$gjf"
 
-    # ------------------------------------------------------------------
-    # Write solute coordinates
-    # ------------------------------------------------------------------
-    echo "$solute_block" | awk '
+    printf "%s\n" "$qm_block" | awk '
     {
         name=$1; x=$2; y=$3; z=$4
         sub(/[0-9].*$/, "", name)
         elem=toupper(substr(name,1,1)) tolower(substr(name,2))
         printf "%-2s %12.6f %12.6f %12.6f\n", elem, x, y, z
     }' >> "$gjf"
+    echo "" >> "$gjf"
 
-    # ------------------------------------------------------------------
-    # Optionally append water atoms (full_qm mode only; discard = skip)
-    # ------------------------------------------------------------------
-    if [[ "$WATER_MODE" == "full_qm" && -n "$water_block" ]]; then
-        echo "$water_block" | awk '
+    # Background charge distribution must come immediately after the molecule
+    # specification when the Charge keyword is present.
+    if [[ "$WATER_MODE" == "point_charges" && -n "$water_block" ]]; then
+        printf "%s\n" "$water_block" | awk \
+            -v qO="$TIP3P_O" \
+            -v qH="$TIP3P_H" \
+            -v base="$bas" '
         {
             name=$1; x=$2; y=$3; z=$4
             sub(/[0-9].*$/, "", name)
             elem=toupper(substr(name,1,1)) tolower(substr(name,2))
-            printf "%-2s %12.6f %12.6f %12.6f\n", elem, x, y, z
+
+            if (elem == "O") {
+                q = qO
+            } else if (elem == "H") {
+                q = qH
+            } else {
+                printf("[ERROR] %s: non-water atom after solute boundary in point-charge mode: %s\n", base, elem) > "/dev/stderr"
+                exit 2
+            }
+
+            printf "%12.6f %12.6f %12.6f % .6f\n", x, y, z, q
         }' >> "$gjf"
+        echo "" >> "$gjf"
     fi
 
-    echo "" >> "$gjf"
-
-    # ------------------------------------------------------------------
-    # Basis set section (solute elements only; never for Bq/water)
-    # ------------------------------------------------------------------
     {
         if ((${#LIGHT_ELEMS[@]})); then
             printf "%s 0\n" "${LIGHT_ELEMS[*]}"
@@ -153,15 +153,10 @@ for file in frames/frame_*.xyz; do
         fi
     } >> "$gjf"
 
-    # ------------------------------------------------------------------
-    # ReadAtoms section: select H atoms among solute atoms only
-    # ------------------------------------------------------------------
-    H_ATOMS=$(
-        echo "$solute_block" | awk '
+    H_ATOMS=$(printf "%s\n" "$solute_block" | awk '
         {i++; if ($1 ~ /^H/) h=(h?h","i:i)}
         END{print h}
-        '
-    )
+    ')
 
     if [[ -n "${H_ATOMS:-}" ]]; then
         {
@@ -171,34 +166,4 @@ for file in frames/frame_*.xyz; do
     else
         echo "[WARN] ${bas}: no H atoms selected for ReadAtoms (atoms=... would be empty)" >&2
     fi
-
-    # ------------------------------------------------------------------
-    # Point-charge section (Bq atoms), written AFTER the blank line that
-    # terminates the ReadAtoms block.  Gaussian reads this when 'Charge'
-    # appears in the route card.
-    # ------------------------------------------------------------------
-    if [[ "$WATER_MODE" == "point_charges" && -n "$water_block" ]]; then
-        echo "$water_block" | awk \
-            -v qO="$TIP3P_O" \
-            -v qH="$TIP3P_H" '
-        {
-            name=$1; x=$2; y=$3; z=$4
-            # Normalise element symbol
-            sub(/[0-9].*$/, "", name)
-            elem=toupper(substr(name,1,1)) tolower(substr(name,2))
-
-            # Assign TIP3P partial charge based on element
-            if (elem == "O" || elem == "o") {
-                q = qO
-            } else {
-                # Treat everything else in a water residue as H
-                q = qH
-            }
-
-            # Gaussian point-charge format: Bq  x  y  z  charge
-            printf "Bq %12.6f %12.6f %12.6f  %8.5f\n", x, y, z, q
-        }' >> "$gjf"
-        echo "" >> "$gjf"
-    fi
-
 done

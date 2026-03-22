@@ -14,7 +14,20 @@ substitute_name_in() {
 	local src="inputs/simulation/${fil}.in"
 	local dst_full="${dst}/${fil}.in"
 	[[ -f "$src" ]] || die "Missing input file: $src"
-	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+
+	local preselect="${shell_preselect_waters:-}"
+	local lower="${shell_lower:-}"
+	local upper="${shell_upper:-}"
+	local solv_mask="${solvent_mask:-}"
+
+	sed \
+		-e "s#\${name}#${name}#g" \
+		-e "s#\${limit}#${limit}#g" \
+		-e "s#\${shell_preselect_waters}#${preselect}#g" \
+		-e "s#\${shell_lower}#${lower}#g" \
+		-e "s#\${shell_upper}#${upper}#g" \
+		-e "s#\${solvent_mask}#${solv_mask}#g" \
+		"$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # force_first_md_start IN_FILE
@@ -166,21 +179,17 @@ force_cpptraj_xyz_output() {
 	mv "${in_file}.tmp" "$in_file" || die "Failed to update cpptraj input: $in_file"
 }
 
-# substitute_name_sh_data FIL DST NAME LIMIT SIGMA CHARGE WATER_MODE
-# Substitute values directly into the data processing script for the job.
-# WATER_MODE controls how solvation-shell waters are handled in xyz_to_gfj.sh:
-#   discard       - strip all water atoms before writing the .gjf
-#   point_charges - replace water with TIP3P Bq point charges (Gaussian 'Charge')
-#   full_qm       - include water as full QM atoms
+# substitute_name_in FIL DST NAME LIMIT SIGMA
+# Substitute values directly into the input script for the job
 # Globals: none
 # Returns: Nothing
 substitute_name_sh_data() {
-	local fil=$1 dst=$2 name=$3 limit=$4 sigma=$5 charge=$6 water_mode=${7:-discard}
+	# Sed used to replace the name
+	local fil=$1 dst=$2 name=$3 limit=$4 sigma=$5 charge=$6
 	local src="lib/general_scripts/bash/${fil}"
 	local dst_full="${dst}"
 	[[ -f "$src" ]] || die "Missing input file: $src"
-	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g; s#\${sigma}#${sigma}#g; s#\${charge}#${charge}#g; s#\${water_mode}#${water_mode}#g" \
-		"$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g; s#\${sigma}#${sigma}#g; s#\${charge}#${charge}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # substitute_name_sh_meta_start DST COPY DIR JOB

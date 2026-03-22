@@ -71,7 +71,6 @@ tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
 num_frames="" cpptraj_mode="" sigma="" charge="" filter="" params="" mcpb_cmd=""
 metal_charge=""
-water_mode=""
 
 
 #How many atoms the simulated molecule holds
@@ -144,7 +143,7 @@ main() {
 	# ----- Preparations -----
 	# Prepare the environment if the input has been set to the mol2
 	if [[ $input_type == "mol2" ]]; then
-		run_crest "$name" "$directory" "$meta" "$mamba" "$charge"
+		run_crest "$name" "$directory" "$meta" "$mamba"
 		run_antechamber "$name" "$directory" "$meta" "$amber_mod" "$antechamber_cmd" "$charge"
 		run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$parmchk2_cmd"
 

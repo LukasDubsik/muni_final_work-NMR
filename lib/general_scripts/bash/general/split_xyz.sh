@@ -1,30 +1,35 @@
 #!/bin/bash
+set -euo pipefail
 
-file="frames/frame_"
-num=$1
-name=""
-str=0
+num=${1:?Starting frame index required}
+prefix="frames/frame_"
 
-while IFS= read -r line; do
+while IFS= read -r natoms_line; do
+    [[ -z "${natoms_line}" ]] && continue
 
-    if [ $str -eq 2 ]; then
-        echo "$line" >> "$name"   # Append the "Conf x ..." comment line
-        ((str--))
-        continue
+    if [[ ! "$natoms_line" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]]; then
+        echo "[ERROR] Unexpected XYZ frame header: '$natoms_line'" >&2
+        exit 1
     fi
 
-    # Detect the atom-count header: a line containing only a positive integer
-    # (handles any number of atoms, not just 2-digit counts)
-    if [[ "$line" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]]; then
-        name="${file}${num}.xyz"
-        rm -f "$name"
-        ((str++))
-        echo "$line" >> "$name"
-        ((num++))
-        continue
+    natoms=$(echo "$natoms_line" | awk '{print $1}')
+    out="${prefix}${num}.xyz"
+    : > "$out"
+    echo "$natoms" >> "$out"
+
+    if ! IFS= read -r comment_line; then
+        echo "[ERROR] Missing XYZ comment line for frame $num" >&2
+        exit 1
     fi
+    echo "$comment_line" >> "$out"
 
-    # Otherwise it is a coordinate line — append to current file
-    echo "$line" >> "$name"
+    for ((i=0; i<natoms; i++)); do
+        if ! IFS= read -r atom_line; then
+            echo "[ERROR] Unexpected EOF while reading frame $num" >&2
+            exit 1
+        fi
+        echo "$atom_line" >> "$out"
+    done
 
+    ((num++))
 done
