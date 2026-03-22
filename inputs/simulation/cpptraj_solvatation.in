@@ -1,0 +1,25 @@
+#Sampling done already in md amber
+#Select solute + first solvation shell for Gaussian QM/MM
+#
+#Unlike cpptraj_all_di, this script retains all water molecules whose
+#oxygen sits within 3.5 Å of any solute heavy atom (first solvation shell).
+#What is done with those waters in the Gaussian input is controlled separately
+#by the 'water_mode' key in sim.txt (discard / point_charges / full_qm).
+
+#inputs
+parm ${name}.parm7
+trajin ${name}_md.mdcrd 1 last 10
+
+#Re-image so the solute is whole and centred before distance selection
+autoimage
+
+#Keep residue 1 (solute) plus any WAT residue whose oxygen is within 3.5 Å
+#of any atom of residue 1.  Adjust the cutoff (3.5) to taste.
+strip !(:1 | :WAT<:3.5)
+
+#Re-centre on the solute and re-image after stripping bulk water
+center :1 mass origin
+image origin center
+
+trajout ${name}_frame.xyz xyz ftype namexyz multi
+run

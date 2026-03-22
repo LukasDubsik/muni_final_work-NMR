@@ -70,6 +70,7 @@ name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
 num_frames="" cpptraj_mode="" sigma="" charge="" filter="" params="" mcpb_cmd=""
+water_mode=""
 metal_charge=""
 
 
@@ -184,7 +185,7 @@ main() {
 	run_cpptraj_parr "$name" "$directory" "$meta" "$amber_mod" "$increase" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba" "$md_iterations"
 
 	# ----- Spectrum -----
-	run_gauss_prep "$meta" "$num_frames" "$LIMIT" "$charge"
+	run_gauss_prep "$meta" "$num_frames" "$LIMIT" "$charge" "$water_mode"
 	run_gaussian   "$name" "$directory" "$meta" "$gauss_mod"
 	run_analysis   "$sigma" "$LIMIT"
 	run_plotting   "$name" "$save_as" "$filter"

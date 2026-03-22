@@ -166,17 +166,21 @@ force_cpptraj_xyz_output() {
 	mv "${in_file}.tmp" "$in_file" || die "Failed to update cpptraj input: $in_file"
 }
 
-# substitute_name_in FIL DST NAME LIMIT SIGMA
-# Substitute values directly into the input script for the job
+# substitute_name_sh_data FIL DST NAME LIMIT SIGMA CHARGE WATER_MODE
+# Substitute values directly into the data processing script for the job.
+# WATER_MODE controls how solvation-shell waters are handled in xyz_to_gfj.sh:
+#   discard       - strip all water atoms before writing the .gjf
+#   point_charges - replace water with TIP3P Bq point charges (Gaussian 'Charge')
+#   full_qm       - include water as full QM atoms
 # Globals: none
 # Returns: Nothing
 substitute_name_sh_data() {
-	# Sed used to replace the name
-	local fil=$1 dst=$2 name=$3 limit=$4 sigma=$5 charge=$6
+	local fil=$1 dst=$2 name=$3 limit=$4 sigma=$5 charge=$6 water_mode=${7:-discard}
 	local src="lib/general_scripts/bash/${fil}"
 	local dst_full="${dst}"
 	[[ -f "$src" ]] || die "Missing input file: $src"
-	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g; s#\${sigma}#${sigma}#g; s#\${charge}#${charge}#g" "$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g; s#\${sigma}#${sigma}#g; s#\${charge}#${charge}#g; s#\${water_mode}#${water_mode}#g" \
+		"$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
 # substitute_name_sh_meta_start DST COPY DIR JOB

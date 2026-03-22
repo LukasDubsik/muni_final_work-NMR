@@ -70,6 +70,7 @@ run_gauss_prep() {
 	local num_frames=$2
 	local limit=$3
 	local charge=$4
+	local water_mode=${5:-discard}
 
 	local job_name="gauss_prep"
 
@@ -96,7 +97,7 @@ run_gauss_prep() {
 
 	SRC_DIR_1="lib/general_scripts/bash/general"
 
-	substitute_name_sh_data "general/xyz_to_gfj.sh" "$JOB_DIR/xyz_to_gfj.sh" "" "$limit" "" "$charge"
+	substitute_name_sh_data "general/xyz_to_gfj.sh" "$JOB_DIR/xyz_to_gfj.sh" "" "$limit" "" "$charge" "$water_mode"
 
 	#Ensure the final dir exists
     ensure_dir $JOB_DIR/gauss
