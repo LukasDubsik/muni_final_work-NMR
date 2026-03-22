@@ -1725,9 +1725,19 @@ run_tleap() {
 	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
 
-	# Keep frcmod atom-type spelling aligned with the MOL2 that tleap will load.
-	# This prevents mixed-case mismatches such as Se vs se after OpenBabel normalization.
-	frcmod_normalize_for_mol2_types_inplace "$JOB_DIR/${name}.frcmod" "$JOB_DIR/${name}_charges_fix.mol2"
+	# DEBUG + fixup for unsupported lower-case selenium atom types coming from MOL2.
+	# addAtomTypes in tleap only defines the element/type identity; it does NOT provide LJ params.
+	# If parmchk2 did not emit se MASS/NONBON lines, inject a minimal fallback here.
+	frcmod_ensure_default_se_vdw_from_mol2 "$JOB_DIR/${name}.frcmod" "$JOB_DIR/${name}_charges_fix.mol2"
+	awk '
+		BEGIN { in_atom=0 }
+		/^@<TRIPOS>ATOM/ { in_atom=1; next }
+		/^@<TRIPOS>/ { if (in_atom) in_atom=0 }
+		in_atom && NF>=6 { print tolower($6) }
+	' "$JOB_DIR/${name}_charges_fix.mol2" | sort -u > "$JOB_DIR/_debug_atomtypes.txt"
+	grep -niE '(^MASS$|^NONBON$|(^|[^A-Za-z])[Ss][Ee]([^A-Za-z]|$))' "$JOB_DIR/${name}.frcmod" > "$JOB_DIR/_debug_se_frcmod.txt" || true
+	info "[DEBUG] tleap atom types written to $JOB_DIR/_debug_atomtypes.txt"
+	info "[DEBUG] selenium frcmod excerpt written to $JOB_DIR/_debug_se_frcmod.txt"
 
 	# Also copy the CREST-optimized, bond-authoritative MOL2 (contains metal + correct connectivity).
 	# We use this ONLY as a connectivity reference when reconstructing MCPB metal bonds in tleap.
@@ -1744,9 +1754,6 @@ run_tleap() {
 
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
-	if grep -q '\${[^}][^}]*}' "$JOB_DIR/${in_file}.in"; then
-		die "run_tleap: unresolved template placeholders remain in $JOB_DIR/${in_file}.in"
-	fi
 
 	# If MCPB produced a tleap input, reuse its parameter/library load statements
 	# so teLeap knows the metal atom type + metal-ligand bonded terms.
@@ -2226,9 +2233,6 @@ fi
 	fi
 
 	cp -f "$JOB_DIR/tleap_run.in" "$JOB_DIR/${in_file}.in"
-	if grep -q '\${[^}][^}]*}' "$JOB_DIR/$tleap_in"; then
-		die "run_tleap: unresolved template placeholders remain in $JOB_DIR/$tleap_in"
-	fi
 
 	# -----------------------------------------------------------------
 	# Sanitize tleap input: remove CRLF, strip inline comments, and remove

@@ -729,75 +729,94 @@ mol2_normalize_obabel_output_inplace() {
 	mv "$tmp" "$file" || die "mol2_normalize_obabel_output_inplace: Failed to replace mol2"
 }
 
-# frcmod_normalize_for_mol2_types_inplace FRCMOD_FILE MOL2_FILE
-# Rewrites frcmod atom-type tokens to the exact spelling used in the MOL2 ATOM type column.
-# This mainly fixes OpenBabel / mixed-case mismatches such as Se vs se before tleap reads both files.
-frcmod_normalize_for_mol2_types_inplace() {
-	local frcmod_file="$1"
-	local mol2_file="$2"
-	local tmp="${frcmod_file}.tmp"
 
-	[[ -n "${frcmod_file:-}" && -f "$frcmod_file" ]] || die "frcmod_normalize_for_mol2_types_inplace: missing frcmod"
-	[[ -n "${mol2_file:-}" && -f "$mol2_file" ]] || die "frcmod_normalize_for_mol2_types_inplace: missing mol2"
+# frcmod_ensure_default_se_vdw_from_mol2 FRCMOD MOL2
+# If the MOL2 contains atom type "se" but the FRCMOD lacks MASS/NONBON entries for it,
+# inject conservative fallback selenium parameters so tleap can at least build the topology.
+# Defaults used here follow published selenium AMBER/GAFF-style LJ values often reused in the literature.
+frcmod_ensure_default_se_vdw_from_mol2() {
+	local frcmod="$1"
+	local mol2="$2"
 
-	awk '
-		function canon(tok,   u) {
-			u = toupper(tok)
-			return ((u in map) ? map[u] : tok)
+	[[ -n "$frcmod" && -f "$frcmod" ]] || die "frcmod_ensure_default_se_vdw_from_mol2: Missing frcmod"
+	[[ -n "$mol2" && -f "$mol2" ]] || die "frcmod_ensure_default_se_vdw_from_mol2: Missing mol2"
+
+	if ! awk '
+		BEGIN { in_atom=0; found=0 }
+		/^@<TRIPOS>ATOM/ { in_atom=1; next }
+		/^@<TRIPOS>/ { if (in_atom) in_atom=0 }
+		in_atom && NF >= 6 {
+			t=tolower($6)
+			if (t == "se") { found=1; exit 0 }
 		}
-		function map_joined(s,   n,i,a,out) {
-			n = split(s, a, /-/)
-			out = ""
-			for (i = 1; i <= n; i++) {
-				a[i] = canon(a[i])
-				out = out ((i == 1) ? "" : "-") a[i]
-			}
-			return out
-		}
+		END { exit(found ? 0 : 1) }
+	' "$mol2"; then
+		return 0
+	fi
+
+	local has_mass="false"
+	local has_nonbon="false"
+	read -r has_mass has_nonbon < <(
+		awk '
+			BEGIN { sec=""; hm=0; hn=0 }
+			/^MASS[[:space:]]*$/   { sec="MASS"; next }
+			/^BOND[[:space:]]*$/   { sec="BOND"; next }
+			/^ANGLE[[:space:]]*$/  { sec="ANGLE"; next }
+			/^DIHE([[:space:]]|$)/ { sec="DIHE"; next }
+			/^IMPROPER[[:space:]]*$/ { sec="IMPROPER"; next }
+			/^NONBON[[:space:]]*$/ { sec="NONBON"; next }
+			sec=="MASS" && NF>=2 && tolower($1)=="se" { hm=1 }
+			sec=="NONBON" && NF>=3 && tolower($1)=="se" { hn=1 }
+			END { printf("%s %s\n", hm?"true":"false", hn?"true":"false") }
+		' "$frcmod"
+	)
+
+	if [[ "$has_mass" == "true" && "$has_nonbon" == "true" ]]; then
+		return 0
+	fi
+
+	info "Detected Se atom type in $(basename "$mol2"); ensuring frcmod contains MASS/NONBON for type se"
+	info "[DEBUG] frcmod before patch: has_mass=${has_mass}, has_nonbon=${has_nonbon}, file=$(basename "$frcmod")"
+
+	local tmp="${frcmod}.tmp"
+	awk -v need_mass="$has_mass" -v need_nonbon="$has_nonbon" '
 		BEGIN {
-			in_atom = 0
-			section = ""
-			while ((getline line < mol2) > 0) {
-				if (line ~ /^@<TRIPOS>ATOM/) { in_atom = 1; continue }
-				if (line ~ /^@<TRIPOS>/) { in_atom = 0; continue }
-				if (!in_atom) continue
-				n = split(line, f, /[[:space:]]+/)
-				if (n >= 6 && f[6] != "") {
-					u = toupper(f[6])
-					if (!(u in map)) map[u] = f[6]
-				}
-			}
-			close(mol2)
+			insert_mass = (need_mass != "true")
+			insert_nonbon = (need_nonbon != "true")
+			printed_mass = 0
+			printed_nonbon = 0
 		}
-		/^[[:space:]]*$/ { print; next }
-		/^[[:space:]]*#/ { print; next }
-		$1 == "MASS" { section = "MASS"; print; next }
-		$1 == "BOND" { section = "BOND"; print; next }
-		($1 == "ANGL" || $1 == "ANGLE") { section = "ANGLE"; print; next }
-		$1 == "DIHE" { section = "DIHE"; print; next }
-		($1 == "IMPR" || $1 == "IMPROPER") { section = "IMPROPER"; print; next }
-		($1 == "NONB" || $1 == "NONBON") { section = "NONBON"; print; next }
 		{
-			if (section == "MASS" || section == "NONBON") {
-				if ($1 == "YES" || $1 == "NO" || $1 == "NON") {
-					if (NF >= 2) $2 = canon($2)
-				} else if (NF >= 1) {
-					$1 = canon($1)
-				}
-			} else if (section == "BOND" || section == "ANGLE" || section == "DIHE" || section == "IMPROPER") {
-				if ($1 == "YES" || $1 == "NO" || $1 == "NON") {
-					if (NF >= 2) $2 = map_joined($2)
-				} else if (NF >= 1) {
-					$1 = map_joined($1)
-				}
+			print $0
+			if ($0 ~ /^MASS[[:space:]]*$/ && insert_mass && !printed_mass) {
+				print "se  78.9600  selenium fallback added by nmr.sh"
+				printed_mass = 1
+				next
 			}
-			print
+			if ($0 ~ /^NONBON[[:space:]]*$/ && insert_nonbon && !printed_nonbon) {
+				print "se   2.1200   0.2910  selenium fallback added by nmr.sh"
+				printed_nonbon = 1
+				next
+			}
 		}
-	' mol2="$mol2_file" "$frcmod_file" > "$tmp" || die "frcmod_normalize_for_mol2_types_inplace: failed rewriting $frcmod_file"
+		END {
+			if (insert_mass && !printed_mass) {
+				print ""
+				print "MASS"
+				print "se  78.9600  selenium fallback added by nmr.sh"
+			}
+			if (insert_nonbon && !printed_nonbon) {
+				print ""
+				print "NONBON"
+				print "se   2.1200   0.2910  selenium fallback added by nmr.sh"
+			}
+		}
+	' "$frcmod" > "$tmp" || die "frcmod_ensure_default_se_vdw_from_mol2: Failed to patch frcmod"
 
-	mv "$tmp" "$frcmod_file" || die "frcmod_normalize_for_mol2_types_inplace: failed replacing $frcmod_file"
+	mv "$tmp" "$frcmod" || die "frcmod_ensure_default_se_vdw_from_mol2: Failed to replace frcmod"
+
+	info "[DEBUG] Selenium fallback patch applied to $(basename "$frcmod")"
 }
-
 
 mol2_bonded_atoms()
 {
