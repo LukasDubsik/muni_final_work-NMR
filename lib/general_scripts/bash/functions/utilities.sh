@@ -729,95 +729,6 @@ mol2_normalize_obabel_output_inplace() {
 	mv "$tmp" "$file" || die "mol2_normalize_obabel_output_inplace: Failed to replace mol2"
 }
 
-
-# frcmod_ensure_default_se_vdw_from_mol2 FRCMOD MOL2
-# If the MOL2 contains atom type "se" but the FRCMOD lacks MASS/NONBON entries for it,
-# inject conservative fallback selenium parameters so tleap can at least build the topology.
-# Defaults used here follow published selenium AMBER/GAFF-style LJ values often reused in the literature.
-frcmod_ensure_default_se_vdw_from_mol2() {
-	local frcmod="$1"
-	local mol2="$2"
-
-	[[ -n "$frcmod" && -f "$frcmod" ]] || die "frcmod_ensure_default_se_vdw_from_mol2: Missing frcmod"
-	[[ -n "$mol2" && -f "$mol2" ]] || die "frcmod_ensure_default_se_vdw_from_mol2: Missing mol2"
-
-	if ! awk '
-		BEGIN { in_atom=0; found=0 }
-		/^@<TRIPOS>ATOM/ { in_atom=1; next }
-		/^@<TRIPOS>/ { if (in_atom) in_atom=0 }
-		in_atom && NF >= 6 {
-			t=tolower($6)
-			if (t == "se") { found=1; exit 0 }
-		}
-		END { exit(found ? 0 : 1) }
-	' "$mol2"; then
-		return 0
-	fi
-
-	local has_mass="false"
-	local has_nonbon="false"
-	read -r has_mass has_nonbon < <(
-		awk '
-			BEGIN { sec=""; hm=0; hn=0 }
-			/^MASS[[:space:]]*$/   { sec="MASS"; next }
-			/^BOND[[:space:]]*$/   { sec="BOND"; next }
-			/^ANGLE[[:space:]]*$/  { sec="ANGLE"; next }
-			/^DIHE([[:space:]]|$)/ { sec="DIHE"; next }
-			/^IMPROPER[[:space:]]*$/ { sec="IMPROPER"; next }
-			/^NONBON[[:space:]]*$/ { sec="NONBON"; next }
-			sec=="MASS" && NF>=2 && tolower($1)=="se" { hm=1 }
-			sec=="NONBON" && NF>=3 && tolower($1)=="se" { hn=1 }
-			END { printf("%s %s\n", hm?"true":"false", hn?"true":"false") }
-		' "$frcmod"
-	)
-
-	if [[ "$has_mass" == "true" && "$has_nonbon" == "true" ]]; then
-		return 0
-	fi
-
-	info "Detected Se atom type in $(basename "$mol2"); ensuring frcmod contains MASS/NONBON for type se"
-	info "[DEBUG] frcmod before patch: has_mass=${has_mass}, has_nonbon=${has_nonbon}, file=$(basename "$frcmod")"
-
-	local tmp="${frcmod}.tmp"
-	awk -v need_mass="$has_mass" -v need_nonbon="$has_nonbon" '
-		BEGIN {
-			insert_mass = (need_mass != "true")
-			insert_nonbon = (need_nonbon != "true")
-			printed_mass = 0
-			printed_nonbon = 0
-		}
-		{
-			print $0
-			if ($0 ~ /^MASS[[:space:]]*$/ && insert_mass && !printed_mass) {
-				print "se  78.9600  selenium fallback added by nmr.sh"
-				printed_mass = 1
-				next
-			}
-			if ($0 ~ /^NONBON[[:space:]]*$/ && insert_nonbon && !printed_nonbon) {
-				print "se   2.1200   0.2910  selenium fallback added by nmr.sh"
-				printed_nonbon = 1
-				next
-			}
-		}
-		END {
-			if (insert_mass && !printed_mass) {
-				print ""
-				print "MASS"
-				print "se  78.9600  selenium fallback added by nmr.sh"
-			}
-			if (insert_nonbon && !printed_nonbon) {
-				print ""
-				print "NONBON"
-				print "se   2.1200   0.2910  selenium fallback added by nmr.sh"
-			}
-		}
-	' "$frcmod" > "$tmp" || die "frcmod_ensure_default_se_vdw_from_mol2: Failed to patch frcmod"
-
-	mv "$tmp" "$frcmod" || die "frcmod_ensure_default_se_vdw_from_mol2: Failed to replace frcmod"
-
-	info "[DEBUG] Selenium fallback patch applied to $(basename "$frcmod")"
-}
-
 mol2_bonded_atoms()
 {
 	local mol2="$1"
@@ -1441,6 +1352,53 @@ EOF
 	rm -f "$in_file"
 }
 
+
+
+# write_se_frcmod_patch_if_needed MOL2FILE OUT_FRCMOD
+# If the MOL2 contains GAFF atom type "se", write a tiny frcmod patch that
+# provides MASS and NONBON entries for that atom type. This is intentionally
+# separate from the original frcmod so we do not rewrite user/parmchk2 output.
+write_se_frcmod_patch_if_needed() {
+	local mol2_file="$1"
+	local out_frcmod="$2"
+
+	[[ -f "$mol2_file" ]] || die "write_se_frcmod_patch_if_needed: missing mol2: $mol2_file"
+	[[ -n "${out_frcmod:-}" ]] || die "write_se_frcmod_patch_if_needed: missing output path"
+
+	rm -f "$out_frcmod"
+
+	# Detect exact atom type token in MOL2 column 6.
+	if ! awk '
+		BEGIN{inA=0; found=0}
+		/^@<TRIPOS>ATOM/{inA=1; next}
+		/^@<TRIPOS>/{if(inA) inA=0}
+		inA && NF>=6 {
+			t=$6
+			sub(/\..*$/, "", t)
+			if (t == "se") { found=1; exit }
+		}
+		END{ exit(found ? 0 : 1) }
+	' "$mol2_file"; then
+		return 0
+	fi
+
+	cat > "$out_frcmod" <<'EOF'
+remark selenium fallback patch written by nmr.sh
+MASS
+se   78.9600
+
+BOND
+
+ANGLE
+
+DIHE
+
+IMPROPER
+
+NONBON
+se   2.1200   0.2910
+EOF
+}
 
 # mol2_apply_mcpb_ytypes_from_pdb
 # Retype atoms in a residue mol2 to match MCPB.py-generated Y* types for atoms bonded to the metal (M1).
