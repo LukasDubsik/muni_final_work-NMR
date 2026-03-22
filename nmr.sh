@@ -70,7 +70,6 @@ name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
 num_frames="" cpptraj_mode="" sigma="" charge="" filter="" params="" mcpb_cmd=""
-water_mode=""
 metal_charge=""
 
 
@@ -144,7 +143,7 @@ main() {
 	# ----- Preparations -----
 	# Prepare the environment if the input has been set to the mol2
 	if [[ $input_type == "mol2" ]]; then
-		run_crest "$name" "$directory" "$meta" "$mamba"
+		run_crest "$name" "$directory" "$meta" "$mamba" "$charge"
 		run_antechamber "$name" "$directory" "$meta" "$amber_mod" "$antechamber_cmd" "$charge"
 		run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$parmchk2_cmd"
 
@@ -185,7 +184,7 @@ main() {
 	run_cpptraj_parr "$name" "$directory" "$meta" "$amber_mod" "$increase" "$LIMIT" "$cpptraj" "$cpptraj_mode" "$mamba" "$md_iterations"
 
 	# ----- Spectrum -----
-	run_gauss_prep "$meta" "$num_frames" "$LIMIT" "$charge" "$water_mode"
+	run_gauss_prep "$meta" "$num_frames" "$LIMIT" "$charge"
 	run_gaussian   "$name" "$directory" "$meta" "$gauss_mod"
 	run_analysis   "$sigma" "$LIMIT"
 	run_plotting   "$name" "$save_as" "$filter"

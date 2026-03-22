@@ -15,6 +15,7 @@ run_crest() {
 	local directory=$2
 	local meta=$3
 	local env=$4
+	local charge=${5:-0}
 
 	local job_name="crest"
 
@@ -48,7 +49,42 @@ run_crest() {
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
-    obabel -imol2 "${INPUTS}/structures/${name}.mol2" -oxyz -O "${JOB_DIR}/${name}.xyz" > /dev/null 2>&1
+	obabel -imol2 "${INPUTS}/structures/${name}.mol2" -oxyz -O "${JOB_DIR}/${name}.xyz" > /dev/null 2>&1
+
+	# xTB pre-optimisation: relax the raw geometry before CREST so that
+	# CREST's internal trial-opt safety check passes.  This is necessary for
+	# heavy chalcogens (Se, Te) and other unusual atoms where the raw MOL2
+	# geometry is far enough from the xTB minimum to trigger trialopt_warning_.
+	# The pre-opt runs locally (no job submission needed - it is fast).
+	if [[ ! -s "$JOB_DIR/crest_best.xyz" ]]; then
+		if command -v xtb >/dev/null 2>&1 || conda run -n "$(basename "$env")" xtb --version >/dev/null 2>&1; then
+			info "Running xTB pre-optimisation before CREST (loose, alpb water)"
+			local xtb_preopt_ok=0
+			(
+				cd "$JOB_DIR" || exit 1
+				# Activate the conda env the same way run_crest does for crest itself
+				# shellcheck disable=SC1090
+				source "$(conda info --base)/etc/profile.d/conda.sh" 2>/dev/null || true
+				conda activate "$(basename "$env")" 2>/dev/null || true
+				xtb "${name}.xyz" \
+				--opt loose \
+				--alpb water \
+				-c "$charge" \
+				--T 4 \
+				> xtb_preopt.log 2>&1
+			) && xtb_preopt_ok=1 || true
+
+			if [[ $xtb_preopt_ok -eq 1 && -s "$JOB_DIR/xtbopt.xyz" ]]; then
+				mv "$JOB_DIR/xtbopt.xyz" "$JOB_DIR/${name}.xyz"
+				info "xTB pre-opt complete; using relaxed geometry for CREST"
+			else
+				warning "xTB pre-opt failed or produced no output; proceeding with raw geometry"
+			fi
+		else
+			warning "xtb not found in PATH or conda env; skipping pre-opt (CREST may fail for Se/Te systems)"
+		fi
+	fi
+
 	#Run the crest simulation
 	if [[ ! -s "$JOB_DIR/crest_best.xyz" ]]; then
 		wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
