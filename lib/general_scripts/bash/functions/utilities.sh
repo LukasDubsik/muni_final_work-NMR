@@ -586,31 +586,32 @@ mol2_fix_placeholder_atom_names_inplace() {
 	mv -f "$tmp" "$mol2" || die "Failed to replace: $mol2"
 }
 
-# mol2_force_selenium_type_upper_inplace MOL2FILE
-# Force selenium atom type tokens to uppercase SE before antechamber/parmchk2.
-# This is needed because the current downstream parameter set expects SE, not Se/se.
-mol2_force_selenium_type_upper_inplace() {
+# mol2_force_selenium_atom_name_upper_inplace MOL2FILE
+# Forces selenium atom names like Se247/se247/SE247 to SE247 before antechamber.
+mol2_force_selenium_atom_name_upper_inplace() {
 	local mol2="$1"
 	local tmp="${mol2}.tmp"
 
-	[[ -n "$mol2" && -f "$mol2" ]] || die "mol2_force_selenium_type_upper_inplace: Missing file"
+	[[ -n "$mol2" && -f "$mol2" ]] || die "mol2_force_selenium_atom_name_upper_inplace: missing mol2"
 
-	awk '
+	awk '''
 	BEGIN { inatom=0 }
 	/^@<TRIPOS>ATOM/ { inatom=1; print; next }
 	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
 	{
 		if (!inatom) { print; next }
-		if ($1 !~ /^[0-9]+$/ || NF < 6) { print; next }
+		if ($1 !~ /^[0-9]+$/) { print; next }
 
-		t = $6
-		u = toupper(t)
-		if (u == "SE") {
-			$6 = "SE"
+		name=$2
+		if (name ~ /^[Ss][Ee][0-9_]*$/) {
+			suf=name
+			sub(/^[A-Za-z]+/, "", suf)
+			$2 = "SE" suf
 		}
+
 		print
 	}
-	' "$mol2" > "$tmp" || die "Failed to force selenium atom type in: $mol2"
+	''' "$mol2" > "$tmp" || die "Failed to force selenium atom names uppercase in: $mol2"
 
 	mv -f "$tmp" "$mol2" || die "Failed to replace: $mol2"
 }
@@ -737,7 +738,7 @@ mol2_normalize_obabel_output_inplace() {
 		/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atom=0; print; next; }
 
 		# Lowercase atom_type column (6) inside ATOM section,
-		# but preserve metal atom types and selenium (the current parameter set expects SE).
+		# but preserve metal atom types (MCPB/LEaP are case-sensitive; metals are not GAFF types).
 		in_atom && NF>=6 {
 			t = $6
 			u = toupper(t)

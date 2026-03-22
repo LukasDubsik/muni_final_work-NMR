@@ -191,15 +191,11 @@ run_antechamber() {
 		antechamber_parms="${antechamber_parms} -c dc -dr no"
 	fi
 
-	# The current Se parameter workflow expects selenium atom type SE already in the MOL2
-	# that is passed into antechamber/parmchk2. Normalize it before job construction.
-	mol2_force_selenium_type_upper_inplace "$JOB_DIR/${name}_crest.mol2"
-
 	# Antechamber is strict about atomic symbols inferred from atom names.
 	# Fix placeholder atom names like "Atom" / "A123" that can trigger errors (e.g., "Htom").
 	mol2_fix_placeholder_atom_names_inplace "$JOB_DIR/${name}_crest.mol2"
-
-	# Debug: keep the exact MOL2 that is handed to antechamber.
+	# Force selenium atom names to use an uppercase SE prefix before antechamber (e.g., Se247 -> SE247).
+	mol2_force_selenium_atom_name_upper_inplace "$JOB_DIR/${name}_crest.mol2"
 	cp -f "$JOB_DIR/${name}_crest.mol2" "$JOB_DIR/${name}_crest_pre_antechamber_debug.mol2"
 
 	#Constrcut the job file

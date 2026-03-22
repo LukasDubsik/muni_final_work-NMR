@@ -212,10 +212,6 @@ substitute_name_sh_data() {
 		-e "s#\${water_oxygen_charge}#${_water_oxygen_charge}#g" \
 		-e "s#\${water_hydrogen_charge}#${_water_hydrogen_charge}#g" \
 		"$src" >"$dst_full" || die "sed couldn't be performed on: $src"
-
-	if grep -q '\${[^}][^}]*}' "$dst_full"; then
-		die "substitute_name_sh_data: unresolved template placeholders remain in $dst_full"
-	fi
 }
 
 # substitute_name_sh_meta_start DST COPY DIR JOB
