@@ -416,7 +416,7 @@ run_cpptraj() {
 	else
 		info "Detected existing cpptraj primary output; skipping submission"
 	fi
-	echo 0.3
+	
 	# Choose Python interpreter robustly:
 	# prefer the env's Python directly, otherwise fall back to python3/python.
 	local py_exec=""
@@ -429,36 +429,35 @@ run_cpptraj() {
 	else
 		die "No Python interpreter available for cpptraj post-processing"
 	fi
-	echo 0.2
+	
 	# Safe defaults even if sim.txt omits the new shell options
 	local surface_cutoff="${shell_surface_cutoff:-1.8}"
 	local use_solute_hydrogens="${shell_use_solute_hydrogens:-false}"
-	echo 0.1
+	
 	if [[ $mode == "no_water" ]]; then
-		echo 0.01
 		#Check that the final files are truly present
 		check_res_file "${name}_frame.xyz" "$JOB_DIR" "$job_name"
-		echo 1
+		
 		#Ensure the frames dir exists only now, right before we write into it
 		ensure_dir "$JOB_DIR/frames"
-		echo 2
+		
 		#Move helper scripts
 		move_inp_file "split_xyz.sh" "$SRC_DIR_2" "$JOB_DIR"
 		move_inp_file "select_first_shell_surface.py" "$SRC_DIR_3" "$JOB_DIR"
-		echo 3
+		
 		#Run the postprocessing
 		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
-		echo 4
+		
 		bash split_xyz.sh "$curr_run" < "${name}_frame.xyz"
-		echo 5
+		
 		ls -1 frames/frame_*.xyz >/dev/null 2>&1 || die "No split XYZ frames were created from ${name}_frame.xyz"
-		echo 6
+		
 		"$py_exec" -W "ignore" select_first_shell_surface.py \
 			--frames-dir frames \
 			--solute-atoms "$limit" \
 			--surface-cutoff "$surface_cutoff" \
 			--use-solute-hydrogens "$use_solute_hydrogens"
-		echo 7
+		
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
 	else
 		#Check that the final files are truly present
@@ -479,7 +478,7 @@ run_cpptraj() {
 		#Return to the base dir
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
 	fi
-	echo 6
+	
 	mark_step_ok "$JOB_DIR"
 }
 
