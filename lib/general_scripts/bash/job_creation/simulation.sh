@@ -411,16 +411,16 @@ run_cpptraj() {
 
     #Run the antechmaber
     # If the job was already submitted previously, wait for it to finish before resubmitting
-if [[ ! -s "$JOB_DIR/frames.nc" && ! -s "$JOB_DIR/${name}_frame.xyz" ]]; then
-	wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
-fi
+	if [[ ! -s "$JOB_DIR/frames.nc" && ! -s "$JOB_DIR/${name}_frame.xyz" ]]; then
+		wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
+	fi
 
-# Run the job only if its primary output is still missing
-if [[ ! -s "$JOB_DIR/frames.nc" && ! -s "$JOB_DIR/${name}_frame.xyz" ]]; then
-	submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "02:00:00"
-else
-	info "Detected existing cpptraj primary output; skipping submission"
-fi
+	# Run the job only if its primary output is still missing
+	if [[ ! -s "$JOB_DIR/frames.nc" && ! -s "$JOB_DIR/${name}_frame.xyz" ]]; then
+		submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 0 "02:00:00"
+	else
+		info "Detected existing cpptraj primary output; skipping submission"
+	fi
 
 	#Ensure the final dir exists
     ensure_dir "$JOB_DIR"/frames

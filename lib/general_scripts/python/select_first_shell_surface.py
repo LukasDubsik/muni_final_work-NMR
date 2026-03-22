@@ -150,13 +150,15 @@ def main() -> int:
     ap.add_argument("--use-solute-hydrogens", type=parse_bool, default=False)
     args = ap.parse_args()
 
+    print("here1")
+
     frames_dir = Path(args.frames_dir)
     files = sorted(frames_dir.glob("frame_*.xyz"))
     if not files:
         raise SystemExit(f"No frame_*.xyz files found in {frames_dir}")
 
     summary_lines = ["frame\ttotal_waters\tkept_waters\tmin_gap\tmax_gap_kept"]
-
+    print("here2")
     for path in files:
         _, comment, atoms = parse_xyz(path)
         if len(atoms) < args.solute_atoms:
@@ -188,6 +190,7 @@ def main() -> int:
             f"{frame_id}\t{len(waters)}\t{len(kept)//3}\t{min_gap}\t{max_gap_kept}"
         )
 
+    print("here3")
     (frames_dir / "first_shell_summary.tsv").write_text("\n".join(summary_lines) + "\n")
     return 0
 
