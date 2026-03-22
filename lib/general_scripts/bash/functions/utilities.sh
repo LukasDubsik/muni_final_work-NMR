@@ -713,7 +713,7 @@ mol2_normalize_obabel_output_inplace() {
 			t = $6
 			u = toupper(t)
 
-			if (u ~ /^(AU|AG|ZN|FE|CU|NI|CO|MN|CR|V|TI|MO|W|RE|RU|RH|PD|CD|PT|IR|OS|HG|AL|GA|IN|TL|SN|PB|BI|ZR|HF)$/) {
+			if (u ~ /^(AU|AG|ZN|FE|CU|NI|CO|MN|CR|V|TI|MO|W|RE|RU|RH|PD|CD|PT|IR|OS|HG|AL|GA|IN|TL|SN|PB|BI|ZR|HF|SE)$/) {
 				$6 = t
 			} else {
 				$6 = tolower(t)

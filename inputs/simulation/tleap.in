@@ -1,15 +1,18 @@
 #Input params
 source leaprc.gaff2
 source leaprc.water.opc3
+addAtomTypes { { "Se" "Se" "sp3" } }
 
 #Load ligand parameters
 loadamberparams ${name}.frcmod
 SYS = loadmol2 ${name}_charges_fix.mol2
 check SYS
+
 #Solvate the system
 solvatebox SYS OPC3BOX 20.0 iso
 addIons SYS Na+ 0
-#Export and close 
+
+#Export and close
 saveamberparm SYS ${name}.parm7 ${name}.rst7
 savepdb SYS sys_leap.pdb
 quit
