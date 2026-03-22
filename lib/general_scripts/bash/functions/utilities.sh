@@ -729,55 +729,6 @@ mol2_normalize_obabel_output_inplace() {
 	mv "$tmp" "$file" || die "mol2_normalize_obabel_output_inplace: Failed to replace mol2"
 }
 
-
-# frcmod_write_general_selenium_patch_from_mol2 MOL2 OUT
-# Writes a small frcmod patch for neutral, aliphatic selenol-like GAFF residues
-# (for example secys-like -CH2-SeH fragments). This is a pragmatic fallback to
-# let tleap build the system when parmchk2/GAFF lacks selenium bonded terms.
-# Returns:
-#   0 if a patch was written
-#   1 if the MOL2 does not contain atom type "se"
-frcmod_write_general_selenium_patch_from_mol2() {
-	local mol2_file=$1
-	local out_file=$2
-
-	[[ -n "${mol2_file:-}" && -f "$mol2_file" ]] || die "frcmod_write_general_selenium_patch_from_mol2: missing MOL2: $mol2_file"
-	[[ -n "${out_file:-}" ]] || die "frcmod_write_general_selenium_patch_from_mol2: missing output path"
-
-	if ! awk '
-		/^@<TRIPOS>ATOM/ {inA=1; next}
-		/^@<TRIPOS>/ {inA=0}
-		inA && tolower($6)=="se" {found=1; exit}
-		END { exit(found ? 0 : 1) }
-	' "$mol2_file"; then
-		return 1
-	fi
-
-	cat > "$out_file" <<'EOF'
-remark general selenium fallback patch written by nmr.sh
-
-MASS
-se   78.9600
-
-BOND
-c3-se   213.7   1.9600
-se-ha    49.8   1.4600
-se-hs    49.8   1.4600
-
-ANGLE
-c3-c3-se   62.3   113.13
-hc-c3-se   42.5   107.87
-c3-se-ha   51.4    95.00
-c3-se-hs   51.4    95.00
-
-DIHE
-X -c3-se-X    3    0.750       0.000           3.000
-
-NONBON
-se   2.1200   0.2910
-EOF
-}
-
 mol2_bonded_atoms()
 {
 	local mol2="$1"
@@ -1401,6 +1352,53 @@ EOF
 	rm -f "$in_file"
 }
 
+
+
+# write_se_frcmod_patch_if_needed MOL2FILE OUT_FRCMOD
+# If the MOL2 contains GAFF atom type "se", write a tiny frcmod patch that
+# provides MASS and NONBON entries for that atom type. This is intentionally
+# separate from the original frcmod so we do not rewrite user/parmchk2 output.
+write_se_frcmod_patch_if_needed() {
+	local mol2_file="$1"
+	local out_frcmod="$2"
+
+	[[ -f "$mol2_file" ]] || die "write_se_frcmod_patch_if_needed: missing mol2: $mol2_file"
+	[[ -n "${out_frcmod:-}" ]] || die "write_se_frcmod_patch_if_needed: missing output path"
+
+	rm -f "$out_frcmod"
+
+	# Detect exact atom type token in MOL2 column 6.
+	if ! awk '
+		BEGIN{inA=0; found=0}
+		/^@<TRIPOS>ATOM/{inA=1; next}
+		/^@<TRIPOS>/{if(inA) inA=0}
+		inA && NF>=6 {
+			t=$6
+			sub(/\..*$/, "", t)
+			if (t == "se") { found=1; exit }
+		}
+		END{ exit(found ? 0 : 1) }
+	' "$mol2_file"; then
+		return 0
+	fi
+
+	cat > "$out_frcmod" <<'EOF'
+remark selenium fallback patch written by nmr.sh
+MASS
+se   78.9600
+
+BOND
+
+ANGLE
+
+DIHE
+
+IMPROPER
+
+NONBON
+se   2.1200   0.2910
+EOF
+}
 
 # mol2_apply_mcpb_ytypes_from_pdb
 # Retype atoms in a residue mol2 to match MCPB.py-generated Y* types for atoms bonded to the metal (M1).

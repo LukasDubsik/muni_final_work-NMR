@@ -1725,20 +1725,6 @@ run_tleap() {
 	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
 
-	# DEBUG + fixup for unsupported lower-case selenium atom types coming from MOL2.
-	# addAtomTypes in tleap only defines the element/type identity; it does NOT provide LJ params.
-	# If parmchk2 did not emit se MASS/NONBON lines, inject a minimal fallback here.
-	frcmod_ensure_default_se_vdw_from_mol2 "$JOB_DIR/${name}.frcmod" "$JOB_DIR/${name}_charges_fix.mol2"
-	awk '
-		BEGIN { in_atom=0 }
-		/^@<TRIPOS>ATOM/ { in_atom=1; next }
-		/^@<TRIPOS>/ { if (in_atom) in_atom=0 }
-		in_atom && NF>=6 { print tolower($6) }
-	' "$JOB_DIR/${name}_charges_fix.mol2" | sort -u > "$JOB_DIR/_debug_atomtypes.txt"
-	grep -niE '(^MASS$|^NONBON$|(^|[^A-Za-z])[Ss][Ee]([^A-Za-z]|$))' "$JOB_DIR/${name}.frcmod" > "$JOB_DIR/_debug_se_frcmod.txt" || true
-	info "[DEBUG] tleap atom types written to $JOB_DIR/_debug_atomtypes.txt"
-	info "[DEBUG] selenium frcmod excerpt written to $JOB_DIR/_debug_se_frcmod.txt"
-
 	# Also copy the CREST-optimized, bond-authoritative MOL2 (contains metal + correct connectivity).
 	# We use this ONLY as a connectivity reference when reconstructing MCPB metal bonds in tleap.
 	local crest_auth="process/preparations/crest/${name}_crest.mol2"
@@ -1754,6 +1740,44 @@ run_tleap() {
 
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
+
+
+	# Selenium fallback: LEaP needs explicit MASS/NONBON terms for atom type "se".
+	# Write a tiny separate frcmod patch and load it after the base frcmod.
+	local se_patch_frcmod="$JOB_DIR/${name}_se_patch.frcmod"
+	write_se_frcmod_patch_if_needed "$JOB_DIR/${name}_charges_fix.mol2" "$se_patch_frcmod"
+	if [[ -s "$se_patch_frcmod" ]]; then
+		info "Detected atom type se in ${name}_charges_fix.mol2 - adding selenium frcmod patch"
+		awk -v patch="${name}_se_patch.frcmod" '
+			BEGIN{done=0}
+			{
+				print
+				if (!done && $0 ~ /^[[:space:]]*load[aA]mber[pP]arams[[:space:]]+[^[:space:]]+[.]frcmod([[:space:]]*#.*)?$/) {
+					print "loadamberparams " patch
+					done=1
+				}
+			}
+			END{
+				if (!done) print "loadamberparams " patch
+			}
+		' "$JOB_DIR/${in_file}.in" > "$JOB_DIR/${in_file}.in.tmp" \
+			|| die "Failed to splice selenium frcmod patch into tleap input"
+		mv -f "$JOB_DIR/${in_file}.in.tmp" "$JOB_DIR/${in_file}.in" \
+			|| die "Failed to replace tleap input after selenium patch splice"
+
+		# Debug breadcrumbs for the next failure, if any.
+		awk '
+			BEGIN{inA=0}
+			/^@<TRIPOS>ATOM/{inA=1; print; next}
+			/^@<TRIPOS>/{if(inA) exit}
+			inA && NF>=6 { print $1, $2, $6, $NF }
+		' "$JOB_DIR/${name}_charges_fix.mol2" > "$JOB_DIR/_debug_atomtypes.txt" 2>/dev/null || true
+		cp -f "$se_patch_frcmod" "$JOB_DIR/_debug_se_frcmod.txt" 2>/dev/null || true
+		cp -f "$JOB_DIR/${in_file}.in" "$JOB_DIR/_debug_tleap_input.txt" 2>/dev/null || true
+		info "[DEBUG] tleap atom types written to $JOB_DIR/_debug_atomtypes.txt"
+		info "[DEBUG] selenium frcmod excerpt written to $JOB_DIR/_debug_se_frcmod.txt"
+		info "[DEBUG] rendered tleap input written to $JOB_DIR/_debug_tleap_input.txt"
+	fi
 
 	# If MCPB produced a tleap input, reuse its parameter/library load statements
 	# so teLeap knows the metal atom type + metal-ligand bonded terms.
