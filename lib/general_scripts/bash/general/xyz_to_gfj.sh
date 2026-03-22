@@ -51,7 +51,7 @@ for file in frames/frame_*.xyz; do
         }' | sort -u
     )
 
-    has_elem() { grep -Fxq "$1" <<< "$ELEM_SET"; }
+    has_elem() { echo "$ELEM_SET" | grep -qFx "$1"; }
 
     HAS_AU=0
     if has_elem "Au"; then HAS_AU=1; fi
