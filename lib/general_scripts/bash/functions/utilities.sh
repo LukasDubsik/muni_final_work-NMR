@@ -729,6 +729,76 @@ mol2_normalize_obabel_output_inplace() {
 	mv "$tmp" "$file" || die "mol2_normalize_obabel_output_inplace: Failed to replace mol2"
 }
 
+# frcmod_normalize_for_mol2_types_inplace FRCMOD_FILE MOL2_FILE
+# Rewrites frcmod atom-type tokens to the exact spelling used in the MOL2 ATOM type column.
+# This mainly fixes OpenBabel / mixed-case mismatches such as Se vs se before tleap reads both files.
+frcmod_normalize_for_mol2_types_inplace() {
+	local frcmod_file="$1"
+	local mol2_file="$2"
+	local tmp="${frcmod_file}.tmp"
+
+	[[ -n "${frcmod_file:-}" && -f "$frcmod_file" ]] || die "frcmod_normalize_for_mol2_types_inplace: missing frcmod"
+	[[ -n "${mol2_file:-}" && -f "$mol2_file" ]] || die "frcmod_normalize_for_mol2_types_inplace: missing mol2"
+
+	awk '
+		function canon(tok,   u) {
+			u = toupper(tok)
+			return ((u in map) ? map[u] : tok)
+		}
+		function map_joined(s,   n,i,a,out) {
+			n = split(s, a, /-/)
+			out = ""
+			for (i = 1; i <= n; i++) {
+				a[i] = canon(a[i])
+				out = out ((i == 1) ? "" : "-") a[i]
+			}
+			return out
+		}
+		BEGIN {
+			in_atom = 0
+			section = ""
+			while ((getline line < mol2) > 0) {
+				if (line ~ /^@<TRIPOS>ATOM/) { in_atom = 1; continue }
+				if (line ~ /^@<TRIPOS>/) { in_atom = 0; continue }
+				if (!in_atom) continue
+				n = split(line, f, /[[:space:]]+/)
+				if (n >= 6 && f[6] != "") {
+					u = toupper(f[6])
+					if (!(u in map)) map[u] = f[6]
+				}
+			}
+			close(mol2)
+		}
+		/^[[:space:]]*$/ { print; next }
+		/^[[:space:]]*#/ { print; next }
+		$1 == "MASS" { section = "MASS"; print; next }
+		$1 == "BOND" { section = "BOND"; print; next }
+		($1 == "ANGL" || $1 == "ANGLE") { section = "ANGLE"; print; next }
+		$1 == "DIHE" { section = "DIHE"; print; next }
+		($1 == "IMPR" || $1 == "IMPROPER") { section = "IMPROPER"; print; next }
+		($1 == "NONB" || $1 == "NONBON") { section = "NONBON"; print; next }
+		{
+			if (section == "MASS" || section == "NONBON") {
+				if ($1 == "YES" || $1 == "NO" || $1 == "NON") {
+					if (NF >= 2) $2 = canon($2)
+				} else if (NF >= 1) {
+					$1 = canon($1)
+				}
+			} else if (section == "BOND" || section == "ANGLE" || section == "DIHE" || section == "IMPROPER") {
+				if ($1 == "YES" || $1 == "NO" || $1 == "NON") {
+					if (NF >= 2) $2 = map_joined($2)
+				} else if (NF >= 1) {
+					$1 = map_joined($1)
+				}
+			}
+			print
+		}
+	' mol2="$mol2_file" "$frcmod_file" > "$tmp" || die "frcmod_normalize_for_mol2_types_inplace: failed rewriting $frcmod_file"
+
+	mv "$tmp" "$frcmod_file" || die "frcmod_normalize_for_mol2_types_inplace: failed replacing $frcmod_file"
+}
+
+
 mol2_bonded_atoms()
 {
 	local mol2="$1"

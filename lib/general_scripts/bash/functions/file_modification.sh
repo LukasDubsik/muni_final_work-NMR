@@ -13,6 +13,9 @@ substitute_name_in() {
 	local fil=$1 dst=$2 name=$3 limit=$4
 	local src="inputs/simulation/${fil}.in"
 	local dst_full="${dst}/${fil}.in"
+	[[ -n "${fil:-}" ]] || die "substitute_name_in: missing template name"
+	[[ -n "${dst:-}" ]] || die "substitute_name_in: missing destination directory"
+	[[ -n "${name:-}" ]] || die "substitute_name_in: molecule name is empty"
 	[[ -f "$src" ]] || die "Missing input file: $src"
 
 	local _shell_preselect_waters="${shell_preselect_waters:-160}"
@@ -28,6 +31,10 @@ substitute_name_in() {
 		-e "s#\${shell_upper}#${_shell_upper}#g" \
 		-e "s#\${solvent_mask}#${_solvent_mask}#g" \
 		"$src" >"$dst_full" || die "sed couldn't be performed on: $src"
+
+	if grep -q '\${[^}][^}]*}' "$dst_full"; then
+		die "substitute_name_in: unresolved template placeholders remain in $dst_full"
+	fi
 }
 
 # force_first_md_start IN_FILE
@@ -181,23 +188,18 @@ force_cpptraj_xyz_output() {
 
 # substitute_name_sh_data FIL DST NAME LIMIT SIGMA CHARGE WATER_MODE
 # Substitute values directly into the data processing script for the job.
+# WATER_MODE controls how solvation-shell waters are handled in xyz_to_gfj.sh:
+#   discard       - strip all water atoms before writing the .gjf
+#   point_charges - replace water with TIP3P Bq point charges (Gaussian 'Charge')
+#   full_qm       - include water as full QM atoms
+# Globals: none
+# Returns: Nothing
 substitute_name_sh_data() {
 	local fil=$1 dst=$2 name=$3 limit=$4 sigma=$5 charge=$6 water_mode=${7:-discard}
 	local src="lib/general_scripts/bash/${fil}"
 	local dst_full="${dst}"
 	[[ -f "$src" ]] || die "Missing input file: $src"
-
-	local _water_oxygen_charge="${water_oxygen_charge:--0.834}"
-	local _water_hydrogen_charge="${water_hydrogen_charge:-0.417}"
-
-	sed \
-		-e "s#\${name}#${name}#g" \
-		-e "s#\${limit}#${limit}#g" \
-		-e "s#\${sigma}#${sigma}#g" \
-		-e "s#\${charge}#${charge}#g" \
-		-e "s#\${water_mode}#${water_mode}#g" \
-		-e "s#\${water_oxygen_charge}#${_water_oxygen_charge}#g" \
-		-e "s#\${water_hydrogen_charge}#${_water_hydrogen_charge}#g" \
+	sed "s#\${name}#${name}#g; s#\${limit}#${limit}#g; s#\${sigma}#${sigma}#g; s#\${charge}#${charge}#g; s#\${water_mode}#${water_mode}#g" \
 		"$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 }
 
@@ -296,7 +298,7 @@ construct_sh_meta() {
 		cat "${dir}/job_file.txt"
 
 		#Lastly add the end of the script
-		cat "${dir}/end.txt"
+		cat "${dir}/end.txt" 
 	} >> "$full_name"
 
 	#Remove the .txt files used for construction

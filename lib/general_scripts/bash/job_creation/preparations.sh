@@ -1725,6 +1725,10 @@ run_tleap() {
 	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
 
+	# Keep frcmod atom-type spelling aligned with the MOL2 that tleap will load.
+	# This prevents mixed-case mismatches such as Se vs se after OpenBabel normalization.
+	frcmod_normalize_for_mol2_types_inplace "$JOB_DIR/${name}.frcmod" "$JOB_DIR/${name}_charges_fix.mol2"
+
 	# Also copy the CREST-optimized, bond-authoritative MOL2 (contains metal + correct connectivity).
 	# We use this ONLY as a connectivity reference when reconstructing MCPB metal bonds in tleap.
 	local crest_auth="process/preparations/crest/${name}_crest.mol2"
@@ -1740,6 +1744,9 @@ run_tleap() {
 
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
+	if grep -q '\${[^}][^}]*}' "$JOB_DIR/${in_file}.in"; then
+		die "run_tleap: unresolved template placeholders remain in $JOB_DIR/${in_file}.in"
+	fi
 
 	# If MCPB produced a tleap input, reuse its parameter/library load statements
 	# so teLeap knows the metal atom type + metal-ligand bonded terms.
@@ -2219,6 +2226,9 @@ fi
 	fi
 
 	cp -f "$JOB_DIR/tleap_run.in" "$JOB_DIR/${in_file}.in"
+	if grep -q '\${[^}][^}]*}' "$JOB_DIR/$tleap_in"; then
+		die "run_tleap: unresolved template placeholders remain in $JOB_DIR/$tleap_in"
+	fi
 
 	# -----------------------------------------------------------------
 	# Sanitize tleap input: remove CRLF, strip inline comments, and remove
