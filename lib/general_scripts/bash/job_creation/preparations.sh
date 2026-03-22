@@ -1738,45 +1738,33 @@ run_tleap() {
 		cp  "$SRC_DIR_3/leaprc.zf" "$JOB_DIR"
 	fi
 
+
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
 
+	# Generic selenium fallback for secys-like / aliphatic selenol residues.
+	# Keep the base tleap template, but inject one extra frcmod after the ligand
+	# frcmod when atom type "se" is present in the MOL2.
+	local se_general_patch=""
+	if frcmod_write_general_selenium_patch_from_mol2 "$JOB_DIR/${name}_charges_fix.mol2" "$JOB_DIR/${name}_selenium_general.frcmod"; then
+		se_general_patch="${name}_selenium_general.frcmod"
+		info "Detected atom type se in ${name}_charges_fix.mol2 - adding general selenium patch"
 
-	# Selenium fallback: LEaP needs explicit MASS/NONBON terms for atom type "se".
-	# Write a tiny separate frcmod patch and load it after the base frcmod.
-	local se_patch_frcmod="$JOB_DIR/${name}_se_patch.frcmod"
-	write_se_frcmod_patch_if_needed "$JOB_DIR/${name}_charges_fix.mol2" "$se_patch_frcmod"
-	if [[ -s "$se_patch_frcmod" ]]; then
-		info "Detected atom type se in ${name}_charges_fix.mol2 - adding selenium frcmod patch"
-		awk -v patch="${name}_se_patch.frcmod" '
-			BEGIN{done=0}
-			{
-				print
-				if (!done && $0 ~ /^[[:space:]]*load[aA]mber[pP]arams[[:space:]]+[^[:space:]]+[.]frcmod([[:space:]]*#.*)?$/) {
-					print "loadamberparams " patch
-					done=1
-				}
-			}
-			END{
-				if (!done) print "loadamberparams " patch
-			}
-		' "$JOB_DIR/${in_file}.in" > "$JOB_DIR/${in_file}.in.tmp" \
-			|| die "Failed to splice selenium frcmod patch into tleap input"
-		mv -f "$JOB_DIR/${in_file}.in.tmp" "$JOB_DIR/${in_file}.in" \
-			|| die "Failed to replace tleap input after selenium patch splice"
+		if ! grep -qiE "\\b(loadAmberParams|loadamberparams)[[:space:]]+${name}_selenium_general[.]frcmod\\b" "$JOB_DIR/${in_file}.in"; then
+			sed -i -E \
+				"/\\b(loadAmberParams|loadamberparams)[[:space:]]+${name}[.]frcmod\\b/a\\loadamberparams ${name}_selenium_general.frcmod" \
+				"$JOB_DIR/${in_file}.in"
+		fi
 
-		# Debug breadcrumbs for the next failure, if any.
+		# Lightweight debug output
 		awk '
-			BEGIN{inA=0}
-			/^@<TRIPOS>ATOM/{inA=1; print; next}
-			/^@<TRIPOS>/{if(inA) exit}
-			inA && NF>=6 { print $1, $2, $6, $NF }
-		' "$JOB_DIR/${name}_charges_fix.mol2" > "$JOB_DIR/_debug_atomtypes.txt" 2>/dev/null || true
-		cp -f "$se_patch_frcmod" "$JOB_DIR/_debug_se_frcmod.txt" 2>/dev/null || true
-		cp -f "$JOB_DIR/${in_file}.in" "$JOB_DIR/_debug_tleap_input.txt" 2>/dev/null || true
+			/^@<TRIPOS>ATOM/ {inA=1; next}
+			/^@<TRIPOS>/ {inA=0}
+			inA {print $1, $2, $6}
+		' "$JOB_DIR/${name}_charges_fix.mol2" > "$JOB_DIR/_debug_atomtypes.txt"
+		cp -f "$JOB_DIR/${name}_selenium_general.frcmod" "$JOB_DIR/_debug_se_general_frcmod.txt"
 		info "[DEBUG] tleap atom types written to $JOB_DIR/_debug_atomtypes.txt"
-		info "[DEBUG] selenium frcmod excerpt written to $JOB_DIR/_debug_se_frcmod.txt"
-		info "[DEBUG] rendered tleap input written to $JOB_DIR/_debug_tleap_input.txt"
+		info "[DEBUG] general selenium frcmod written to $JOB_DIR/_debug_se_general_frcmod.txt"
 	fi
 
 	# If MCPB produced a tleap input, reuse its parameter/library load statements
@@ -2257,6 +2245,8 @@ fi
 	fi
 
 	cp -f "$JOB_DIR/tleap_run.in" "$JOB_DIR/${in_file}.in"
+	cp -f "$JOB_DIR/${in_file}.in" "$JOB_DIR/_debug_tleap_input.txt"
+	info "[DEBUG] rendered tleap input written to $JOB_DIR/_debug_tleap_input.txt"
 
 	# -----------------------------------------------------------------
 	# Sanitize tleap input: remove CRLF, strip inline comments, and remove
