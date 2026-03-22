@@ -1,6 +1,7 @@
 #Input params
 source leaprc.zf
 source leaprc.water.opc3
+addAtomTypes { { "Se" "Se" "sp3" } }
 
 #Load ligand parameters
 loadamberparams ${name}.frcmod
