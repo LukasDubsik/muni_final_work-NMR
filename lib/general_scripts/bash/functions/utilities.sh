@@ -586,6 +586,35 @@ mol2_fix_placeholder_atom_names_inplace() {
 	mv -f "$tmp" "$mol2" || die "Failed to replace: $mol2"
 }
 
+# mol2_force_selenium_type_upper_inplace MOL2FILE
+# Force selenium atom type tokens to uppercase SE before antechamber/parmchk2.
+# This is needed because the current downstream parameter set expects SE, not Se/se.
+mol2_force_selenium_type_upper_inplace() {
+	local mol2="$1"
+	local tmp="${mol2}.tmp"
+
+	[[ -n "$mol2" && -f "$mol2" ]] || die "mol2_force_selenium_type_upper_inplace: Missing file"
+
+	awk '\''
+	BEGIN { inatom=0 }
+	/^@<TRIPOS>ATOM/ { inatom=1; print; next }
+	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
+	{
+		if (!inatom) { print; next }
+		if ($1 !~ /^[0-9]+$/ || NF < 6) { print; next }
+
+		t = $6
+		u = toupper(t)
+		if (u == "SE") {
+			$6 = "SE"
+		}
+		print
+	}
+	'\'' "$mol2" > "$tmp" || die "Failed to force selenium atom type in: $mol2"
+
+	mv -f "$tmp" "$mol2" || die "Failed to replace: $mol2"
+}
+
 mol2_sanitize_for_mcpb() {
 	local in_mol2="$1"
 	local subst="${2:-LIG}"
@@ -708,7 +737,7 @@ mol2_normalize_obabel_output_inplace() {
 		/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atom=0; print; next; }
 
 		# Lowercase atom_type column (6) inside ATOM section,
-		# but preserve metal atom types (MCPB/LEaP are case-sensitive; metals are not GAFF types).
+		# but preserve metal atom types and selenium (the current parameter set expects SE).
 		in_atom && NF>=6 {
 			t = $6
 			u = toupper(t)
@@ -729,95 +758,6 @@ mol2_normalize_obabel_output_inplace() {
 	' "$file" > "$tmp" || die "mol2_normalize_obabel_output_inplace: Failed to normalize mol2"
 
 	mv "$tmp" "$file" || die "mol2_normalize_obabel_output_inplace: Failed to replace mol2"
-}
-
-
-# frcmod_ensure_default_se_vdw_from_mol2 FRCMOD MOL2
-# If the MOL2 contains atom type "se" but the FRCMOD lacks MASS/NONBON entries for it,
-# inject conservative fallback selenium parameters so tleap can at least build the topology.
-# Defaults used here follow published selenium AMBER/GAFF-style LJ values often reused in the literature.
-frcmod_ensure_default_se_vdw_from_mol2() {
-	local frcmod="$1"
-	local mol2="$2"
-
-	[[ -n "$frcmod" && -f "$frcmod" ]] || die "frcmod_ensure_default_se_vdw_from_mol2: Missing frcmod"
-	[[ -n "$mol2" && -f "$mol2" ]] || die "frcmod_ensure_default_se_vdw_from_mol2: Missing mol2"
-
-	if ! awk '
-		BEGIN { in_atom=0; found=0 }
-		/^@<TRIPOS>ATOM/ { in_atom=1; next }
-		/^@<TRIPOS>/ { if (in_atom) in_atom=0 }
-		in_atom && NF >= 6 {
-			t=tolower($6)
-			if (t == "se") { found=1; exit 0 }
-		}
-		END { exit(found ? 0 : 1) }
-	' "$mol2"; then
-		return 0
-	fi
-
-	local has_mass="false"
-	local has_nonbon="false"
-	read -r has_mass has_nonbon < <(
-		awk '
-			BEGIN { sec=""; hm=0; hn=0 }
-			/^MASS[[:space:]]*$/   { sec="MASS"; next }
-			/^BOND[[:space:]]*$/   { sec="BOND"; next }
-			/^ANGLE[[:space:]]*$/  { sec="ANGLE"; next }
-			/^DIHE([[:space:]]|$)/ { sec="DIHE"; next }
-			/^IMPROPER[[:space:]]*$/ { sec="IMPROPER"; next }
-			/^NONBON[[:space:]]*$/ { sec="NONBON"; next }
-			sec=="MASS" && NF>=2 && tolower($1)=="se" { hm=1 }
-			sec=="NONBON" && NF>=3 && tolower($1)=="se" { hn=1 }
-			END { printf("%s %s\n", hm?"true":"false", hn?"true":"false") }
-		' "$frcmod"
-	)
-
-	if [[ "$has_mass" == "true" && "$has_nonbon" == "true" ]]; then
-		return 0
-	fi
-
-	info "Detected Se atom type in $(basename "$mol2"); ensuring frcmod contains MASS/NONBON for type se"
-	info "[DEBUG] frcmod before patch: has_mass=${has_mass}, has_nonbon=${has_nonbon}, file=$(basename "$frcmod")"
-
-	local tmp="${frcmod}.tmp"
-	awk -v need_mass="$has_mass" -v need_nonbon="$has_nonbon" '
-		BEGIN {
-			insert_mass = (need_mass != "true")
-			insert_nonbon = (need_nonbon != "true")
-			printed_mass = 0
-			printed_nonbon = 0
-		}
-		{
-			print $0
-			if ($0 ~ /^MASS[[:space:]]*$/ && insert_mass && !printed_mass) {
-				print "se  78.9600  selenium fallback added by nmr.sh"
-				printed_mass = 1
-				next
-			}
-			if ($0 ~ /^NONBON[[:space:]]*$/ && insert_nonbon && !printed_nonbon) {
-				print "se   2.1200   0.2910  selenium fallback added by nmr.sh"
-				printed_nonbon = 1
-				next
-			}
-		}
-		END {
-			if (insert_mass && !printed_mass) {
-				print ""
-				print "MASS"
-				print "se  78.9600  selenium fallback added by nmr.sh"
-			}
-			if (insert_nonbon && !printed_nonbon) {
-				print ""
-				print "NONBON"
-				print "se   2.1200   0.2910  selenium fallback added by nmr.sh"
-			}
-		}
-	' "$frcmod" > "$tmp" || die "frcmod_ensure_default_se_vdw_from_mol2: Failed to patch frcmod"
-
-	mv "$tmp" "$frcmod" || die "frcmod_ensure_default_se_vdw_from_mol2: Failed to replace frcmod"
-
-	info "[DEBUG] Selenium fallback patch applied to $(basename "$frcmod")"
 }
 
 mol2_bonded_atoms()

@@ -191,9 +191,16 @@ run_antechamber() {
 		antechamber_parms="${antechamber_parms} -c dc -dr no"
 	fi
 
+	# The current Se parameter workflow expects selenium atom type SE already in the MOL2
+	# that is passed into antechamber/parmchk2. Normalize it before job construction.
+	mol2_force_selenium_type_upper_inplace "$JOB_DIR/${name}_crest.mol2"
+
 	# Antechamber is strict about atomic symbols inferred from atom names.
 	# Fix placeholder atom names like "Atom" / "A123" that can trigger errors (e.g., "Htom").
 	mol2_fix_placeholder_atom_names_inplace "$JOB_DIR/${name}_crest.mol2"
+
+	# Debug: keep the exact MOL2 that is handed to antechamber.
+	cp -f "$JOB_DIR/${name}_crest.mol2" "$JOB_DIR/${name}_crest_pre_antechamber_debug.mol2"
 
 	#Constrcut the job file
 	if [[ $meta == "true" ]]; then
@@ -1724,20 +1731,6 @@ run_tleap() {
 	#Copy the data from antechamber
 	move_inp_file "${name}.frcmod" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}_charges_fix.mol2" "$SRC_DIR_2" "$JOB_DIR"
-
-	# DEBUG + fixup for unsupported lower-case selenium atom types coming from MOL2.
-	# addAtomTypes in tleap only defines the element/type identity; it does NOT provide LJ params.
-	# If parmchk2 did not emit se MASS/NONBON lines, inject a minimal fallback here.
-	frcmod_ensure_default_se_vdw_from_mol2 "$JOB_DIR/${name}.frcmod" "$JOB_DIR/${name}_charges_fix.mol2"
-	awk '
-		BEGIN { in_atom=0 }
-		/^@<TRIPOS>ATOM/ { in_atom=1; next }
-		/^@<TRIPOS>/ { if (in_atom) in_atom=0 }
-		in_atom && NF>=6 { print tolower($6) }
-	' "$JOB_DIR/${name}_charges_fix.mol2" | sort -u > "$JOB_DIR/_debug_atomtypes.txt"
-	grep -niE '(^MASS$|^NONBON$|(^|[^A-Za-z])[Ss][Ee]([^A-Za-z]|$))' "$JOB_DIR/${name}.frcmod" > "$JOB_DIR/_debug_se_frcmod.txt" || true
-	info "[DEBUG] tleap atom types written to $JOB_DIR/_debug_atomtypes.txt"
-	info "[DEBUG] selenium frcmod excerpt written to $JOB_DIR/_debug_se_frcmod.txt"
 
 	# Also copy the CREST-optimized, bond-authoritative MOL2 (contains metal + correct connectivity).
 	# We use this ONLY as a connectivity reference when reconstructing MCPB metal bonds in tleap.
