@@ -1,29 +1,17 @@
 # Sampling done already in Amber MD
-# Pre-select a generous solvent region around the solute and let the
-# subsequent Python step refine that to a true frame-wise first shell
-# around the solute surface.
-#
-# Why this two-step approach:
-#   1) cpptraj closest keeps a fixed NUMBER of waters, not a true first shell.
-#   2) frame-updating distance masks in cpptraj are only supported by the mask
-#      action, which is awkward for directly writing the desired per-frame XYZ.
-# So here cpptraj only produces a safe preselection; the exact first-shell
-# trimming is done afterwards on each split XYZ frame.
+# Preselect a generous solvent region around the solute.
+# The exact first-shell trimming is then done per-frame in Python.
 
 parm ${name}.parm7
 trajin ${name}_md.mdcrd 1 last 10
 
-# Make the solute whole and keep nearby solvent imaged around it.
 autoimage
 solvent ${solvent_mask}
 
-# Diagnostic only: shell statistics around the solute.
+# Diagnostic shell populations
 watershell :1 out ${name}_watershell.dat lower ${shell_lower} upper ${shell_upper} ${solvent_mask}
 
-# Keep a generous number of closest waters so the later Python trimming has
-# enough candidates even for larger metal complexes.
-# 'first' measures to the first atom of the solvent molecule and is the
-# recommended fast mode for standard water models.
+# Fixed-count preselection only; exact shell is refined afterwards
 closest ${shell_preselect_waters} :1 first closestout ${name}_closest.dat
 
 center :1 mass origin

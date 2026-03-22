@@ -54,7 +54,7 @@ on_error() {
 	local rc=$1
 	local lineno=$2
 	printf "[FATAL] %s:%s: command failed (rc=%d)\n" "${BASH_SOURCE[0]}" "$lineno" "$rc" 1>&2
-	exit "$rc" 
+	exit "$rc"
 }
 trap 'on_error $? $LINENO' ERR
 
@@ -70,8 +70,10 @@ name="" save_as="" input_type="" gpu="" meta="" directory="" amber_ext=""
 tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
 num_frames="" cpptraj_mode="" sigma="" charge="" filter="" params="" mcpb_cmd=""
-metal_charge=""
-
+metal_charge="" water_mode=""
+shell_preselect_waters="" shell_lower="" shell_upper="" solvent_mask=""
+shell_surface_cutoff="" shell_use_solute_hydrogens=""
+water_oxygen_charge="" water_hydrogen_charge=""
 
 #How many atoms the simulated molecule holds
 LIMIT=""
@@ -143,7 +145,7 @@ main() {
 	# ----- Preparations -----
 	# Prepare the environment if the input has been set to the mol2
 	if [[ $input_type == "mol2" ]]; then
-		run_crest "$name" "$directory" "$meta" "$mamba"
+		run_crest "$name" "$directory" "$meta" "$mamba" "$charge"
 		run_antechamber "$name" "$directory" "$meta" "$amber_mod" "$antechamber_cmd" "$charge"
 		run_parmchk2 "$name" "$directory" "$meta" "$amber_mod" "$parmchk2_cmd"
 

@@ -364,9 +364,6 @@ run_cpptraj() {
 
 	local job_name="cpptraj"
 
-	#info "Started running $job_name"
-
-    #Start by converting the input mol into a xyz format -necessary for crest
 	JOB_DIR="process/$run_dir/$job_name"
 	ensure_dir "$JOB_DIR"
 
@@ -381,16 +378,15 @@ run_cpptraj() {
 		fi
 	fi
 
-
 	SRC_DIR_1="process/$run_dir/md"
 	SRC_DIR_2="lib/general_scripts/bash/general"
 	SRC_DIR_3="lib/general_scripts/python"
 
-	#Copy the data from antechamber
+	#Copy the data from md
 	move_inp_file "${name}_md.mdcrd" "$SRC_DIR_1" "$JOB_DIR"
 	move_inp_file "${name}.parm7" "$SRC_DIR_1" "$JOB_DIR"
 
-	#Copy the .in file for tleap
+	#Copy the .in file for cpptraj
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" "$limit"
 
 	if [[ $mode == "no_water" ]]; then
@@ -409,8 +405,7 @@ run_cpptraj() {
 		construct_sh_wolf "$JOB_DIR" "$job_name"
 	fi
 
-    #Run the antechmaber
-    # If the job was already submitted previously, wait for it to finish before resubmitting
+	# If the job was already submitted previously, wait for it to finish before resubmitting
 	if [[ ! -s "$JOB_DIR/frames.nc" && ! -s "$JOB_DIR/${name}_frame.xyz" ]]; then
 		wait_for_jobid_file "$meta" "$JOB_DIR/.jobid"
 	fi
@@ -422,48 +417,67 @@ run_cpptraj() {
 		info "Detected existing cpptraj primary output; skipping submission"
 	fi
 
-	#Ensure the final dir exists
-    ensure_dir "$JOB_DIR"/frames
+	# Choose Python interpreter robustly:
+	# prefer the env's Python directly, otherwise fall back to python3/python.
+	local py_exec=""
+	if [[ -n "${env:-}" && -x "${env}/bin/python" ]]; then
+		py_exec="${env}/bin/python"
+	elif command -v python3 >/dev/null 2>&1; then
+		py_exec="python3"
+	elif command -v python >/dev/null 2>&1; then
+		py_exec="python"
+	else
+		die "No Python interpreter available for cpptraj post-processing"
+	fi
+
+	# Safe defaults even if sim.txt omits the new shell options
+	local surface_cutoff="${shell_surface_cutoff:-1.8}"
+	local use_solute_hydrogens="${shell_use_solute_hydrogens:-false}"
 
 	if [[ $mode == "no_water" ]]; then
 		#Check that the final files are truly present
 		check_res_file "${name}_frame.xyz" "$JOB_DIR" "$job_name"
-		#Split the .xyz file into individual files
+
+		#Ensure the frames dir exists only now, right before we write into it
+		ensure_dir "$JOB_DIR/frames"
+
+		#Move helper scripts
 		move_inp_file "split_xyz.sh" "$SRC_DIR_2" "$JOB_DIR"
 		move_inp_file "select_first_shell_surface.py" "$SRC_DIR_3" "$JOB_DIR"
-		#Run the shell preparation scripts
+
+		#Run the postprocessing
 		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
+
 		bash split_xyz.sh "$curr_run" < "${name}_frame.xyz"
 
-		# Refine the cpptraj preselection to a true frame-wise first shell around
-		# the solute surface using a per-water oxygen-to-surface criterion.
-		conda activate "$env"
-		python -W "ignore" select_first_shell_surface.py \
+		ls -1 frames/frame_*.xyz >/dev/null 2>&1 || die "No split XYZ frames were created from ${name}_frame.xyz"
+
+		"$py_exec" -W "ignore" select_first_shell_surface.py \
 			--frames-dir frames \
 			--solute-atoms "$limit" \
-			--surface-cutoff "$shell_surface_cutoff" \
-			--use-solute-hydrogens "$shell_use_solute_hydrogens"
-		conda deactivate
+			--surface-cutoff "$surface_cutoff" \
+			--use-solute-hydrogens "$use_solute_hydrogens"
 
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
-	else 
+	else
 		#Check that the final files are truly present
 		check_res_file "frames.nc" "$JOB_DIR" "$job_name"
+
+		#Ensure the frames dir exists only now, right before we write into it
+		ensure_dir "$JOB_DIR/frames"
+
 		#Copy the python script
 		move_inp_file "select_interact.py" "$SRC_DIR_3" "$JOB_DIR"
+
 		#Move to the job dir
 		cd "$JOB_DIR" || die "Couldn't enter the cpptraj directory"
-		#Activate the conda environment
-		conda activate "$env"
-		#Run the python script
-		python -W "ignore" select_interact.py "${name}.parm7" "$curr_run"
-		#Then deactivate it
-		conda deactivate
+
+		#Run the python script without conda activate; use env python directly
+		"$py_exec" -W "ignore" select_interact.py "${name}.parm7" "$curr_run"
+
 		#Return to the base dir
 		cd ../../../ || die "Couldn't return back from the cpptraj dir"
 	fi
-
-	#success "$job_name has finished correctly"
 
 	mark_step_ok "$JOB_DIR"
 }

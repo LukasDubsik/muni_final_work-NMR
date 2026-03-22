@@ -25,10 +25,10 @@ read_config() {
 
 get_cfg() {
 	local key=$1
-	if [[ -v "Params[$key]" ]]; then 
-		printf '%s\n' "${Params[$key]}"; 
-	else 
-		die "Expected: $key in the sim.txt. It was not present!"; 
+	if [[ -v "Params[$key]" ]]; then
+		printf '%s\n' "${Params[$key]}"
+	else
+		die "Expected: $key in the sim.txt. It was not present!"
 	fi
 }
 
@@ -65,12 +65,6 @@ move_inp_file(){
 }
 
 load_cfg() {
-	#Declare the values as explicitly global
-	# declare -g \
-    # name save_as input_type gpu meta directory amber_ext \
-    # tleap opt_water opt_all opt_temp opt_pres md cpptraj \
-    # md_iterations antechamber_cmd parmchk2_cmd
-
 	OVR_NAME=$1
 	OVR_SAVE=$2
 
@@ -91,7 +85,6 @@ load_cfg() {
 
 	#Get the input type and check it is valid type
 	input_type=$(get_cfg 'input_type')
-	#Check that it is allowed
 	if [[ ! $input_type == 'mol2' && ! $input_type == '7' ]]; then
 		exit_program "Only allowed input file types are mol2 and rst/parm7!"
 	fi
@@ -101,54 +94,6 @@ load_cfg() {
 
 	#In what mode to run the cpptraj
 	cpptraj_mode=$(get_cfg 'cpptraj_mode')
-
-	#How to handle solvation-shell waters in xyz_to_gfj.sh
-	# Valid values: discard | point_charges | full_qm
-	water_mode=$(get_cfg_opt 'water_mode')
-	[[ -n "$water_mode" ]] || water_mode='discard'
-	case "$water_mode" in
-		discard|point_charges|full_qm) ;;
-		*) die "Invalid water_mode='$water_mode' (allowed: discard, point_charges, full_qm)" ;;
-	esac
-
-	# How many waters to keep in the cpptraj preselection before the
-	# frame-by-frame surface-shell Python trimming is applied.
-	shell_preselect_waters=$(get_cfg_opt 'shell_preselect_waters')
-	[[ -n "$shell_preselect_waters" ]] || shell_preselect_waters=$(get_cfg_opt 'solvent_shell_waters')
-	[[ -n "$shell_preselect_waters" ]] || shell_preselect_waters='160'
-
-	# watershell diagnostic cutoffs (Angstrom)
-	shell_lower=$(get_cfg_opt 'shell_lower')
-	[[ -n "$shell_lower" ]] || shell_lower=$(get_cfg_opt 'solvent_shell_lower')
-	[[ -n "$shell_lower" ]] || shell_lower='3.4'
-
-	shell_upper=$(get_cfg_opt 'shell_upper')
-	[[ -n "$shell_upper" ]] || shell_upper=$(get_cfg_opt 'solvent_shell_upper')
-	[[ -n "$shell_upper" ]] || shell_upper='5.0'
-
-	# Solvent mask used in cpptraj.
-	solvent_mask=$(get_cfg_opt 'solvent_mask')
-	[[ -n "$solvent_mask" ]] || solvent_mask=':WAT'
-
-	# Surface-based first-shell selector options.
-	# shell_surface_cutoff is the maximum O-to-solute-surface distance (Angstrom)
-	# allowed for a water to remain in the first shell.
-	shell_surface_cutoff=$(get_cfg_opt 'shell_surface_cutoff')
-	[[ -n "$shell_surface_cutoff" ]] || shell_surface_cutoff='1.8'
-
-	# Whether solute hydrogens should contribute to the surface definition.
-	shell_use_solute_hydrogens=$(get_cfg_opt 'shell_use_solute_hydrogens')
-	[[ -n "$shell_use_solute_hydrogens" ]] || shell_use_solute_hydrogens='false'
-	case "${shell_use_solute_hydrogens,,}" in
-		true|false|yes|no|1|0|on|off) ;;
-		*) die "Invalid shell_use_solute_hydrogens='$shell_use_solute_hydrogens' (expected true/false)" ;;
-	esac
-
-	# Point-charge values used when water_mode=point_charges
-	water_oxygen_charge=$(get_cfg_opt 'water_oxygen_charge')
-	[[ -n "$water_oxygen_charge" ]] || water_oxygen_charge='-0.834'
-	water_hydrogen_charge=$(get_cfg_opt 'water_hydrogen_charge')
-	[[ -n "$water_hydrogen_charge" ]] || water_hydrogen_charge='0.417'
 
 	#If we want to run the code in metacentrum
 	meta=$(get_cfg 'meta')
@@ -162,20 +107,17 @@ load_cfg() {
 	#Get the overall charge of the system
 	charge=$(get_cfg 'charge')
 
-	# Optional: formal charge / oxidation state of the metal ion (e.g., Au(I)=1, Au(III)=3)
+	# Optional: formal charge / oxidation state of the metal ion
 	metal_charge=$(get_cfg_opt 'metal_charge')
 
-	info "Config loaded: name=$name, save_as=$save_as, checking modules=$c_modules, number of frames=$num_frames, input_type=$input_type, gpu=$gpu, cpptraj_mode=$cpptraj_mode, water_mode=$water_mode, meta=$meta, sigma=$sigma, md iterations=$md_iterations, charge=$charge, params=$params, metal charge=$metal_charge"
+	info "Config loaded: name=$name, save_as=$save_as, checking modules=$c_modules, number of frames=$num_frames, input_type=$input_type, gpu=$gpu, cpptraj_mode=$cpptraj_mode, water_mode=${water_mode:-unset}, meta=$meta, sigma=$sigma, md iterations=$md_iterations, charge=$charge, params=$params, metal charge=$metal_charge"
 
 	#By default amber extension is empty
 	amber_ext=""
 
 	#If so also see that other important values given
 	if [[ $meta == 'true' ]]; then
-		#What is our directoryt in which we are running the script
 		directory=$(get_cfg 'directory')
-
-		#What version of amber are we using
 		amber_ext=$(get_cfg 'amber')
 
 		info "All the informations for metacentrum loaded correctly:"
@@ -183,9 +125,8 @@ load_cfg() {
 		info "amber=$amber_ext"
 	fi
 
-	#Where the crest conda mamda env is located
+	#Where the crest conda/mamba env is located
 	mamba=$(get_cfg 'mamba')
-
 	info "mamba=$mamba"
 
 	#Additional parametrs for specfic programs - only for mol2
@@ -215,7 +156,51 @@ load_cfg() {
 
 	filter=$(get_cfg 'filter')
 
+	#How to handle shell waters in xyz_to_gfj.sh
+	water_mode=$(get_cfg_opt 'water_mode')
+	[[ -n "$water_mode" ]] || water_mode='discard'
+	case "$water_mode" in
+		discard|point_charges|full_qm) ;;
+		*) die "Invalid water_mode='$water_mode' (allowed: discard, point_charges, full_qm)" ;;
+	esac
+
+	# cpptraj preselection controls
+	shell_preselect_waters=$(get_cfg_opt 'shell_preselect_waters')
+	[[ -n "$shell_preselect_waters" ]] || shell_preselect_waters='160'
+
+	shell_lower=$(get_cfg_opt 'shell_lower')
+	[[ -n "$shell_lower" ]] || shell_lower='3.4'
+
+	shell_upper=$(get_cfg_opt 'shell_upper')
+	[[ -n "$shell_upper" ]] || shell_upper='5.0'
+
+	solvent_mask=$(get_cfg_opt 'solvent_mask')
+	[[ -n "$solvent_mask" ]] || solvent_mask=':WAT'
+
+	# exact first-shell selector controls
+	shell_surface_cutoff=$(get_cfg_opt 'shell_surface_cutoff')
+	[[ -n "$shell_surface_cutoff" ]] || shell_surface_cutoff='1.8'
+
+	shell_use_solute_hydrogens=$(get_cfg_opt 'shell_use_solute_hydrogens')
+	[[ -n "$shell_use_solute_hydrogens" ]] || shell_use_solute_hydrogens='false'
+
+	# optional point charges for water handling
+	water_oxygen_charge=$(get_cfg_opt 'water_oxygen_charge')
+	[[ -n "$water_oxygen_charge" ]] || water_oxygen_charge='-0.834'
+
+	water_hydrogen_charge=$(get_cfg_opt 'water_hydrogen_charge')
+	[[ -n "$water_hydrogen_charge" ]] || water_hydrogen_charge='0.417'
+
 	info "filter: $filter"
+	info "water_mode: $water_mode"
+	info "shell_preselect_waters: $shell_preselect_waters"
+	info "shell_lower: $shell_lower"
+	info "shell_upper: $shell_upper"
+	info "solvent_mask: $solvent_mask"
+	info "shell_surface_cutoff: $shell_surface_cutoff"
+	info "shell_use_solute_hydrogens: $shell_use_solute_hydrogens"
+	info "water_oxygen_charge: $water_oxygen_charge"
+	info "water_hydrogen_charge: $water_hydrogen_charge"
 }
 
 check_cfg() {
