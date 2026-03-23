@@ -1,18 +1,10 @@
 # Sampling done already in Amber MD
-# Preselect a generous solvent region around the solute.
-# The exact first-shell trimming is then done per-frame in Python.
+# All solvent is written out; exact first-shell trimming is done per-frame in Python.
 
 parm ${name}.parm7
 trajin ${name}_md.mdcrd 1 last 10
 
 autoimage
-solvent ${solvent_mask}
-
-# Diagnostic shell populations
-watershell :1 out ${name}_watershell.dat lower ${shell_lower} upper ${shell_upper} ${solvent_mask}
-
-# Fixed-count preselection only; exact shell is refined afterwards
-closest ${shell_preselect_waters} :1 first closestout ${name}_closest.dat
 
 center :1 mass origin
 image origin center

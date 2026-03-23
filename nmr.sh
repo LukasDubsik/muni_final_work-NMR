@@ -71,7 +71,6 @@ tleap="" opt_water="" opt_all="" opt_temp="" opt_pres="" md="" cpptraj=""
 md_iterations="" antechamber_cmd="" parmchk2_cmd="" mamba="" c_modules=""
 num_frames="" cpptraj_mode="" sigma="" charge="" filter="" params="" mcpb_cmd=""
 metal_charge="" water_mode=""
-shell_preselect_waters="" shell_lower="" shell_upper="" solvent_mask=""
 shell_surface_cutoff="" shell_use_solute_hydrogens=""
 water_oxygen_charge="" water_hydrogen_charge=""
 

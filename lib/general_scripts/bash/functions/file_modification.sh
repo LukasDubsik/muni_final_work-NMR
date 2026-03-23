@@ -18,18 +18,9 @@ substitute_name_in() {
 	[[ -n "${name:-}" ]] || die "substitute_name_in: molecule name is empty"
 	[[ -f "$src" ]] || die "Missing input file: $src"
 
-	local _shell_preselect_waters="${shell_preselect_waters:-160}"
-	local _shell_lower="${shell_lower:-3.4}"
-	local _shell_upper="${shell_upper:-5.0}"
-	local _solvent_mask="${solvent_mask:-:WAT}"
-
 	sed \
 		-e "s#\${name}#${name}#g" \
 		-e "s#\${limit}#${limit}#g" \
-		-e "s#\${shell_preselect_waters}#${_shell_preselect_waters}#g" \
-		-e "s#\${shell_lower}#${_shell_lower}#g" \
-		-e "s#\${shell_upper}#${_shell_upper}#g" \
-		-e "s#\${solvent_mask}#${_solvent_mask}#g" \
 		"$src" >"$dst_full" || die "sed couldn't be performed on: $src"
 
 	if grep -q '\${[^}][^}]*}' "$dst_full"; then

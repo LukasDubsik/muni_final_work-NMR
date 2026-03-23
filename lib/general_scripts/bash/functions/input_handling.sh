@@ -164,19 +164,6 @@ load_cfg() {
 		*) die "Invalid water_mode='$water_mode' (allowed: discard, point_charges, full_qm)" ;;
 	esac
 
-	# cpptraj preselection controls
-	shell_preselect_waters=$(get_cfg_opt 'shell_preselect_waters')
-	[[ -n "$shell_preselect_waters" ]] || shell_preselect_waters='160'
-
-	shell_lower=$(get_cfg_opt 'shell_lower')
-	[[ -n "$shell_lower" ]] || shell_lower='3.4'
-
-	shell_upper=$(get_cfg_opt 'shell_upper')
-	[[ -n "$shell_upper" ]] || shell_upper='5.0'
-
-	solvent_mask=$(get_cfg_opt 'solvent_mask')
-	[[ -n "$solvent_mask" ]] || solvent_mask=':WAT'
-
 	# exact first-shell selector controls
 	shell_surface_cutoff=$(get_cfg_opt 'shell_surface_cutoff')
 	[[ -n "$shell_surface_cutoff" ]] || shell_surface_cutoff='1.8'
@@ -193,10 +180,6 @@ load_cfg() {
 
 	info "filter: $filter"
 	info "water_mode: $water_mode"
-	info "shell_preselect_waters: $shell_preselect_waters"
-	info "shell_lower: $shell_lower"
-	info "shell_upper: $shell_upper"
-	info "solvent_mask: $solvent_mask"
 	info "shell_surface_cutoff: $shell_surface_cutoff"
 	info "shell_use_solute_hydrogens: $shell_use_solute_hydrogens"
 	info "water_oxygen_charge: $water_oxygen_charge"
