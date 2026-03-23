@@ -697,21 +697,28 @@ write_secys_malbecc_selenium_patch_frcmod() {
 remark selenium supplement for free selenocysteine-like systems
 remark CT-SE / X-CT-SE-X / SE LJ adapted from MALBECC sec_derivatives
 remark missing Se-H fragment completed from GAFF2 sulfur-analogue sh/hs terms
+remark SE-SE diselenide parameters derived by S->Se analogy from GAFF2 ss-ss terms
+remark   Se-Se r0=2.326 A (dimethyl diselenide exp.); k scaled from ss-ss (166.8) by
+remark   (r_SS/r_SeSe)^2 * (mu_SS/mu_SeSe) ratio -> ~128 kcal/mol/A^2
+remark   c3-SE-SE angle 101.5 deg; torsion 3-fold + 2-fold as for c3-ss-ss-c3 in GAFF2
 MASS
 SE 78.9600
 
 BOND
 c3-SE   180.500   1.961
 SE-hs   294.590   1.347
+SE-SE   128.000   2.326
 
 ANGLE
 c3-c3-SE   72.179   110.500
 h1-c3-SE   42.500   108.760
 hc-c3-SE   42.529   107.870
 c3-SE-hs   51.361    96.400
+c3-SE-SE   55.000   101.500
 
 DIHE
 X -c3-SE-X    3    1.000000    0.000    3.000
+X -SE-SE-X    1    3.500000  180.000   2.000
 
 IMPROPER
 
