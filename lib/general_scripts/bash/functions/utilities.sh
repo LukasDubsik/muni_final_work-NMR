@@ -587,33 +587,137 @@ mol2_fix_placeholder_atom_names_inplace() {
 }
 
 # mol2_force_selenium_atom_name_upper_inplace MOL2FILE
-# Forces selenium atom names like Se247/se247/SE247 to SE247 before antechamber.
+# Force selenium atom names to use an uppercase SE prefix before antechamber.
+# Example: Se247 -> SE247
 mol2_force_selenium_atom_name_upper_inplace() {
 	local mol2="$1"
-	local tmp="${mol2}.tmp"
-
 	[[ -n "$mol2" && -f "$mol2" ]] || die "mol2_force_selenium_atom_name_upper_inplace: missing mol2"
 
-	awk '''
-	BEGIN { inatom=0 }
-	/^@<TRIPOS>ATOM/ { inatom=1; print; next }
-	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { inatom=0; print; next }
-	{
-		if (!inatom) { print; next }
-		if ($1 !~ /^[0-9]+$/) { print; next }
+	local tmp="${mol2}.tmp"
 
+	awk '
+	BEGIN { in_atom=0 }
+	/^@<TRIPOS>ATOM/ { in_atom=1; print; next }
+	/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atom=0; print; next }
+	in_atom && NF >= 6 {
 		name=$2
 		if (name ~ /^[Ss][Ee][0-9_]*$/) {
 			suf=name
 			sub(/^[A-Za-z]+/, "", suf)
 			$2 = "SE" suf
 		}
-
 		print
+		next
 	}
-	''' "$mol2" > "$tmp" || die "Failed to force selenium atom names uppercase in: $mol2"
+	{ print }
+	' "$mol2" > "$tmp" || die "mol2_force_selenium_atom_name_upper_inplace: failed to rewrite atom names in $mol2"
 
-	mv -f "$tmp" "$mol2" || die "Failed to replace: $mol2"
+	mv -f "$tmp" "$mol2" || die "mol2_force_selenium_atom_name_upper_inplace: failed to replace $mol2"
+}
+
+# mol2_retype_selenium_analogue_after_antechamber_inplace MOL2FILE
+# Antechamber often maps selenium-containing selenol fragments to sulfur-like GAFF types
+# (e.g. sh/hs). This helper rewrites the selenium atom itself back to a custom SE type,
+# while preserving the selenium-bound hydrogen as hs.
+mol2_retype_selenium_analogue_after_antechamber_inplace() {
+	local mol2="$1"
+	[[ -n "$mol2" && -f "$mol2" ]] || die "mol2_retype_selenium_analogue_after_antechamber_inplace: missing mol2"
+
+	local tmp="${mol2}.tmp"
+
+	awk '
+	function starts_se(name) {
+		return (toupper(substr(name,1,2)) == "SE")
+	}
+	BEGIN {
+		sect=""
+	}
+	/^@<TRIPOS>ATOM/ { sect="ATOM"; lines[++n]=$0; next }
+	/^@<TRIPOS>BOND/ { sect="BOND"; lines[++n]=$0; next }
+	/^@<TRIPOS>/     { sect="OTHER"; lines[++n]=$0; next }
+	{
+		lines[++n]=$0
+		if (sect=="ATOM" && NF >= 6) {
+			atom_line[n]=1
+			id=$1
+			aname[id]=$2
+			atype[id]=$6
+		}
+		else if (sect=="BOND" && NF >= 4) {
+			bond_line[n]=1
+			b1[n]=$2
+			b2[n]=$3
+		}
+	}
+	END {
+		for (id in aname) {
+			if (starts_se(aname[id])) se_atom[id]=1
+		}
+		for (ln=1; ln<=n; ln++) {
+			if (!bond_line[ln]) continue
+			a=b1[ln]; b=b2[ln]
+			if (se_atom[a]) se_h[b]=1
+			if (se_atom[b]) se_h[a]=1
+		}
+		for (ln=1; ln<=n; ln++) {
+			if (!atom_line[ln]) { print lines[ln]; continue }
+			rcount = split(lines[ln], raw, /[[:space:]]+/)
+			m=0
+			for (j=1; j<=rcount; j++) if (raw[j] != "") f[++m]=raw[j]
+			id=f[1]
+			if (se_atom[id]) {
+				suf=f[2]
+				sub(/^[A-Za-z]+/, "", suf)
+				f[2]="SE" suf
+				f[6]="SE"
+			} else if (se_h[id]) {
+				f[6]="hs"
+			}
+			out=f[1]
+			for (j=2; j<=m; j++) out = out " " f[j]
+			print out
+			delete f
+			delete raw
+		}
+	}
+	' "$mol2" > "$tmp" || die "mol2_retype_selenium_analogue_after_antechamber_inplace: failed to rewrite selenium types in $mol2"
+
+	mv -f "$tmp" "$mol2" || die "mol2_retype_selenium_analogue_after_antechamber_inplace: failed to replace $mol2"
+}
+
+# write_secys_malbecc_selenium_patch_frcmod OUTFILE
+# Writes a selenium-centered frcmod supplement for free selenocysteine-like systems.
+# Parameters are adapted from MALBECC sec_derivatives (CT-SE, X-CT-SE-X, neutral-state SE LJ)
+# and completed with GAFF2 sulfur-analogue terms for the missing Se-H fragment.
+write_secys_malbecc_selenium_patch_frcmod() {
+	local out="$1"
+	[[ -n "$out" ]] || die "write_secys_malbecc_selenium_patch_frcmod: missing output path"
+
+	cat > "$out" <<'EOF'
+remark selenium supplement for free selenocysteine-like systems
+remark CT-SE / X-CT-SE-X / SE LJ adapted from MALBECC sec_derivatives
+remark missing Se-H fragment completed from GAFF2 sulfur-analogue sh/hs terms
+MASS
+SE 78.9600
+
+BOND
+c3-SE   180.500   1.961
+SE-hs   294.590   1.347
+
+ANGLE
+c3-c3-SE   72.179   110.500
+h1-c3-SE   42.500   108.760
+hc-c3-SE   42.529   107.870
+c3-SE-hs   51.361    96.400
+
+DIHE
+X -c3-SE-X    3    1.000000    0.000    3.000
+
+IMPROPER
+
+NONBON
+SE   2.1500   0.2000
+EOF
 }
 
 mol2_sanitize_for_mcpb() {
@@ -738,7 +842,7 @@ mol2_normalize_obabel_output_inplace() {
 		/^@<TRIPOS>/ && $0 !~ /^@<TRIPOS>ATOM/ { in_atom=0; print; next; }
 
 		# Lowercase atom_type column (6) inside ATOM section,
-		# but preserve metal atom types (MCPB/LEaP are case-sensitive; metals are not GAFF types).
+		# but preserve metal atom types and the custom selenium type SE.
 		in_atom && NF>=6 {
 			t = $6
 			u = toupper(t)

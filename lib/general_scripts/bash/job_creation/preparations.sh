@@ -194,7 +194,6 @@ run_antechamber() {
 	# Antechamber is strict about atomic symbols inferred from atom names.
 	# Fix placeholder atom names like "Atom" / "A123" that can trigger errors (e.g., "Htom").
 	mol2_fix_placeholder_atom_names_inplace "$JOB_DIR/${name}_crest.mol2"
-	# Force selenium atom names to use an uppercase SE prefix before antechamber (e.g., Se247 -> SE247).
 	mol2_force_selenium_atom_name_upper_inplace "$JOB_DIR/${name}_crest.mol2"
 	cp -f "$JOB_DIR/${name}_crest.mol2" "$JOB_DIR/${name}_crest_pre_antechamber_debug.mol2"
 
@@ -222,6 +221,11 @@ run_antechamber() {
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
+
+	# Preserve the raw antechamber typing for parmchk2, then retag selenium for downstream tleap use.
+	cp -f "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}_charges_antechamber_raw.mol2"
+	mol2_retype_selenium_analogue_after_antechamber_inplace "$JOB_DIR/${name}_charges.mol2"
+	cp -f "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}_charges_sepatched_debug.mol2"
 
 	# For metal systems: rebuild a metal-containing MOL2 for MCPB.py using
 	# (1) GAFF-typed ligand from antechamber and (2) metal+bonds from the original MOL2.
@@ -273,7 +277,11 @@ run_parmchk2() {
 	SRC_DIR="process/preparations/antechamber"
 
 	#Copy the data from antechamber
-	move_inp_file "${name}_charges.mol2" "$SRC_DIR" "$JOB_DIR"
+	if [[ -f "$SRC_DIR/${name}_charges_antechamber_raw.mol2" ]]; then
+		cp -f "$SRC_DIR/${name}_charges_antechamber_raw.mol2" "$JOB_DIR/${name}_charges.mol2" || die "Failed to copy raw antechamber MOL2 for parmchk2"
+	else
+		move_inp_file "${name}_charges.mol2" "$SRC_DIR" "$JOB_DIR"
+	fi
 
 	# If antechamber built a full (metal-containing) MOL2 for MCPB.py, carry it forward.
 	if [[ -f "$SRC_DIR/${name}_charges_full.mol2" ]]; then
@@ -1680,6 +1688,7 @@ run_nemesis_fix() {
 	# OpenBabel may rewrite MOL2 metadata and metal atom types (e.g., Au -> Au).
 	# Normalize to GAFF/GAFF2 expectations.
 	mol2_normalize_obabel_output_inplace "$JOB_DIR/${name}_charges_fix.mol2" "$name"
+	mol2_retype_selenium_analogue_after_antechamber_inplace "$JOB_DIR/${name}_charges_fix.mol2"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges_fix.mol2" "$JOB_DIR" "$job_name"
@@ -1743,6 +1752,34 @@ run_tleap() {
 
 	#Copy the .in file for tleap
 	substitute_name_in "$in_file" "$JOB_DIR" "$name" ""
+
+	# If the downstream MOL2 contains the custom selenium type SE, add a selenium parameter
+	# supplement extracted/adapted from MALBECC sec_derivatives and inject it into tleap.
+	if awk 'BEGIN{in_atom=0; found=0} /^@<TRIPOS>ATOM/{in_atom=1; next} /^@<TRIPOS>/{in_atom=0} in_atom && NF>=6 && toupper($6)=="SE" {found=1} END{exit(found?0:1)}' "$JOB_DIR/${name}_charges_fix.mol2"; then
+		local se_patch_frcmod="$JOB_DIR/${name}_malbecc_se_patch.frcmod"
+		write_secys_malbecc_selenium_patch_frcmod "$se_patch_frcmod"
+
+		local tleap_file="$JOB_DIR/${in_file}.in"
+		local tleap_tmp="${tleap_file}.tmp"
+		awk -v patch="loadamberparams ${name}_malbecc_se_patch.frcmod" -v addtype="addAtomTypes { { \"SE\" \"Se\" \"sp3\" } }" -v basefrc="${name}.frcmod" '
+			BEGIN { inserted_type=0; inserted_patch=0 }
+			{
+				if (!inserted_type && ($0 ~ /^[[:space:]]*load[aA]mber[pP]arams[[:space:]]+/ || $0 ~ /^[[:space:]]*SYS[[:space:]]*=/)) {
+					print addtype
+					inserted_type=1
+				}
+				print
+				if (!inserted_patch && $0 ~ /^[[:space:]]*load[aA]mber[pP]arams[[:space:]]+/ && index($0, basefrc) > 0) {
+					print patch
+					inserted_patch=1
+				}
+			}
+			END {
+				if (!inserted_type) print addtype
+				if (!inserted_patch) print patch
+			}
+		' "$tleap_file" > "$tleap_tmp" && mv -f "$tleap_tmp" "$tleap_file"
+	fi
 
 	# If MCPB produced a tleap input, reuse its parameter/library load statements
 	# so teLeap knows the metal atom type + metal-ligand bonded terms.
