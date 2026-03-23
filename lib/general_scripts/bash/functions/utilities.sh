@@ -670,7 +670,7 @@ mol2_retype_selenium_analogue_after_antechamber_inplace() {
 				sub(/^[A-Za-z]+/, "", suf)
 				f[2]="SE" suf
 				f[6]="SE"
-			} else if (se_h[id]) {
+			} else if (se_h[id] && toupper(substr(f[2],1,1)) == "H") {
 				f[6]="hs"
 			}
 			out=f[1]
