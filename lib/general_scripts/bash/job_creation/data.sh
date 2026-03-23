@@ -248,6 +248,7 @@ run_plotting() {
 	elif [[ $filter == "alpha_beta" ]]; then
 		cp "lib/general_scripts/python/filter/filter_alpha_beta.py" "$JOB_DIR"
 		cp "inputs/structures/$name.mol2" "$JOB_DIR"
+		move_inp_file "plot_nmr.plt" "$SRC_DIR_2" "$JOB_DIR"
 		move_inp_file "plot_nmr_alpha_beta.plt" "$SRC_DIR_2" "$JOB_DIR"
 		move_inp_file "plot_nmr_all_peaks.plt" "$SRC_DIR_2" "$JOB_DIR"
 	else
@@ -265,6 +266,7 @@ run_plotting() {
 		gnuplot plot_nmr_all_peaks.plt
 	elif [[ $filter == "alpha_beta" ]]; then
 		python filter_alpha_beta.py avg.dat "$name.mol2" filtered_avg.dat
+		gnuplot plot_nmr.plt
 		gnuplot plot_nmr_alpha_beta.plt
 		gnuplot plot_nmr_all_peaks.plt
 	else
