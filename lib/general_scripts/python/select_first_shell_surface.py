@@ -156,7 +156,42 @@ def split_solvent_tail(solvent_atoms: List[Tuple[str, float, float, float]], sou
 
     return waters, ignored_ions
 
-def min_surface_gap(oxygen_xyz, solute_atoms, use_hydrogens: bool) -> float:
+def parse_box(comment: str):
+    """
+    Extract orthorhombic box lengths from a cpptraj XYZ comment line of the form:
+        ... Box X: Lx 0.000 0.000 Y: 0.000 Ly 0.000 Z: 0.000 0.000 Lz
+    Returns (Lx, Ly, Lz) as floats, or None if the comment does not match.
+    Only orthorhombic boxes (off-diagonal elements zero) are handled; triclinic
+    boxes are not supported and will fall back to no-PBC behaviour.
+    """
+    import re as _re
+    m = _re.search(
+        r"Box X:\s*([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)"
+        r"\s+Y:\s*([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)"
+        r"\s+Z:\s*([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)",
+        comment,
+    )
+    if not m:
+        return None
+    vals = [float(m.group(i)) for i in range(1, 10)]
+    # vals layout: Lx xy xz | yx Ly yz | zx zy Lz
+    Lx, Ly, Lz = vals[0], vals[4], vals[8]
+    # Require orthorhombic (off-diagonals must be ~0)
+    off_diag = [vals[1], vals[2], vals[3], vals[5], vals[6], vals[7]]
+    if any(abs(v) > 1e-3 for v in off_diag):
+        return None
+    return (Lx, Ly, Lz)
+
+def _mic_sq(dx: float, dy: float, dz: float, box) -> float:
+    """Squared distance under minimum image convention for orthorhombic box."""
+    if box is not None:
+        Lx, Ly, Lz = box
+        dx -= Lx * round(dx / Lx)
+        dy -= Ly * round(dy / Ly)
+        dz -= Lz * round(dz / Lz)
+    return dx * dx + dy * dy + dz * dz
+
+def min_surface_gap(oxygen_xyz, solute_atoms, use_hydrogens: bool, box=None) -> float:
     ox, oy, oz = oxygen_xyz
     best = float("inf")
     for elem, x, y, z in solute_atoms:
@@ -165,7 +200,7 @@ def min_surface_gap(oxygen_xyz, solute_atoms, use_hydrogens: bool) -> float:
         dx = ox - x
         dy = oy - y
         dz = oz - z
-        d = math.sqrt(dx * dx + dy * dy + dz * dz) - vdw_radius(elem)
+        d = math.sqrt(_mic_sq(dx, dy, dz, box)) - vdw_radius(elem)
         if d < best:
             best = d
     return best
@@ -205,6 +240,8 @@ def main() -> int:
         solute = atoms[:args.solute_atoms]
         solvent = atoms[args.solute_atoms:]
 
+        box = parse_box(comment)
+
         waters, ignored_ions = split_solvent_tail(solvent, path)
 
         kept = []
@@ -214,7 +251,8 @@ def main() -> int:
             gap = min_surface_gap(
                 (oxygen[1], oxygen[2], oxygen[3]),
                 solute,
-                args.use_solute_hydrogens
+                args.use_solute_hydrogens,
+                box,
             )
             gaps.append(gap)
             if gap <= args.surface_cutoff:
