@@ -73,6 +73,7 @@ num_frames="" cpptraj_mode="" sigma="" charge="" filter="" params="" mcpb_cmd=""
 metal_charge="" water_mode=""
 shell_surface_cutoff="" shell_use_solute_hydrogens=""
 water_oxygen_charge="" water_hydrogen_charge=""
+deuterium_water=""
 
 #How many atoms the simulated molecule holds
 LIMIT=""

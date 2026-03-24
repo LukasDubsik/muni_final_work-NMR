@@ -7,11 +7,13 @@ char=${charge}
 WATER_MODE=${water_mode}
 TIP3P_O=${water_oxygen_charge}
 TIP3P_H=${water_hydrogen_charge}
+DEUTERIUM_WATER=${deuterium_water:-false}
 
 mkdir -p gauss
 
 # "Light" elements that you want on 6-31++G(d,p) (add/remove as needed)
-LIGHT_ORDER=(H C N O S Se P F Cl Br I)
+# D (deuterium) included so full_qm D2O water does not trigger the unknown-element abort
+LIGHT_ORDER=(H D C N O S Se P F Cl Br I)
 
 case "$WATER_MODE" in
     discard|point_charges|full_qm) ;;
@@ -33,6 +35,18 @@ for file in frames/frame_*.xyz; do
     if [[ -z "$solute_block" ]]; then
         echo "[ERROR] ${bas}: empty solute block after XYZ split" >&2
         exit 1
+    fi
+
+    # In full_qm + D2O mode, replace water H atoms with D before building the QM block
+    if [[ "$WATER_MODE" == "full_qm" && "$DEUTERIUM_WATER" == "true" && -n "$water_block" ]]; then
+        water_block=$(printf "%s\n" "$water_block" | awk '
+        {
+            name=$1; x=$2; y=$3; z=$4
+            sub(/[0-9].*$/, "", name)
+            elem=toupper(substr(name,1,1)) tolower(substr(name,2))
+            if (elem == "H") elem = "D"
+            printf "%-2s %12.6f %12.6f %12.6f\n", elem, x, y, z
+        }')
     fi
 
     if [[ "$WATER_MODE" == "full_qm" && -n "$water_block" ]]; then

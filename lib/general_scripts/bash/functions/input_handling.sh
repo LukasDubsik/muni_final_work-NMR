@@ -178,12 +178,19 @@ load_cfg() {
 	water_hydrogen_charge=$(get_cfg_opt 'water_hydrogen_charge')
 	[[ -n "$water_hydrogen_charge" ]] || water_hydrogen_charge='0.417'
 
+	# deuterium water: substitute HW mass in AMBER topology and water H->D in Gaussian full_qm mode
+	deuterium_water=$(get_cfg_opt 'deuterium_water')
+	[[ -n "$deuterium_water" ]] || deuterium_water='false'
+	[[ "$deuterium_water" == "true" || "$deuterium_water" == "false" ]] \
+		|| die "Invalid deuterium_water='$deuterium_water' (allowed: true, false)"
+
 	info "filter: $filter"
 	info "water_mode: $water_mode"
 	info "shell_surface_cutoff: $shell_surface_cutoff"
 	info "shell_use_solute_hydrogens: $shell_use_solute_hydrogens"
 	info "water_oxygen_charge: $water_oxygen_charge"
 	info "water_hydrogen_charge: $water_hydrogen_charge"
+	info "deuterium_water: $deuterium_water"
 }
 
 check_cfg() {
