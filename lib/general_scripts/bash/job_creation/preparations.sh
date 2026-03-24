@@ -2357,6 +2357,22 @@ fi
 		fi
 	fi
 
+	# D2O: write a mass-override frcmod and inject loadAmberParams into the tleap script.
+	# deuterium_water=true overrides the TIP3P HW mass from 1.008 to 2.014 Da (deuterium).
+	# The frcmod is loaded AFTER leaprc.water.* so it wins via last-write-wins semantics.
+	if [[ "${deuterium_water:-false}" == "true" ]]; then
+		info "D2O mode: writing frcmod.d2o with HW mass override"
+		printf "MASS
+HW  2.014    ! deuterium D2O mass override
+
+" > "$JOB_DIR/frcmod.d2o"
+		# Insert loadAmberParams frcmod.d2o after the first leaprc.water.* source line
+		sed -i -E \
+			'/source[[:space:]]+leaprc[.]water[.]/a\loadAmberParams frcmod.d2o' \
+			"$JOB_DIR/$tleap_in"
+		info "D2O frcmod.d2o injected into $tleap_in"
+	fi
+
 	# tLeap sometimes fails to locate frcmod.gaff2 in certain installs. Ensure it exists.
 	if grep -qiE '\bfrcmod\.gaff2\b' "$JOB_DIR/$tleap_in" "$JOB_DIR/leaprc.zf" "$JOB_DIR/mcpb_params.in" 2>/dev/null; then
 		if [[ ! -f "$JOB_DIR/frcmod.gaff2" ]]; then
