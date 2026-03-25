@@ -2358,15 +2358,30 @@ fi
 	fi
 
 	# D2O: write a mass-override frcmod and inject loadAmberParams into the tleap script.
-	# deuterium_water=true overrides the TIP3P HW mass from 1.008 to 2.014 Da (deuterium).
+	# deuterium_water=true overrides the TIP3P/OPC3 HW mass from 1.008 to 2.014 Da (deuterium).
 	# The frcmod is loaded AFTER leaprc.water.* so it wins via last-write-wins semantics.
+	# All section headers must be present (even if empty) - tleap requires
+	# "both MASS and NONBOND entries or neither", empty sections satisfy this.
 	if [[ "${deuterium_water:-false}" == "true" ]]; then
 		info "D2O mode: writing frcmod.d2o with HW mass override"
-		printf "MASS
-HW  2.014    ! deuterium D2O mass override
+		cat > "$JOB_DIR/frcmod.d2o" << 'EOF'
+remark D2O mass override: HW 1.008 -> 2.014 Da (deuterium)
+MASS
+HW  2.014
 
-" > "$JOB_DIR/frcmod.d2o"
-		# Insert loadAmberParams frcmod.d2o after the first leaprc.water.* source line
+BOND
+
+ANGLE
+
+DIHE
+
+IMPROPER
+
+NONBON
+
+EOF
+		# Insert loadAmberParams frcmod.d2o after the first leaprc.water.* source line.
+		# Matches any leaprc.water.* variant (tip3p, opc3, tip4p, etc.)
 		sed -i -E \
 			'/source[[:space:]]+leaprc[.]water[.]/a\loadAmberParams frcmod.d2o' \
 			"$JOB_DIR/$tleap_in"
