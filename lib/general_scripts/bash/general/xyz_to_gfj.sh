@@ -105,7 +105,7 @@ for file in frames/frame_*.xyz; do
 
     {
         printf "%%chk=%s.chk\n" "$bas"
-        printf "#P B3LYP/%s NMR=(GIAO,ReadAtoms)%s SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS" "$ROUTE_EXTRA"
+        printf "#P mPW1PW91/%s NMR=(GIAO,ReadAtoms)%s SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS" "$ROUTE_EXTRA"
         printf "%s -- GIAO NMR\n\n" "$bas"
         printf "%s 1\n" "$char"
     } > "$gjf"
@@ -146,9 +146,26 @@ for file in frames/frame_*.xyz; do
     fi
 
     {
-        if ((${#LIGHT_ELEMS[@]})); then
-            printf "%s 0\n" "${LIGHT_ELEMS[*]}"
+        # Elements needing the better chalcogen basis
+        CHALCOGEN_ELEMS=()
+        OTHER_LIGHT_ELEMS=()
+        for e in "${LIGHT_ELEMS[@]}"; do
+            if [[ "$e" == "S" || "$e" == "Se" ]]; then
+                CHALCOGEN_ELEMS+=("$e")
+            else
+                OTHER_LIGHT_ELEMS+=("$e")
+            fi
+        done
+
+        if ((${#OTHER_LIGHT_ELEMS[@]})); then
+            printf "%s 0\n" "${OTHER_LIGHT_ELEMS[*]}"
             echo "6-31++G(d,p)"
+            echo "****"
+        fi
+
+        if ((${#CHALCOGEN_ELEMS[@]})); then
+            printf "%s 0\n" "${CHALCOGEN_ELEMS[*]}"
+            echo "6-311++G(2d,2p)"
             echo "****"
         fi
 
