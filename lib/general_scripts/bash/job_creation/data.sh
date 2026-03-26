@@ -90,7 +90,7 @@ run_analysis() {
 			# Geometry from NIST CCCBDB (tetramethylsilane Cartesian coordinates)
 			cat > "$tms_gjf" <<'EOF'
 %chk=tms.chk
-#P B3LYP/6-31++G(d,p) Opt SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine
+#P mPW1PW91/6-31++G(d,p) Opt SCRF=(IEFPCM,Solvent=Water) SCF=(XQC,Tight) Int=UltraFine
 
 TMS reference (Opt, COSMO)
 
@@ -115,7 +115,7 @@ H    1.7241  -0.4345  -1.7241
 
 --Link1--
 %chk=tms.chk
-#P B3LYP/6-31++G(d,p) NMR=GIAO SCRF=COSMO Geom=AllCheck Guess=Read SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine
+#P mPW1PW91/6-31++G(d,p) NMR=GIAO SCRF=(IEFPCM,Solvent=Water) Geom=AllCheck Guess=Read SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine
 
 TMS reference (NMR, COSMO)
 
