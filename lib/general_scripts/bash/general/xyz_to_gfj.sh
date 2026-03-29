@@ -105,7 +105,7 @@ for file in frames/frame_*.xyz; do
 
     {
         printf "%%chk=%s.chk\n" "$bas"
-        printf "#P mPW1PW91/%s NMR=(GIAO,ReadAtoms)%s SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS" "$ROUTE_EXTRA"
+        printf "#P wB97XD/%s NMR=(GIAO,ReadAtoms)%s SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS" "$ROUTE_EXTRA"
         printf "%s -- GIAO NMR\n\n" "$bas"
         printf "%s 1\n" "$char"
     } > "$gjf"
@@ -159,7 +159,7 @@ for file in frames/frame_*.xyz; do
 
         if ((${#OTHER_LIGHT_ELEMS[@]})); then
             printf "%s 0\n" "${OTHER_LIGHT_ELEMS[*]}"
-            echo "6-31++G(d,p)"
+            echo "aug-cc-pVTZ"
             echo "****"
         fi
 
