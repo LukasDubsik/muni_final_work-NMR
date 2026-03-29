@@ -146,33 +146,100 @@ for file in frames/frame_*.xyz; do
     fi
 
     {
-        # Elements needing the better chalcogen basis
-        CHALCOGEN_ELEMS=()
-        OTHER_LIGHT_ELEMS=()
-        for e in "${LIGHT_ELEMS[@]}"; do
-            if [[ "$e" == "S" || "$e" == "Se" ]]; then
-                CHALCOGEN_ELEMS+=("$e")
-            else
-                OTHER_LIGHT_ELEMS+=("$e")
+        # In full_qm mode, keep the high basis on the solute but assign a
+        # cheaper basis to explicit-shell waters using atom-index center lists.
+        # Gaussian Gen supports center identifier lines with atom numbers, so
+        # this avoids giving aug-cc-pVTZ to all water O/H atoms.
+        if [[ "$WATER_MODE" == "full_qm" && -n "$water_block" ]]; then
+            SOLUTE_OTHER_IDX=$(printf "%s\n" "$solute_block" | awk '
+                {
+                    e=$1
+                    sub(/[0-9].*$/, "", e)
+                    e=toupper(substr(e,1,1)) tolower(substr(e,2))
+                    if (e != "S" && e != "Se" && e != "Au") {
+                        printf "%d ", NR
+                    }
+                }
+            ')
+
+            SOLUTE_CHALCOGEN_IDX=$(printf "%s\n" "$solute_block" | awk '
+                {
+                    e=$1
+                    sub(/[0-9].*$/, "", e)
+                    e=toupper(substr(e,1,1)) tolower(substr(e,2))
+                    if (e == "S" || e == "Se") {
+                        printf "%d ", NR
+                    }
+                }
+            ')
+
+            AU_IDX=$(printf "%s\n" "$solute_block" | awk '
+                {
+                    e=$1
+                    sub(/[0-9].*$/, "", e)
+                    e=toupper(substr(e,1,1)) tolower(substr(e,2))
+                    if (e == "Au") {
+                        printf "%d ", NR
+                    }
+                }
+            ')
+
+            WATER_IDX=$(printf "%s\n" "$water_block" | awk -v off="$N_CORE" '
+                NF { printf "%d ", NR + off }
+            ')
+
+            if [[ -n "$SOLUTE_OTHER_IDX" ]]; then
+                printf "%s0\n" "$SOLUTE_OTHER_IDX"
+                echo "aug-cc-pVTZ"
+                echo "****"
             fi
-        done
 
-        if ((${#OTHER_LIGHT_ELEMS[@]})); then
-            printf "%s 0\n" "${OTHER_LIGHT_ELEMS[*]}"
-            echo "aug-cc-pVTZ"
-            echo "****"
-        fi
+            if [[ -n "$SOLUTE_CHALCOGEN_IDX" ]]; then
+                printf "%s0\n" "$SOLUTE_CHALCOGEN_IDX"
+                echo "6-311++G(2d,2p)"
+                echo "****"
+            fi
 
-        if ((${#CHALCOGEN_ELEMS[@]})); then
-            printf "%s 0\n" "${CHALCOGEN_ELEMS[*]}"
-            echo "6-311++G(2d,2p)"
-            echo "****"
-        fi
+            if [[ -n "$WATER_IDX" ]]; then
+                printf "%s0\n" "$WATER_IDX"
+                echo "6-31G(d)"
+                echo "****"
+            fi
 
-        if (( HAS_AU )); then
-            echo "Au 0"
-            echo "SDD"
-            echo "****"
+            if [[ -n "$AU_IDX" ]]; then
+                printf "%s0\n" "$AU_IDX"
+                echo "SDD"
+                echo "****"
+            fi
+        else
+            # Original element-based mapping for solute-only jobs.
+            CHALCOGEN_ELEMS=()
+            OTHER_LIGHT_ELEMS=()
+            for e in "${LIGHT_ELEMS[@]}"; do
+                if [[ "$e" == "S" || "$e" == "Se" ]]; then
+                    CHALCOGEN_ELEMS+=("$e")
+                else
+                    OTHER_LIGHT_ELEMS+=("$e")
+                fi
+            done
+
+            if ((${#OTHER_LIGHT_ELEMS[@]})); then
+                printf "%s 0\n" "${OTHER_LIGHT_ELEMS[*]}"
+                echo "aug-cc-pVTZ"
+                echo "****"
+            fi
+
+            if ((${#CHALCOGEN_ELEMS[@]})); then
+                printf "%s 0\n" "${CHALCOGEN_ELEMS[*]}"
+                echo "6-311++G(2d,2p)"
+                echo "****"
+            fi
+
+            if (( HAS_AU )); then
+                echo "Au 0"
+                echo "SDD"
+                echo "****"
+            fi
         fi
 
         echo ""
