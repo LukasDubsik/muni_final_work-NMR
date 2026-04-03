@@ -105,7 +105,7 @@ for file in frames/frame_*.xyz; do
 
     {
         printf "%%chk=%s.chk\n" "$bas"
-        printf "#P wB97XD/%s NMR=(GIAO,ReadAtoms)%s SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS" "$ROUTE_EXTRA"
+        printf "#P wB97XD/%s NMR=(GIAO,ReadAtoms)%s SCRF=(IEFPCM,Solvent=Water) SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS" "$ROUTE_EXTRA"
         printf "%s -- GIAO NMR\n\n" "$bas"
         printf "%s 1\n" "$char"
     } > "$gjf"

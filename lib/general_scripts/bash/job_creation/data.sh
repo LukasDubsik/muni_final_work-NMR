@@ -90,7 +90,7 @@ run_analysis() {
 			# Geometry from NIST CCCBDB (tetramethylsilane Cartesian coordinates)
 			cat > "$tms_gjf" <<'EOF'
 %chk=tms.chk
-#P wB97XD/aug-cc-pVTZ Opt SCRF=COSMO SCF=(XQC,Tight) Int=UltraFine
+#P wB97XD/aug-cc-pVTZ Opt SCRF=(IEFPCM,Solvent=Water) SCF=(XQC,Tight) Int=UltraFine
 
 TMS reference (Opt, COSMO)
 
