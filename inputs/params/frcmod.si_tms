@@ -1,0 +1,15 @@
+remark minimal Si support for TMS in Amber/GAFF2 pipeline
+
+MASS
+si  28.09  2.900
+
+BOND
+
+ANGLE
+
+DIHE
+
+IMPROPER
+
+NONBON
+si  1.778  0.015
