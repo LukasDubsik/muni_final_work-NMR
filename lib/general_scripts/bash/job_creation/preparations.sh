@@ -1748,6 +1748,7 @@ run_tleap() {
 	if [[ $params == "yes" ]]; then
 		cp  "$SRC_DIR_3/gaff.zf" "$JOB_DIR"
 		cp  "$SRC_DIR_3/leaprc.zf" "$JOB_DIR"
+		cp  "$SRC_DIR_3/frcmod.si_tms" "$JOB_DIR"
 	fi
 
 	#Copy the .in file for tleap
