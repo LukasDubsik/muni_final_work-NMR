@@ -1,15 +1,25 @@
-remark minimal Si support for TMS in Amber/GAFF2 pipeline
+remark silicon supplement for TMS / tetraalkylsilane-like systems
+remark parameters adapted from Amber-compatible organosilane set
+remark only the subset needed for si-(ci)4 with ci-hc methyl groups is kept here
 
 MASS
-si  28.09  2.900
+si   28.09
+ci   12.01
 
 BOND
+si-ci   223.29   1.884
+ci-hc   375.92   1.097
 
 ANGLE
+ci-si-ci   31.44   109.83
+si-ci-hc   36.65   111.17
+hc-ci-hc   38.96   107.58
 
 DIHE
+X -si-ci-X    9    0.705000    0.000    3.000
 
 IMPROPER
 
 NONBON
-si  1.778  0.015
+si   1.7780   0.0150
+ci   2.0010   0.1130

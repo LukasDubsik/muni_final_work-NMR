@@ -222,10 +222,12 @@ run_antechamber() {
 	#Check that the final files are truly present
 	check_res_file "${name}_charges.mol2" "$JOB_DIR" "$job_name"
 
-	# Preserve the raw antechamber typing for parmchk2, then retag selenium for downstream tleap use.
+	# Preserve the raw antechamber typing for parmchk2, then retag downstream custom analogues
+	# (currently selenium and silicon/TMS) only for the MOL2 that continues to tleap.
 	cp -f "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}_charges_antechamber_raw.mol2"
 	mol2_retype_selenium_analogue_after_antechamber_inplace "$JOB_DIR/${name}_charges.mol2"
-	cp -f "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}_charges_sepatched_debug.mol2"
+	mol2_retype_silicon_analogue_after_antechamber_inplace "$JOB_DIR/${name}_charges.mol2"
+	cp -f "$JOB_DIR/${name}_charges.mol2" "$JOB_DIR/${name}_charges_custompatched_debug.mol2"
 
 	# For metal systems: rebuild a metal-containing MOL2 for MCPB.py using
 	# (1) GAFF-typed ligand from antechamber and (2) metal+bonds from the original MOL2.
@@ -1685,10 +1687,11 @@ run_nemesis_fix() {
 
 	obabel -imol2 "$JOB_DIR/${name}_charges.mol2" -omol2 -O "$JOB_DIR/${name}_charges_fix.mol2" > /dev/null 2>&1
 
-	# OpenBabel may rewrite MOL2 metadata and metal atom types (e.g., Au -> Au).
-	# Normalize to GAFF/GAFF2 expectations.
+	# OpenBabel may rewrite MOL2 metadata and custom atom types.
+	# Normalize first, then restore downstream custom analogue typing.
 	mol2_normalize_obabel_output_inplace "$JOB_DIR/${name}_charges_fix.mol2" "$name"
 	mol2_retype_selenium_analogue_after_antechamber_inplace "$JOB_DIR/${name}_charges_fix.mol2"
+	mol2_retype_silicon_analogue_after_antechamber_inplace "$JOB_DIR/${name}_charges_fix.mol2"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_charges_fix.mol2" "$JOB_DIR" "$job_name"
@@ -1777,6 +1780,41 @@ run_tleap() {
 			}
 			END {
 				if (!inserted_type) print addtype
+				if (!inserted_patch) print patch
+			}
+		' "$tleap_file" > "$tleap_tmp" && mv -f "$tleap_tmp" "$tleap_file"
+	fi
+
+	# If the downstream MOL2 contains silicon-aware custom types, inject the silicon patch frcmod.
+	# For now this is aimed at TMS / tetraalkylsilane-like systems.
+	if awk '
+		BEGIN{in_atom=0; found=0}
+		/^@<TRIPOS>ATOM/ {in_atom=1; next}
+		/^@<TRIPOS>/     {in_atom=0}
+		in_atom && NF>=6 {
+			t=tolower($6)
+			if (t=="si" || t=="ci" || t=="hi" || t=="ng" || t=="oi") found=1
+		}
+		END{exit(found?0:1)}
+	' "$JOB_DIR/${name}_charges_fix.mol2"; then
+		local si_patch_frcmod="$JOB_DIR/frcmod.si_tms"
+		[[ -f "$si_patch_frcmod" ]] || die "Missing silicon patch frcmod: $si_patch_frcmod"
+
+		local tleap_file="$JOB_DIR/${in_file}.in"
+		local tleap_tmp="${tleap_file}.tmp"
+
+		awk -v patch="loadamberparams frcmod.si_tms" -v basefrc="${name}.frcmod" '
+			BEGIN { inserted_patch=0 }
+			{
+				print
+				if (!inserted_patch &&
+					$0 ~ /^[[:space:]]*load[aA]mber[pP]arams[[:space:]]+/ &&
+					index($0, basefrc) > 0) {
+					print patch
+					inserted_patch=1
+				}
+			}
+			END {
 				if (!inserted_patch) print patch
 			}
 		' "$tleap_file" > "$tleap_tmp" && mv -f "$tleap_tmp" "$tleap_file"

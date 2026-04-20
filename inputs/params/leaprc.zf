@@ -78,8 +78,12 @@ addAtomTypes {
 	{ "pt"  "Pt" "sp3" }
 	{ "au"  "Au" "sp3" }
 	{ "Se"  "Se" "sp3" }
-        { "mg"  "Mg" "sp3" }
-		{ "si"  "Si" "sp3" }
+	{ "mg"  "Mg" "sp3" }
+	{ "si"  "Si" "sp3" }
+	{ "hi"  "H"  "sp3" }
+	{ "ci"  "C"  "sp3" }
+	{ "ng"  "N"  "sp3" }
+	{ "oi"  "O"  "sp3" }
 }
 #
 #	Load the general force field parameter set.

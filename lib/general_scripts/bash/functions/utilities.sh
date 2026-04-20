@@ -1834,3 +1834,135 @@ mol2_write_mcpb_add_atomtypes_for_frcmod() {
 		echo "}"
 	} > "$out_file"
 }
+
+# mol2_retype_silicon_analogue_after_antechamber_inplace MOL2FILE
+# Antechamber keeps Si as si, but atoms directly bonded to Si in organosilanes
+# are still often left as generic GAFF2 neighbours (for TMS: c3 / hc).
+# For the TMS-like silicon environment, rewrite:
+#   Si itself        -> si
+#   C directly to Si -> ci
+#   H directly to Si -> hi
+#   N directly to Si -> ng
+#   O directly to Si -> oi
+#
+# IMPORTANT:
+# - for TMS, only the C -> ci rewrite is actually used
+# - methyl hydrogens on those carbons remain hc (they are NOT directly on Si)
+mol2_retype_silicon_analogue_after_antechamber_inplace() {
+	local mol2="$1"
+	[[ -n "$mol2" && -f "$mol2" ]] || die "mol2_retype_silicon_analogue_after_antechamber_inplace: missing mol2"
+
+	local tmp="${mol2}.tmp"
+
+	awk '
+	function starts_si(name) {
+		return (toupper(substr(name,1,2)) == "SI")
+	}
+	function elem_from_type_or_name(type, name,   t, n) {
+		t = tolower(type)
+		sub(/\..*$/, "", t)
+
+		if (t ~ /^(c|c1|c2|c3|ca|cc|cd|ce|cf|cg|ch|cp|cq|cu|cv|cx|cy|cz)$/) return "C"
+		if (t ~ /^(n|n1|n2|n3|n4|na|nb|nc|nd|ne|nf|nh|no)$/) return "N"
+		if (t ~ /^(o|o2|oh|os|ow)$/) return "O"
+		if (t ~ /^(h|h1|h2|h3|h4|h5|ha|hc|hn|ho|hp|hs|hw|hx)$/) return "H"
+		if (t == "si") return "SI"
+
+		n = name
+		gsub(/[^A-Za-z]/, "", n)
+		n = toupper(n)
+
+		if (substr(n,1,2) == "SI") return "SI"
+		if (substr(n,1,1) == "C")  return "C"
+		if (substr(n,1,1) == "N")  return "N"
+		if (substr(n,1,1) == "O")  return "O"
+		if (substr(n,1,1) == "H")  return "H"
+
+		return ""
+	}
+	BEGIN {
+		sect=""
+	}
+	/^@<TRIPOS>ATOM/ { sect="ATOM"; lines[++n]=$0; next }
+	/^@<TRIPOS>BOND/ { sect="BOND"; lines[++n]=$0; next }
+	/^@<TRIPOS>/     { sect="OTHER"; lines[++n]=$0; next }
+	{
+		lines[++n]=$0
+		if (sect=="ATOM" && NF >= 6) {
+			atom_line[n]=1
+			id=$1
+			aname[id]=$2
+			atype[id]=$6
+		}
+		else if (sect=="BOND" && NF >= 4) {
+			bond_line[n]=1
+			b1[n]=$2
+			b2[n]=$3
+		}
+	}
+	END {
+		for (id in aname) {
+			if (starts_si(aname[id]) || tolower(atype[id]) == "si")
+				si_atom[id]=1
+		}
+
+		for (ln=1; ln<=n; ln++) {
+			if (!bond_line[ln]) continue
+			a=b1[ln]; b=b2[ln]
+
+			if (si_atom[a]) {
+				e = elem_from_type_or_name(atype[b], aname[b])
+				if      (e=="C") si_c[b]=1
+				else if (e=="H") si_h[b]=1
+				else if (e=="N") si_n[b]=1
+				else if (e=="O") si_o[b]=1
+			}
+			if (si_atom[b]) {
+				e = elem_from_type_or_name(atype[a], aname[a])
+				if      (e=="C") si_c[a]=1
+				else if (e=="H") si_h[a]=1
+				else if (e=="N") si_n[a]=1
+				else if (e=="O") si_o[a]=1
+			}
+		}
+
+		for (ln=1; ln<=n; ln++) {
+			if (!atom_line[ln]) { print lines[ln]; continue }
+
+			rcount = split(lines[ln], raw, /[[:space:]]+/)
+			m=0
+			for (j=1; j<=rcount; j++) if (raw[j] != "") f[++m]=raw[j]
+
+			id=f[1]
+
+			if (si_atom[id]) {
+				suf=f[2]
+				sub(/^[A-Za-z]+/, "", suf)
+				f[2]="SI" suf
+				f[6]="si"
+			}
+			else if (si_c[id]) {
+				f[6]="ci"
+			}
+			else if (si_h[id]) {
+				f[6]="hi"
+			}
+			else if (si_n[id]) {
+				f[6]="ng"
+			}
+			else if (si_o[id]) {
+				f[6]="oi"
+			}
+
+			out=f[1]
+			for (j=2; j<=m; j++) out = out " " f[j]
+			print out
+
+			delete f
+			delete raw
+		}
+	}
+	' "$mol2" > "$tmp" || die "mol2_retype_silicon_analogue_after_antechamber_inplace: failed to rewrite silicon types in $mol2"
+
+	mv -f "$tmp" "$mol2" || die "mol2_retype_silicon_analogue_after_antechamber_inplace: failed to replace $mol2"
+}
