@@ -132,8 +132,8 @@ run_gaussian() {
 
 	local job_name="gaussian"
 
-	local mem_gb=16
-	local ncpus=16
+	local mem_gb=32
+	local ncpus=8
 
 	info "Started running $job_name"
 
