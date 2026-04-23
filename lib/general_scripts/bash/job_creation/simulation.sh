@@ -193,7 +193,7 @@ run_opt_temp() {
 	wrap_pmemd_cuda_fallback "${JOB_DIR}/${job_name}.sh" 1
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 1 "08:00:00"
+    submit_job "$meta" "$job_name" "$JOB_DIR" 4 4 1 "02:00:00"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_temp.rst7" "$JOB_DIR" "$job_name"
@@ -262,7 +262,7 @@ run_opt_pres() {
 	wrap_pmemd_cuda_fallback "${JOB_DIR}/${job_name}.sh" 0
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 8 8 1 "08:00:00"
+    submit_job "$meta" "$job_name" "$JOB_DIR" 4 4 1 "02:00:00"
 
 	#Check that the final files are truly present
 	check_res_file "${name}_opt_pres.rst7" "$JOB_DIR" "$job_name"
@@ -327,7 +327,7 @@ run_md() {
 	fi
 
     #Run the antechmaber
-    submit_job "$meta" "$job_name" "$JOB_DIR" 16 16 1 "8:00:00"
+    submit_job "$meta" "$job_name" "$JOB_DIR" 4 4 1 "2:00:00"
 
 	#Sleep to load all the files and avoid errors
 	sleep 60
