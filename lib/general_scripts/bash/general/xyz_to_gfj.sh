@@ -13,7 +13,7 @@ mkdir -p gauss
 
 # "Light" elements that you want on 6-31++G(d,p) (add/remove as needed)
 # D (deuterium) included so full_qm D2O water does not trigger the unknown-element abort
-LIGHT_ORDER=(H D C N O S Se P F Cl Br I)
+LIGHT_ORDER=(H D C N O S Se Si P F Cl Br I)
 
 case "$WATER_MODE" in
     discard|point_charges|full_qm) ;;
@@ -190,7 +190,7 @@ for file in frames/frame_*.xyz; do
 
             if [[ -n "$SOLUTE_OTHER_IDX" ]]; then
                 printf "%s0\n" "$SOLUTE_OTHER_IDX"
-                echo "aug-cc-pVTZ"
+                echo "6-31+G(d,p)"
                 echo "****"
             fi
 
@@ -225,7 +225,7 @@ for file in frames/frame_*.xyz; do
 
             if ((${#OTHER_LIGHT_ELEMS[@]})); then
                 printf "%s 0\n" "${OTHER_LIGHT_ELEMS[*]}"
-                echo "aug-cc-pVTZ"
+                echo "6-31+G(d,p)"
                 echo "****"
             fi
 
