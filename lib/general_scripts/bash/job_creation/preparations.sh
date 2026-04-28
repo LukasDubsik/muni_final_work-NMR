@@ -2063,6 +2063,7 @@ run_tleap() {
 			if [[ -f "$workdir/LIG.mol2" ]]; then
 				cp -f "$workdir/LIG.mol2" "$workdir/LG1.mol2"
 				mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+				mol2_retype_selenium_analogue_after_antechamber_inplace "$workdir/LG1.mol2"
 				info "Refreshed MCPB template: LG1.mol2 <- LIG.mol2"
 elif [[ -f "$workdir/${name}_crest.mol2" ]]; then
 	# Prefer CREST-optimized MOL2 (metal + authoritative bonds) if present; strip metal to build LG1 template.
@@ -2071,6 +2072,7 @@ elif [[ -f "$workdir/${name}_crest.mol2" ]]; then
 	if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
 		mol2_strip_atom "$workdir/${name}_crest.mol2" "$workdir/LG1.mol2" "$_mid"
 		mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+		mol2_retype_selenium_analogue_after_antechamber_inplace "$workdir/LG1.mol2"
 		info "Refreshed MCPB template: LG1.mol2 <- ${name}_crest.mol2 (metal stripped id=$_mid)"
 	fi
 elif [[ -f "$charges_fix_mol2" ]]; then
@@ -2080,6 +2082,7 @@ elif [[ -f "$charges_fix_mol2" ]]; then
 	if [[ -n "$_mid" && "$_mid" != "-1" ]]; then
 		mol2_strip_atom "$charges_fix_mol2" "$workdir/LG1.mol2" "$_mid"
 		mol2_sanitize_for_mcpb "$workdir/LG1.mol2" "LG1"
+		mol2_retype_selenium_analogue_after_antechamber_inplace "$workdir/LG1.mol2"
 		info "Refreshed MCPB template: LG1.mol2 <- ${name}_charges_fix.mol2 (metal stripped id=$_mid)"
 	fi
 fi
@@ -2189,6 +2192,23 @@ fi
 
 				# Optional but recommended: define MCPB-generated atom types before loading mol2
 				mol2_write_mcpb_add_atomtypes_for_frcmod "$mcpb_frcmod" "$JOB_DIR/mcpb_atomtypes.in"
+
+				# If a selenium atom in LG1.mol2 was mapped to an MCPB Y* type,
+				# force that Y* addAtomTypes entry to use element Se rather than S.
+				se_ytype="$(
+					awk '
+					BEGIN{inA=0}
+					/^@<TRIPOS>ATOM/ {inA=1; next}
+					/^@<TRIPOS>/     {inA=0}
+					inA && NF>=6 && toupper($2) ~ /^SE/ && $6 ~ /^Y[0-9]+$/ { print $6; exit }
+					' "$JOB_DIR/LG1.mol2"
+				)"
+
+				if [[ -n "${se_ytype:-}" ]]; then
+					sed -i -E \
+						"s#(\\{[[:space:]]*\"${se_ytype}\"[[:space:]]*\")S(\"[[:space:]]*\"sp3\"[[:space:]]*\\})#\\1Se\\2#" \
+						"$JOB_DIR/mcpb_atomtypes.in"
+				fi
 
 				# Ensure RESP library is loaded before the MCPB PDB.
 				local lib_base=""

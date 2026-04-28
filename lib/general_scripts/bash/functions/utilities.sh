@@ -1721,14 +1721,14 @@ mol2_apply_mcpb_ytypes_from_pdb() {
     want=""
 
     case "$el" in
-      F|CL|BR|I) want="$halide_type" ;;
-      S)         want="$sulfur_type" ;;
-      SE)        want="$selenium_type" ;;
-      C)         want="$carbon_type" ;;
-      N)         want="$nitrogen_type" ;;
-      O)         want="$oxygen_type" ;;
-      *)         want="" ;;
-    esac
+		F|CL|BR|I) want="$halide_type" ;;
+		S)         want="$sulfur_type" ;;
+		SE)        want="${selenium_type:-$sulfur_type}" ;;
+		C)         want="$carbon_type" ;;
+		N)         want="$nitrogen_type" ;;
+		O)         want="$oxygen_type" ;;
+		*)         want="" ;;
+	esac
 
     [[ -n "$want" ]] || continue
     map_str+="${name}:${want},"
