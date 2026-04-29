@@ -11,8 +11,46 @@ DEUTERIUM_WATER=${deuterium_water:-false}
 
 mkdir -p gauss
 
-# "Light" elements that you want on 6-31++G(d,p) (add/remove as needed)
-# D (deuterium) included so full_qm D2O water does not trigger the unknown-element abort
+# Project layout: this script is copied to process/spectrum/gauss_prep/xyz_to_gfj.sh,
+# so ../../../inputs/bases points back to the repository input basis directory.
+SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
+BASIS_DIR_DEFAULT=$(cd -- "$SCRIPT_DIR/../../../inputs/bases" 2>/dev/null && pwd || true)
+BASIS_DIR=${BASIS_DIR:-$BASIS_DIR_DEFAULT}
+
+OTHER_BASIS="6-311++G(2df,2pd)"
+WATER_BASIS="6-31G(d)"
+
+AU_BAS_FILE="$BASIS_DIR/Au_bas"
+AU_ECP_FILE="$BASIS_DIR/Au_pot"
+S_BAS_FILE="$BASIS_DIR/S_bas"
+S_ECP_FILE="$BASIS_DIR/S_pot"
+SE_BAS_FILE="$BASIS_DIR/Se_bas"
+SE_ECP_FILE="$BASIS_DIR/Se_pot"
+
+require_file() {
+    local f="$1"
+    [[ -f "$f" ]] || {
+        echo "[ERROR] Missing required basis/ECP file: $f" >&2
+        exit 1
+    }
+}
+
+emit_basis_body_from_file() {
+    local f="$1"
+    awk '
+        NR == 1 { next }
+        /^[[:space:]]*\*\*\*\*[[:space:]]*$/ { next }
+        { print }
+    ' "$f"
+}
+
+emit_ecp_body_from_file() {
+    local f="$1"
+    awk 'NR == 1 { next } { print }' "$f"
+}
+
+# "Light" elements supported in the QM region.
+# D (deuterium) is included so full_qm D2O water does not trigger an unknown-element abort.
 LIGHT_ORDER=(H D C N O S Se Si P F Cl Br I)
 
 case "$WATER_MODE" in
@@ -37,7 +75,7 @@ for file in frames/frame_*.xyz; do
         exit 1
     fi
 
-    # In full_qm + D2O mode, replace water H atoms with D before building the QM block
+    # In full_qm + D2O mode, replace water H atoms with D before building the QM block.
     if [[ "$WATER_MODE" == "full_qm" && "$DEUTERIUM_WATER" == "true" && -n "$water_block" ]]; then
         water_block=$(printf "%s\n" "$water_block" | awk '
         {
@@ -55,7 +93,6 @@ for file in frames/frame_*.xyz; do
         qm_block="$solute_block"
     fi
 
-    # Collect elements present in the QM region only.
     ELEM_SET=$(
         printf "%s\n" "$qm_block" | awk '
         {
@@ -69,10 +106,17 @@ for file in frames/frame_*.xyz; do
     has_elem() { grep -Fxq "$1" <<< "$ELEM_SET"; }
 
     HAS_AU=0
+    HAS_S=0
+    HAS_SE=0
     if has_elem "Au"; then HAS_AU=1; fi
+    if has_elem "S"; then HAS_S=1; fi
+    if has_elem "Se"; then HAS_SE=1; fi
+
+    HAS_ECP=0
+    if (( HAS_AU || HAS_S || HAS_SE )); then HAS_ECP=1; fi
 
     ROUTE_BASIS="Gen"
-    if (( HAS_AU )); then ROUTE_BASIS="GenECP"; fi
+    if (( HAS_ECP )); then ROUTE_BASIS="GenECP"; fi
 
     ROUTE_EXTRA=""
     if [[ "$WATER_MODE" == "point_charges" && -n "$water_block" ]]; then
@@ -103,9 +147,22 @@ for file in frames/frame_*.xyz; do
         exit 1
     fi
 
+    if (( HAS_AU )); then
+        require_file "$AU_BAS_FILE"
+        require_file "$AU_ECP_FILE"
+    fi
+    if (( HAS_S )); then
+        require_file "$S_BAS_FILE"
+        require_file "$S_ECP_FILE"
+    fi
+    if (( HAS_SE )); then
+        require_file "$SE_BAS_FILE"
+        require_file "$SE_ECP_FILE"
+    fi
+
     {
         printf "%%chk=%s.chk\n" "$bas"
-        printf "#P wB97XD/%s NMR=(GIAO,ReadAtoms)%s SCRF=(IEFPCM,Solvent=Water) SCF=(XQC,Tight)\n\n" "$ROUTE_BASIS" "$ROUTE_EXTRA"
+        printf "#P wB97XD/%s NMR=(GIAO,ReadAtoms)%s SCRF=(IEFPCM,Solvent=Water) SCF=(XQC,Tight) Int=UltraFine CPHF=Grid=UltraFine\n\n" "$ROUTE_BASIS" "$ROUTE_EXTRA"
         printf "%s -- GIAO NMR\n\n" "$bas"
         printf "%s 1\n" "$char"
     } > "$gjf"
@@ -146,10 +203,6 @@ for file in frames/frame_*.xyz; do
     fi
 
     {
-        # In full_qm mode, keep the high basis on the solute but assign a
-        # cheaper basis to explicit-shell waters using atom-index center lists.
-        # Gaussian Gen supports center identifier lines with atom numbers, so
-        # this avoids giving aug-cc-pVTZ to all water O/H atoms.
         if [[ "$WATER_MODE" == "full_qm" && -n "$water_block" ]]; then
             SOLUTE_OTHER_IDX=$(printf "%s\n" "$solute_block" | awk '
                 {
@@ -162,12 +215,23 @@ for file in frames/frame_*.xyz; do
                 }
             ')
 
-            SOLUTE_CHALCOGEN_IDX=$(printf "%s\n" "$solute_block" | awk '
+            SOLUTE_S_IDX=$(printf "%s\n" "$solute_block" | awk '
                 {
                     e=$1
                     sub(/[0-9].*$/, "", e)
                     e=toupper(substr(e,1,1)) tolower(substr(e,2))
-                    if (e == "S" || e == "Se") {
+                    if (e == "S") {
+                        printf "%d ", NR
+                    }
+                }
+            ')
+
+            SOLUTE_SE_IDX=$(printf "%s\n" "$solute_block" | awk '
+                {
+                    e=$1
+                    sub(/[0-9].*$/, "", e)
+                    e=toupper(substr(e,1,1)) tolower(substr(e,2))
+                    if (e == "Se") {
                         printf "%d ", NR
                     }
                 }
@@ -190,63 +254,95 @@ for file in frames/frame_*.xyz; do
 
             if [[ -n "$SOLUTE_OTHER_IDX" ]]; then
                 printf "%s0\n" "$SOLUTE_OTHER_IDX"
-                echo "6-31+G(d,p)"
+                echo "$OTHER_BASIS"
                 echo "****"
             fi
 
-            if [[ -n "$SOLUTE_CHALCOGEN_IDX" ]]; then
-                printf "%s0\n" "$SOLUTE_CHALCOGEN_IDX"
-                echo "6-311++G(2d,2p)"
+            if [[ -n "$SOLUTE_S_IDX" ]]; then
+                printf "%s0\n" "$SOLUTE_S_IDX"
+                emit_basis_body_from_file "$S_BAS_FILE"
+                echo "****"
+            fi
+
+            if [[ -n "$SOLUTE_SE_IDX" ]]; then
+                printf "%s0\n" "$SOLUTE_SE_IDX"
+                emit_basis_body_from_file "$SE_BAS_FILE"
                 echo "****"
             fi
 
             if [[ -n "$WATER_IDX" ]]; then
                 printf "%s0\n" "$WATER_IDX"
-                echo "6-31G(d)"
+                echo "$WATER_BASIS"
                 echo "****"
             fi
 
             if [[ -n "$AU_IDX" ]]; then
                 printf "%s0\n" "$AU_IDX"
-                echo "SDD"
+                emit_basis_body_from_file "$AU_BAS_FILE"
                 echo "****"
             fi
         else
-            # Original element-based mapping for solute-only jobs.
-            CHALCOGEN_ELEMS=()
             OTHER_LIGHT_ELEMS=()
             for e in "${LIGHT_ELEMS[@]}"; do
-                if [[ "$e" == "S" || "$e" == "Se" ]]; then
-                    CHALCOGEN_ELEMS+=("$e")
-                else
+                if [[ "$e" != "S" && "$e" != "Se" && "$e" != "Au" ]]; then
                     OTHER_LIGHT_ELEMS+=("$e")
                 fi
             done
 
             if ((${#OTHER_LIGHT_ELEMS[@]})); then
                 printf "%s 0\n" "${OTHER_LIGHT_ELEMS[*]}"
-                echo "6-31+G(d,p)"
+                echo "$OTHER_BASIS"
                 echo "****"
             fi
 
-            if ((${#CHALCOGEN_ELEMS[@]})); then
-                printf "%s 0\n" "${CHALCOGEN_ELEMS[*]}"
-                echo "6-311++G(2d,2p)"
+            if (( HAS_S )); then
+                echo "S 0"
+                emit_basis_body_from_file "$S_BAS_FILE"
+                echo "****"
+            fi
+
+            if (( HAS_SE )); then
+                echo "Se 0"
+                emit_basis_body_from_file "$SE_BAS_FILE"
                 echo "****"
             fi
 
             if (( HAS_AU )); then
                 echo "Au 0"
-                echo "SDD"
+                emit_basis_body_from_file "$AU_BAS_FILE"
                 echo "****"
             fi
         fi
 
         echo ""
 
+        if (( HAS_S )); then
+            if [[ "$WATER_MODE" == "full_qm" && -n "$water_block" ]]; then
+                printf "%s0\n" "$SOLUTE_S_IDX"
+            else
+                echo "S 0"
+            fi
+            emit_ecp_body_from_file "$S_ECP_FILE"
+            echo ""
+        fi
+
+        if (( HAS_SE )); then
+            if [[ "$WATER_MODE" == "full_qm" && -n "$water_block" ]]; then
+                printf "%s0\n" "$SOLUTE_SE_IDX"
+            else
+                echo "Se 0"
+            fi
+            emit_ecp_body_from_file "$SE_ECP_FILE"
+            echo ""
+        fi
+
         if (( HAS_AU )); then
-            echo "Au 0"
-            echo "SDD"
+            if [[ "$WATER_MODE" == "full_qm" && -n "$water_block" ]]; then
+                printf "%s0\n" "$AU_IDX"
+            else
+                echo "Au 0"
+            fi
+            emit_ecp_body_from_file "$AU_ECP_FILE"
             echo ""
         fi
     } >> "$gjf"

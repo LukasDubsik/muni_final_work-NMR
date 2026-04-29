@@ -32,11 +32,13 @@ patch_gaussian_link0_resources() {
 		# Drop any pre-existing resource directives to avoid duplicates.
 		if (l ~ /^%mem=/) next
 		if (l ~ /^%nprocshared=/) next
+		if (l ~ /^%cpu=/) next
  
 		# If we hit the route section before %chk, insert Link0 resources here.
 		if (inserted==0 && $0 ~ /^#/) {
 			print "%mem=" mem_gb "GB"
 			print "%nprocshared=" ncpus
+			print "%cpu=0-" (ncpus-1)
 			inserted=1
 		}
 
@@ -46,6 +48,7 @@ patch_gaussian_link0_resources() {
 		if (inserted==0 && l ~ /^%chk=/) {
 			print "%mem=" mem_gb "GB"
 			print "%nprocshared=" ncpus
+			print "%cpu=0-" (ncpus-1)
 			inserted=1
 		}
 	}
@@ -54,10 +57,50 @@ patch_gaussian_link0_resources() {
 		if (inserted==0) {
 			print "%mem=" mem_gb "GB"
 			print "%nprocshared=" ncpus
+			print "%cpu=0-" (ncpus-1)
 		}
 	}' "$gjf_file" >"$tmp" || { rm -f "$tmp"; die "Failed to patch Gaussian resources in: $gjf_file"; }
 
 	mv "$tmp" "$gjf_file" || die "Failed to replace patched file: $gjf_file"
+}
+
+# patch_gaussian_job_runtime SCRIPT_FILE NCPUS
+# Ensure the generated batch script exports the same runtime threading settings
+# as the Gaussian Link0 section and always uses scratch when available.
+patch_gaussian_job_runtime() {
+	local sh_file=$1 ncpus=$2
+	[[ -f "$sh_file" ]] || die "Missing Gaussian job script: $sh_file"
+
+	local tmp
+	tmp=$(mktemp) || die "mktemp failed"
+
+	awk -v ncpus="$ncpus" '
+	BEGIN { inserted=0 }
+	function emit_block() {
+		print ""
+		print "# Gaussian runtime resources (patched by gauss.sh)"
+		print "export OMP_NUM_THREADS=\"${PBS_NCPUS:-" ncpus "}\""
+		print "export MKL_NUM_THREADS=\"${OMP_NUM_THREADS}\""
+		print "export OPENBLAS_NUM_THREADS=\"${OMP_NUM_THREADS}\""
+		print "export GAUSS_SCRDIR=\"${SCRATCHDIR:-${GAUSS_SCRDIR:-$PWD}}\""
+		print "mkdir -p \"$GAUSS_SCRDIR\" || true"
+		inserted=1
+	}
+	{
+		if ($0 ~ /^export OMP_NUM_THREADS=/) next
+		if ($0 ~ /^export MKL_NUM_THREADS=/) next
+		if ($0 ~ /^export OPENBLAS_NUM_THREADS=/) next
+		if ($0 ~ /^export GAUSS_SCRDIR=/) next
+		if ($0 ~ /^mkdir -p "\$GAUSS_SCRDIR" \|\| true$/) next
+
+		print $0
+		if (!inserted && $0 ~ /^#!/) emit_block()
+	}
+	END {
+		if (!inserted) emit_block()
+	}' "$sh_file" >"$tmp" || { rm -f "$tmp"; die "Failed to patch Gaussian runtime in: $sh_file"; }
+
+	mv "$tmp" "$sh_file" || die "Failed to replace patched script: $sh_file"
 }
 
 # run_gauss_convert META NUM_FRAMES
@@ -132,8 +175,9 @@ run_gaussian() {
 
 	local job_name="gaussian"
 
-	local mem_gb=32
-	local ncpus=8
+	# Keep defaults, but allow easy overrides from the environment.
+	local mem_gb="${GAUSS_MEM_GB:-32}"
+	local ncpus="${GAUSS_NCPUS:-8}"
 
 	info "Started running $job_name"
 
@@ -312,8 +356,9 @@ run_gaussian() {
 		fi
 		#Copy the specific frame to the local dir
 		cp $JOB_DIR/gauss/frame_$num.gjf $LOC_DIR
-		# Patch the resources
+		# Patch the resources in both the input and the runtime wrapper.
 		patch_gaussian_link0_resources "$LOC_DIR/frame_${num}.gjf" "$mem_gb" "$ncpus"
+		patch_gaussian_job_runtime "$LOC_DIR/${job_name}.sh" "$ncpus"
 		#Then submit the job for run
 		( submit_job "$meta" "$job_name" "$LOC_DIR" "$mem_gb" "$ncpus" 0 "20:00:00" ) &
 		p=$!
