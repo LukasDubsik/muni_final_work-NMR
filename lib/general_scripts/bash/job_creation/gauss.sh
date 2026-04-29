@@ -32,13 +32,11 @@ patch_gaussian_link0_resources() {
 		# Drop any pre-existing resource directives to avoid duplicates.
 		if (l ~ /^%mem=/) next
 		if (l ~ /^%nprocshared=/) next
-		if (l ~ /^%cpu=/) next
  
 		# If we hit the route section before %chk, insert Link0 resources here.
 		if (inserted==0 && $0 ~ /^#/) {
 			print "%mem=" mem_gb "GB"
 			print "%nprocshared=" ncpus
-			print "%cpu=0-" (ncpus-1)
 			inserted=1
 		}
 
@@ -48,7 +46,6 @@ patch_gaussian_link0_resources() {
 		if (inserted==0 && l ~ /^%chk=/) {
 			print "%mem=" mem_gb "GB"
 			print "%nprocshared=" ncpus
-			print "%cpu=0-" (ncpus-1)
 			inserted=1
 		}
 	}
@@ -57,7 +54,6 @@ patch_gaussian_link0_resources() {
 		if (inserted==0) {
 			print "%mem=" mem_gb "GB"
 			print "%nprocshared=" ncpus
-			print "%cpu=0-" (ncpus-1)
 		}
 	}' "$gjf_file" >"$tmp" || { rm -f "$tmp"; die "Failed to patch Gaussian resources in: $gjf_file"; }
 
@@ -65,42 +61,84 @@ patch_gaussian_link0_resources() {
 }
 
 # patch_gaussian_job_runtime SCRIPT_FILE NCPUS
-# Ensure the generated batch script exports the same runtime threading settings
-# as the Gaussian Link0 section and always uses scratch when available.
+# Ensure the generated batch script exports sane runtime settings,
+# fails when Gaussian fails, and does not rely on hard-coded %cpu pinning.
 patch_gaussian_job_runtime() {
 	local sh_file=$1 ncpus=$2
 	[[ -f "$sh_file" ]] || die "Missing Gaussian job script: $sh_file"
 
-	local tmp
-	tmp=$(mktemp) || die "mktemp failed"
+	python3 - "$sh_file" "$ncpus" <<'PY2'
+from pathlib import Path
+import re, sys
 
-	awk -v ncpus="$ncpus" '
-	BEGIN { inserted=0 }
-	function emit_block() {
-		print ""
-		print "# Gaussian runtime resources (patched by gauss.sh)"
-		print "export OMP_NUM_THREADS=\"${PBS_NCPUS:-" ncpus "}\""
-		print "export MKL_NUM_THREADS=\"${OMP_NUM_THREADS}\""
-		print "export OPENBLAS_NUM_THREADS=\"${OMP_NUM_THREADS}\""
-		print "export GAUSS_SCRDIR=\"${SCRATCHDIR:-${GAUSS_SCRDIR:-$PWD}}\""
-		print "mkdir -p \"$GAUSS_SCRDIR\" || true"
-		inserted=1
-	}
-	{
-		if ($0 ~ /^export OMP_NUM_THREADS=/) next
-		if ($0 ~ /^export MKL_NUM_THREADS=/) next
-		if ($0 ~ /^export OPENBLAS_NUM_THREADS=/) next
-		if ($0 ~ /^export GAUSS_SCRDIR=/) next
-		if ($0 ~ /^mkdir -p "\$GAUSS_SCRDIR" \|\| true$/) next
+p = Path(sys.argv[1])
+ncpus = sys.argv[2]
+text = p.read_text()
+lines = text.splitlines(True)
 
-		print $0
-		if (!inserted && $0 ~ /^#!/) emit_block()
-	}
-	END {
-		if (!inserted) emit_block()
-	}' "$sh_file" >"$tmp" || { rm -f "$tmp"; die "Failed to patch Gaussian runtime in: $sh_file"; }
+# Ensure strict shell mode right after shebang.
+if lines and lines[0].startswith('#!'):
+    if not any(l.strip() == 'set -euo pipefail' for l in lines[:4]):
+        lines.insert(1, 'set -euo pipefail\n\n')
+text = ''.join(lines)
 
-	mv "$tmp" "$sh_file" || die "Failed to replace patched script: $sh_file"
+# Remove previously inserted runtime lines to keep the patch idempotent.
+filtered = []
+for line in text.splitlines(True):
+    stripped = line.strip()
+    if stripped in {'# Gaussian runtime resources (patched by gauss.sh)', 'unset MP_BIND MP_BLIST || true'}:
+        continue
+    if re.match(r'^export OMP_NUM_THREADS=', stripped):
+        continue
+    if re.match(r'^export MKL_NUM_THREADS=', stripped):
+        continue
+    if re.match(r'^export OPENBLAS_NUM_THREADS=', stripped):
+        continue
+    if re.match(r'^export GAUSS_SCRDIR=', stripped):
+        continue
+    if re.match(r'^mkdir -p "\$GAUSS_SCRDIR" \|\| true$', stripped):
+        continue
+    filtered.append(line)
+text = ''.join(filtered)
+
+runtime_block = (
+    '\n# Gaussian runtime resources (patched by gauss.sh)\n'
+    f'export OMP_NUM_THREADS="${{PBS_NCPUS:-{ncpus}}}"\n'
+    'export MKL_NUM_THREADS="${OMP_NUM_THREADS}"\n'
+    'export OPENBLAS_NUM_THREADS="${OMP_NUM_THREADS}"\n'
+    'unset MP_BIND MP_BLIST || true\n'
+    'export GAUSS_SCRDIR="${SCRATCHDIR:-${GAUSS_SCRDIR:-$PWD}}"\n'
+    'mkdir -p "$GAUSS_SCRDIR" || true\n\n'
+)
+if text.startswith('#!'):
+    parts = text.split('\n', 2)
+    if len(parts) >= 2 and parts[1].strip() == 'set -euo pipefail':
+        text = parts[0] + '\n' + parts[1] + runtime_block + (parts[2] if len(parts) > 2 else '')
+    else:
+        text = parts[0] + runtime_block + (text[len(parts[0])+1:] if len(parts)>1 else '')
+else:
+    text = 'set -euo pipefail\n' + runtime_block + text
+
+pattern = re.compile(r'^(?P<indent>[ 	]*)g16\s*<\s*(?P<gjf>[^ >]+\.gjf)\s*>\s*(?P<log>[^ >]+\.log)\s*$', re.M)
+
+def repl(m):
+    indent = m.group('indent')
+    gjf = m.group('gjf')
+    log = m.group('log')
+    return (
+        f'{indent}if command -v g16-prepare >/dev/null 2>&1; then\n'
+        f'{indent}    g16-prepare {gjf}\n'
+        f'{indent}fi\n'
+        f'{indent}g16 < {gjf} > {log}\n'
+        f'{indent}grep -q "Normal termination of Gaussian" {log}\n'
+    )
+
+new_text, n = pattern.subn(repl, text, count=1)
+if n == 0:
+    raise SystemExit(f'Could not find Gaussian invocation to patch in {p}')
+
+p.write_text(new_text)
+PY2
 }
 
 # run_gauss_convert META NUM_FRAMES
