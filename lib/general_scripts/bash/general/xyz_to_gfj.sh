@@ -323,7 +323,6 @@ for file in frames/frame_*.xyz; do
                 echo "S 0"
             fi
             emit_ecp_body_from_file "$S_ECP_FILE"
-            echo ""
         fi
 
         if (( HAS_SE )); then
@@ -333,7 +332,6 @@ for file in frames/frame_*.xyz; do
                 echo "Se 0"
             fi
             emit_ecp_body_from_file "$SE_ECP_FILE"
-            echo ""
         fi
 
         if (( HAS_AU )); then
@@ -343,6 +341,9 @@ for file in frames/frame_*.xyz; do
                 echo "Au 0"
             fi
             emit_ecp_body_from_file "$AU_ECP_FILE"
+        fi
+
+        if (( HAS_ECP )); then
             echo ""
         fi
     } >> "$gjf"
