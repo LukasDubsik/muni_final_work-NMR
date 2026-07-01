@@ -1,7 +1,7 @@
 # shellcheck disable=SC2148
 # Guard so we don't load twice
 [[ ${_SIMULATION_PARALLEL_SH_LOADED:-0} -eq 1 ]] && return
-_SIMULATION_PARALLEL_LOADED=1
+_SIMULATION_PARALLEL_SH_LOADED=1
 
 # run_sim_step_parr NAME DIRECTORY META AMBER IN_FILE RUN_DIR MD_ITERATIONS JOB_NAME
 # Run any of the base simulations (from opt_water to md) in parallel mode

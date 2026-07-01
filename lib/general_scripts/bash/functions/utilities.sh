@@ -948,7 +948,12 @@ tleap_write_metal_bonds_from_mol2_pdb() {
 	metal_name=$(mol2_atom_name_by_id "$auth_mol2" "$metal_id" || true)
 	[[ -n "$metal_name" ]] || return 0
 
-	# Gather ligand atom names bonded to the metal
+	# Gather ligand atom names bonded to the metal.  Important: the
+	# authoritative MOL2 may still contain long atom names such as Se284,
+	# while PDB/tleap selectors are limited to four characters (SE28).  The
+	# awk block below therefore compares canonical 4-character names, but
+	# prints the actual atom names present in the PDB for the final LEaP bond
+	# commands.
 	local lig_names=()
 	while read -r nid; do
 		[[ -n "$nid" ]] || continue
@@ -958,11 +963,16 @@ tleap_write_metal_bonds_from_mol2_pdb() {
 	done < <(mol2_bonded_atoms "$auth_mol2" "$metal_id" | grep -v '^$')
 	(( ${#lig_names[@]} )) || return 0
 
-	# Map PDB residues to LEaP sequential indices, and find residue+atom names for metal and ligands.
 	awk -v VAR="$varname" \
-	    -v METAL_NAME="$(echo "$metal_name" | tr '[:lower:]' '[:upper:]')" \
-	    -v LIG_LIST="$(printf '%s ' "${lig_names[@]}" | tr '[:lower:]' '[:upper:]' | xargs)" '
+	    -v METAL_NAME="$metal_name" \
+	    -v LIG_LIST="$(printf '%s ' "${lig_names[@]}")" '
 		function trim(s){sub(/^ +/,"",s);sub(/ +$/,"",s);return s}
+		function canon(s,   t){
+			t=s
+			gsub(/[^A-Za-z0-9]/,"",t)
+			t=toupper(t)
+			return substr(t,1,4)
+		}
 		function is_au(line,   el,res,an){
 			el=substr(line,77,2); gsub(/[[:space:]]/,"",el); el=toupper(el)
 			res=substr(line,18,3); gsub(/[[:space:]]/,"",res); res=toupper(res)
@@ -970,23 +980,37 @@ tleap_write_metal_bonds_from_mol2_pdb() {
 			return (el=="AU" || res ~ /^AU/ || an ~ /^AU/)
 		}
 		BEGIN{
-			n=split(LIG_LIST,a," ");
-			for(i=1;i<=n;i++) if(a[i]!="") want[a[i]]=1;
+			n=split(LIG_LIST,a," ")
+			for(i=1;i<=n;i++){
+				c=canon(a[i])
+				if(c!="" && !(c in want_seen)){
+					want[++want_n]=c
+					want_seen[c]=1
+				}
+			}
+			metal_canon=canon(METAL_NAME)
 		}
 		/^(ATOM  |HETATM)/{
 			reskey = substr($0,22,1) "|" substr($0,23,4) "|" substr($0,27,1) "|" substr($0,18,3)
 			if(!(reskey in ridx)) ridx[reskey]=++rc
 			an_raw = trim(substr($0,13,4))
-			an = toupper(an_raw)
+			an = canon(an_raw)
 
-			# Save metal location (prefer exact atom-name match; fallback to element/resname/atomname AU)
-			if (an==METAL_NAME || (met_r==0 && is_au($0))) { met_r = ridx[reskey]; met_an = an_raw }
+			# Save metal location.  Exact name may be Au8 in MOL2 but AU in PDB,
+			# so the element/resname fallback is essential.
+			if (an==metal_canon || (met_r==0 && is_au($0))) {
+				met_r = ridx[reskey]
+				met_an = an_raw
+			}
 
-			# Save ligand locations (atom names are unique in these ligand builds)
-			if (an in want) { lig_r[an]=ridx[reskey]; lig_an[an]=an_raw }
+			if (an in want_seen && !(an in lig_r)) {
+				lig_r[an]=ridx[reskey]
+				lig_an[an]=an_raw
+			}
 		}
 		END{
-			for (k in want){
+			for (i=1;i<=want_n;i++){
+				k=want[i]
 				if (met_r>0 && (k in lig_r)){
 					printf "bond %s.%d.%s %s.%d.%s\n", VAR, lig_r[k], lig_an[k], VAR, met_r, met_an
 				}
@@ -1578,18 +1602,33 @@ mol2_apply_mcpb_ytypes_from_pdb() {
   # If carbon-type wasn’t identified explicitly, fall back to “smallest non-halide”
   [[ -n "$carbon_type" ]] || carbon_type="$nonhalide_type"
 
-  # Helper: intersect a whitespace-separated name list with atom names present in $mol2_file
+  # Helper: intersect a whitespace-separated name list with atom names present in $mol2_file.
+  # Compare by canonical four-character PDB/LEaP atom names.  This is critical for
+  # atoms whose authoritative MOL2 names are longer than the PDB atom-name field
+  # (for example Se284 in CREST becoming SE28 in MCPB/tleap PDB/MOL2 files).
   _mcpb_intersect_with_mol2_names() {
     local names="$1"
     [[ -n "$names" ]] || { echo ""; return 0; }
     awk -v list="$names" '
+      function canon(s,   t){
+        t=s
+        gsub(/[^A-Za-z0-9]/,"",t)
+        t=toupper(t)
+        return substr(t,1,4)
+      }
       BEGIN{
         n=split(list,a,"[[:space:]]+");
-        for (i=1;i<=n;i++) if (a[i]!="") want[toupper(a[i])]=1
+        for (i=1;i<=n;i++) {
+          c=canon(a[i])
+          if (c!="") want[c]=1
+        }
       }
       /^@<TRIPOS>ATOM/{inA=1; next}
       /^@<TRIPOS>/{inA=0}
-      inA && (toupper($2) in want){print $2}
+      inA {
+        c=canon($2)
+        if ((c in want) && !seen[c]++) print $2
+      }
     ' "$mol2_file" | tr "\n" " "
   }
 
@@ -1965,4 +2004,172 @@ mol2_retype_silicon_analogue_after_antechamber_inplace() {
 	' "$mol2" > "$tmp" || die "mol2_retype_silicon_analogue_after_antechamber_inplace: failed to rewrite silicon types in $mol2"
 
 	mv -f "$tmp" "$mol2" || die "mol2_retype_silicon_analogue_after_antechamber_inplace: failed to replace $mol2"
+}
+
+# amber_parm7_check_metal_bonds_from_mol2 PARM7 AUTH_MOL2
+# Validates that every metal-ligand bond present in the authoritative MOL2
+# connectivity table is also present in the final Amber topology.  This catches
+# silent MCPB/tleap failures such as Au--Se disappearing while Au--C remains.
+amber_parm7_check_metal_bonds_from_mol2() {
+	local prmtop="$1"
+	local auth_mol2="$2"
+
+	[[ -f "$prmtop" ]] || die "amber_parm7_check_metal_bonds_from_mol2: missing parm7: $prmtop"
+	[[ -f "$auth_mol2" ]] || die "amber_parm7_check_metal_bonds_from_mol2: missing MOL2: $auth_mol2"
+
+	python - "$prmtop" "$auth_mol2" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+prmtop = Path(sys.argv[1])
+auth_mol2 = Path(sys.argv[2])
+
+METALS = {
+    "AU", "AG", "CU", "ZN", "FE", "MG", "MN", "CO", "NI", "CD", "HG",
+    "PT", "PD", "IR", "RH", "RU", "OS", "AL", "CA", "NA", "K", "SN",
+    "PB", "BI", "ZR", "HF", "TI", "V", "CR", "MO", "W", "RE"
+}
+
+
+def canon(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]", "", name).upper()[:4]
+
+
+def leading_element(name: str, atom_type: str = "") -> str:
+    for raw in (name, atom_type):
+        s = re.sub(r"[^A-Za-z]", "", raw).upper()
+        if len(s) >= 2 and s[:2] in METALS:
+            return s[:2]
+        if len(s) >= 1 and s[:1] in METALS:
+            return s[:1]
+    return ""
+
+
+def is_metal(name: str, atom_type: str = "") -> bool:
+    if atom_type.upper() == "M1":
+        return True
+    return leading_element(name, atom_type) in METALS
+
+
+def read_mol2(path: Path):
+    atoms = {}
+    bonds = []
+    section = None
+    for line in path.read_text(errors="replace").splitlines():
+        if line.startswith("@<TRIPOS>ATOM"):
+            section = "ATOM"
+            continue
+        if line.startswith("@<TRIPOS>BOND"):
+            section = "BOND"
+            continue
+        if line.startswith("@<TRIPOS>"):
+            section = None
+            continue
+        fields = line.split()
+        if section == "ATOM" and len(fields) >= 6 and fields[0].isdigit():
+            atoms[int(fields[0])] = {"name": fields[1], "type": fields[5]}
+        elif section == "BOND" and len(fields) >= 4 and fields[1].isdigit() and fields[2].isdigit():
+            bonds.append((int(fields[1]), int(fields[2])))
+    return atoms, bonds
+
+
+def parse_prmtop(path: Path):
+    lines = path.read_text(errors="replace").splitlines()
+    flags = {}
+    formats = {}
+    current = None
+    for line in lines:
+        if line.startswith("%FLAG"):
+            current = line.split()[1]
+            flags[current] = []
+        elif line.startswith("%FORMAT"):
+            if current:
+                formats[current] = line.strip()
+        elif line.startswith("%"):
+            current = None
+        elif current:
+            flags[current].append(line.rstrip("\n"))
+
+    def width(flag: str) -> int:
+        fmt = formats.get(flag, "")
+        m = re.search(r"\((\d+)([a-zA-Z])(\d+)", fmt)
+        if not m:
+            raise ValueError(f"Cannot parse format for {flag}: {fmt}")
+        return int(m.group(3))
+
+    def parse_fixed(flag: str, kind: str):
+        out = []
+        w = width(flag)
+        for line in flags.get(flag, []):
+            for i in range(0, len(line), w):
+                field = line[i:i+w]
+                if not field.strip():
+                    continue
+                if kind == "str":
+                    out.append(field.strip())
+                elif kind == "int":
+                    out.append(int(field))
+        return out
+
+    names = parse_fixed("ATOM_NAME", "str")
+    types = parse_fixed("AMBER_ATOM_TYPE", "str") if "AMBER_ATOM_TYPE" in flags else [""] * len(names)
+    topo_bonds = set()
+    for flag in ("BONDS_INC_HYDROGEN", "BONDS_WITHOUT_HYDROGEN"):
+        arr = parse_fixed(flag, "int") if flag in flags else []
+        for i in range(0, len(arr), 3):
+            a = arr[i] // 3
+            b = arr[i+1] // 3
+            if a > b:
+                a, b = b, a
+            topo_bonds.add((a, b))
+    return names, types, topo_bonds
+
+mol2_atoms, mol2_bonds = read_mol2(auth_mol2)
+expected = []
+for a, b in mol2_bonds:
+    aa = mol2_atoms.get(a)
+    bb = mol2_atoms.get(b)
+    if not aa or not bb:
+        continue
+    am = is_metal(aa["name"], aa["type"])
+    bm = is_metal(bb["name"], bb["type"])
+    if am and not bm:
+        expected.append((aa, bb))
+    elif bm and not am:
+        expected.append((bb, aa))
+
+if not expected:
+    print("[INFO] No metal-ligand bonds found in authoritative MOL2; topology validation skipped.")
+    sys.exit(0)
+
+names, types, topo_bonds = parse_prmtop(prmtop)
+missing = []
+
+for metal, ligand in expected:
+    metal_elem = leading_element(metal["name"], metal["type"])
+    ligand_key = canon(ligand["name"])
+    found = False
+    for i, j in topo_bonds:
+        ni, ti = names[i], types[i]
+        nj, tj = names[j], types[j]
+        i_metal = is_metal(ni, ti) and (not metal_elem or leading_element(ni, ti) == metal_elem or ti.upper() == "M1")
+        j_metal = is_metal(nj, tj) and (not metal_elem or leading_element(nj, tj) == metal_elem or tj.upper() == "M1")
+        if i_metal and canon(nj) == ligand_key:
+            found = True
+            break
+        if j_metal and canon(ni) == ligand_key:
+            found = True
+            break
+    if not found:
+        missing.append((metal["name"], ligand["name"], metal_elem, ligand_key))
+
+if missing:
+    print("[ERROR] Missing metal-ligand bond(s) in final Amber topology:", file=sys.stderr)
+    for metal_name, ligand_name, metal_elem, ligand_key in missing:
+        print(f"  expected {metal_name}--{ligand_name} ({metal_elem}--{ligand_key})", file=sys.stderr)
+    sys.exit(1)
+
+print(f"[INFO] Metal-ligand topology validation OK: {len(expected)} expected bond(s) present.")
+PY
 }

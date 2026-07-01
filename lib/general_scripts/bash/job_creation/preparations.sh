@@ -1725,8 +1725,21 @@ run_tleap() {
 	local ok="$JOB_DIR/.ok"
 	if [[ -f "$ok" ]]; then
 		if [[ -s "$JOB_DIR/${name}.rst7" && -s "$JOB_DIR/${name}.parm7" ]]; then
-			info "$job_name already complete; skipping"
-			return 0
+			# A previous run may have produced files before metal-bond validation existed.
+			# Do not silently reuse a topology that lost an MCPB metal-ligand bond.
+			local _auth_check="process/preparations/crest/${name}_crest.mol2"
+			if [[ -f "$_auth_check" ]]; then
+				if amber_parm7_check_metal_bonds_from_mol2 "$JOB_DIR/${name}.parm7" "$_auth_check"; then
+					info "$job_name already complete; skipping"
+					return 0
+				else
+					warning "$job_name output failed metal-bond validation; rebuilding topology"
+					rm -f "$ok" "$JOB_DIR/${name}.rst7" "$JOB_DIR/${name}.parm7"
+				fi
+			else
+				info "$job_name already complete; skipping"
+				return 0
+			fi
 		else
 			rm -f "$ok"
 		fi
@@ -2506,6 +2519,14 @@ fi
 	#Check that the final files are truly present
 	check_res_file "${name}.rst7" "$JOB_DIR" "$job_name"
 	check_res_file "${name}.parm7" "$JOB_DIR" "$job_name"
+
+	# Final hard gate: every metal-ligand bond from the authoritative MOL2 must
+	# exist in the Amber topology before any minimization/MD can start.
+	local auth_check_mol2="process/preparations/crest/${name}_crest.mol2"
+	if [[ -f "$auth_check_mol2" ]]; then
+		amber_parm7_check_metal_bonds_from_mol2 "$JOB_DIR/${name}.parm7" "$auth_check_mol2" \
+			|| die "Final Amber topology is missing at least one authoritative metal-ligand bond; refusing to continue."
+	fi
 
 	success "$job_name has finished correctly"
 	mark_step_ok "$JOB_DIR"
